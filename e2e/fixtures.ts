@@ -35,6 +35,13 @@ export const TEXT = {
     customerCancelled: "The vendor cancelled this charge. Nothing was paid.",
     typeOrder: "Type the order",
     typeAdd: "Add",
+    menuNameEn: "Name (English)",
+    menuNameEs: "Name (Spanish)",
+    menuPrice: "Price",
+    menuAliases: "Aliases (comma-separated)",
+    menuAdd: "Add item",
+    menuSave: "Save menu",
+    menuSaved: /Menu saved: \d+ items/,
   },
   es: {
     online: "En línea",
@@ -68,6 +75,13 @@ export const TEXT = {
     customerCancelled: "La vendedora canceló este cobro. No se pagó nada.",
     typeOrder: "Escribe el pedido",
     typeAdd: "Agregar",
+    menuNameEn: "Nombre (inglés)",
+    menuNameEs: "Nombre (español)",
+    menuPrice: "Precio",
+    menuAliases: "Alias (separados por coma)",
+    menuAdd: "Agregar producto",
+    menuSave: "Guardar menú",
+    menuSaved: /Menú guardado: \d+ productos/,
   },
 } as const;
 

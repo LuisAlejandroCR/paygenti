@@ -217,6 +217,21 @@ const en = {
   "reason.PIN_LOCKED": "Too many attempts. Wait a few minutes.",
   "reason.COMMITTED": "Operation recorded.",
   "reason.RELEASED": "Permit released without using the budget.",
+  "menu.title": "Menu",
+  "menu.photo": "Take or upload a menu photo",
+  "menu.reading": "Reading the menu…",
+  "menu.proposed": "Review the proposed items, then save. Nothing is saved yet.",
+  "menu.noVision": "Photo reading is not available. Add the items by hand.",
+  "menu.photoFailed": "Could not read that photo. Try another one or add the items by hand.",
+  "menu.nameEn": "Name (English)",
+  "menu.nameEs": "Name (Spanish)",
+  "menu.price": "Price",
+  "menu.aliases": "Aliases (comma-separated)",
+  "menu.add": "Add item",
+  "menu.remove": "Remove item {n}",
+  "menu.save": "Save menu",
+  "menu.saved": "Menu saved: {count} items.",
+  "menu.invalid": "Check the items: each one needs a name and a price above zero.",
 } as const;
 
 export type Key = keyof typeof en;
@@ -432,6 +447,21 @@ const es: Dict = {
   "reason.PIN_LOCKED": "Demasiados intentos. Espera unos minutos.",
   "reason.COMMITTED": "Operación registrada.",
   "reason.RELEASED": "Permiso liberado sin cobrar presupuesto.",
+  "menu.title": "Menú",
+  "menu.photo": "Toma o sube una foto del menú",
+  "menu.reading": "Leyendo el menú…",
+  "menu.proposed": "Revisa los productos propuestos y guarda. Todavía no se guardó nada.",
+  "menu.noVision": "La lectura de fotos no está disponible. Agrega los productos a mano.",
+  "menu.photoFailed": "No se pudo leer esa foto. Prueba con otra o agrega los productos a mano.",
+  "menu.nameEn": "Nombre (inglés)",
+  "menu.nameEs": "Nombre (español)",
+  "menu.price": "Precio",
+  "menu.aliases": "Alias (separados por coma)",
+  "menu.add": "Agregar producto",
+  "menu.remove": "Quitar producto {n}",
+  "menu.save": "Guardar menú",
+  "menu.saved": "Menú guardado: {count} productos.",
+  "menu.invalid": "Revisa los productos: cada uno necesita nombre y un precio mayor que cero.",
 };
 
 export const DICTIONARIES: Record<Locale, Dict> = { en, es };

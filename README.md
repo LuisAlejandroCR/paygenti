@@ -48,6 +48,16 @@ payment the server captured with PayPal makes a sound, so a fake "payment sent" 
 If the connection drops it shows a red offline badge and reconnects by itself, and it never repeats an
 announcement it already made.
 
+## Menu photo → catalog
+
+In `/backoffice` (after the PIN), the **Menu** panel lets the vendor snap or upload a photo of
+her menu board. The phone downscales it (max 1600 px JPEG) and, with `ANTHROPIC_API_KEY` set,
+Claude vision **proposes** items (names in English and Spanish, price, aliases). Text in the photo
+is treated as data, never instructions; the proposal is validated and is never saved on its own.
+She reviews the table, edits, adds or removes rows and taps **Save** — the voice parser and the
+vendor app use the new catalog immediately, and the save is written to the audit log. Without a
+key the same table works for manual entry.
+
 ## Run locally
 
 Requires Node 22+.
@@ -123,6 +133,8 @@ del navegador; botón EN/ES arriba).
 
 - **Prueba rápida:** abre `/judge` — vendedora a la izquierda, cliente a la derecha. Marca `95`,
   toca **Cobrar**, y en el panel del cliente toca **Pagar (simulado)**.
+- **Menú por foto:** en `/backoffice`, panel **Menú**: toma una foto del pizarrón; con
+  `ANTHROPIC_API_KEY` Claude propone los productos, tú revisas y guardas (sin llave, captura manual).
 - **Correrlo:** `npm install`, luego `npm run dev` + `npm run dev:web`, o `npm run build` +
   `npm start`.
 - **Sin llaves** funciona con un PayPal simulado; para sandbox llena `.env.local` según

@@ -10,6 +10,7 @@ import { z } from "zod";
 import type { ModelClient } from "./backoffice/agent";
 import { backofficeRoutes } from "./backoffice/routes";
 import { BackOffice } from "./backoffice/tools";
+import type { VisionClient } from "./catalog/extract";
 import { type Lang, pickLang } from "./lang";
 import { PayPalError, type PayPalGateway } from "./paypal/gateway";
 import { MockPayPal } from "./paypal/mock";
@@ -35,6 +36,8 @@ export interface AppDeps {
   vendorPin?: string;
   /** Claude client for /api/backoffice/agent; omitted when there is no ANTHROPIC_API_KEY. */
   agentModel?: ModelClient;
+  /** Claude vision for menu photo -> catalog; omitted when there is no ANTHROPIC_API_KEY. */
+  menuVision?: VisionClient;
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -65,6 +68,12 @@ const limit = bodyLimit({
   maxSize: 64 * 1024,
   onError: (c) => c.json({ error: "BODY_TOO_LARGE" }, 413),
 });
+/** Menu photos: a 4 MB image, base64 in JSON or multipart, plus envelope. */
+const imageLimit = bodyLimit({
+  maxSize: 6 * 1024 * 1024,
+  onError: (c) => c.json({ error: "IMAGE_TOO_LARGE" }, 413),
+});
+const EXTRACT_PATH = "/api/backoffice/catalog/extract";
 
 export function createApp(deps: AppDeps): Hono {
   const { paypal } = deps;
@@ -83,7 +92,7 @@ export function createApp(deps: AppDeps): Hono {
     return c.json({ error: "INTERNAL" }, 500);
   });
 
-  app.use("/api/*", limit);
+  app.use("/api/*", (c, next) => (c.req.path === EXTRACT_PATH ? imageLimit : limit)(c, next));
   app.use("/webhooks/*", limit);
 
   app.get("/api/health", (c) => c.json({ ok: true, paypal: paypal.mode }));
@@ -256,7 +265,14 @@ export function createApp(deps: AppDeps): Hono {
   const office = new BackOffice({ sales, paypal, policy, clock: deps.clock });
   app.route(
     "/api/backoffice",
-    backofficeRoutes({ office, model: deps.agentModel, clock: deps.clock }),
+    backofficeRoutes({
+      office,
+      model: deps.agentModel,
+      clock: deps.clock,
+      store: sales.store,
+      vendorId: "rosa",
+      vision: deps.menuVision,
+    }),
   );
 
   app.all("/api/*", (c) => c.json({ error: "NOT_FOUND" }, 404));
