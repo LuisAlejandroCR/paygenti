@@ -3,9 +3,10 @@
 import { describe, expect, it } from "vitest";
 import { createApp, pickLang } from "../server/app";
 import { MockPayPal } from "../server/paypal/mock";
+import { DEFAULT_POLICY_CONFIG, decide } from "../server/policy/rules";
 import { money } from "../shared/money";
 import { paidAnnouncement } from "../web/src/announce";
-import { DICTIONARIES, detectLocale, speechLang, translate } from "../web/src/i18n";
+import { DICTIONARIES, detectLocale, reasonText, speechLang, translate } from "../web/src/i18n";
 
 describe("detectLocale", () => {
   it("picks Spanish for es* and English for anything else", () => {
@@ -72,5 +73,36 @@ describe("Accept-Language on /t/:terminal", () => {
     const esText = await es.text();
     expect(esText).toContain('lang="es-MX"');
     expect(esText).toContain("No hay una venta abierta");
+  });
+});
+
+describe("policy reason codes", () => {
+  it("localizes REFUND_OVER_CAP from code + params in both languages", () => {
+    const d = decide(
+      {
+        kind: "refund",
+        saleId: "s1",
+        captureId: "c1",
+        amount: money(50000, "MXN"),
+        capturedAt: "2026-10-06T12:00:00Z",
+        capturedAmount: money(90000, "MXN"),
+        alreadyRefunded: money(0, "MXN"),
+      },
+      {
+        actor: "vendor",
+        pinVerified: true,
+        now: new Date("2026-10-06T12:05:00Z"),
+        refundedToday: money(0, "MXN"),
+        paidOutToday: money(0, "MXN"),
+        config: DEFAULT_POLICY_CONFIG,
+        vendorName: "Rosa",
+      },
+    );
+    expect(d).toMatchObject({ allow: false, code: "REFUND_OVER_CAP" });
+    expect(reasonText(d.code, d.params, undefined, "en")).toBe(
+      "The maximum per refund is $200.00 MXN; you asked for $500.00 MXN.",
+    );
+    expect(reasonText(d.code, d.params, undefined, "es")).toContain("$200.00 MXN");
+    expect(reasonText("NOT_A_CODE", undefined, "fallback", "en")).toBe("fallback");
   });
 });

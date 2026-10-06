@@ -6,7 +6,7 @@ import QRCode from "qrcode";
 import { type Money, money } from "../../shared/money";
 import type { Sale } from "../../shared/types";
 import { PayPalError, type PayPalGateway } from "../paypal/gateway";
-import { type Actor, localDay, type PolicyEngine } from "../policy";
+import { type Actor, type DecisionParams, localDay, type PolicyEngine } from "../policy";
 import type { SalesService } from "../sales";
 
 export interface SalesTodayReport {
@@ -89,8 +89,15 @@ export interface Authority {
 }
 
 export type RefundResult =
-  | { ok: true; refundId: string; amount: Money; reason: string }
-  | { ok: false; code: string; reason: string };
+  | {
+      ok: true;
+      refundId: string;
+      amount: Money;
+      code: string;
+      reason: string;
+      params?: DecisionParams;
+    }
+  | { ok: false; code: string; reason: string; params?: DecisionParams };
 
 export interface BackOfficeDeps {
   sales: SalesService;
@@ -246,7 +253,7 @@ export class BackOffice {
   async createInvoice(amount: Money, description: string, who: Authority): Promise<InvoiceResult> {
     const decision = this.policy.decide({ kind: "create_invoice", amount }, { actor: who.actor });
     if (!decision.allow || !decision.ticket)
-      throw new BackOfficeError(decision.code, decision.reason);
+      throw new BackOfficeError(decision.code, decision.reason, decision.params);
     try {
       const inv = await this.paypal.createInvoice({
         amount,
@@ -287,7 +294,7 @@ export class BackOffice {
       { actor: who.actor, pin: who.pin },
     );
     if (!decision.allow || !decision.ticket)
-      return { ok: false, code: decision.code, reason: decision.reason };
+      return { ok: false, code: decision.code, reason: decision.reason, params: decision.params };
     try {
       const refund = await this.paypal.refundCapture(
         sale.captureId,
@@ -302,7 +309,14 @@ export class BackOffice {
       const total = already + req.amount.minor;
       this.refundedByCapture.set(sale.captureId, total);
       if (total >= sale.total.minor) this.sales.store.saveSale({ ...sale, status: "refunded" });
-      return { ok: true, refundId: refund.id, amount: req.amount, reason: decision.reason };
+      return {
+        ok: true,
+        refundId: refund.id,
+        amount: req.amount,
+        code: decision.code,
+        reason: decision.reason,
+        params: decision.params,
+      };
     } catch (err) {
       this.policy.release(decision.ticket);
       if (err instanceof PayPalError)
@@ -316,6 +330,7 @@ export class BackOfficeError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    readonly params?: DecisionParams,
   ) {
     super(message);
     this.name = "BackOfficeError";

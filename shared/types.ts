@@ -2,9 +2,17 @@
 // The server is the source of truth; the web app only renders these shapes.
 import type { Currency, Money } from "./money";
 
+/** Display name per UI locale; `name` stays the English canonical name sent to PayPal. */
+export interface LocalizedName {
+  en: string;
+  es: string;
+}
+
 export interface CatalogItem {
   sku: string;
+  /** English canonical name (PayPal line items, logs). */
   name: string;
+  names?: LocalizedName;
   /** Extra names the voice parser should match, e.g. "rajas" for "tamal de rajas". */
   aliases: string[];
   price: Money;
@@ -26,7 +34,9 @@ export interface Terminal {
 
 export interface CartLine {
   sku: string;
+  /** English canonical name (PayPal line items). */
   name: string;
+  names?: LocalizedName;
   qty: number;
   unitPrice: Money;
 }
