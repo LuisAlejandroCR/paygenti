@@ -34,6 +34,20 @@ Open **`/judge`** (locally: <http://localhost:8787/judge>). One screen, two pane
 
 No keys are needed: without PayPal credentials the server runs against an in-memory mock gateway.
 
+## Soundbox: an old phone on the counter
+
+Open **`/soundbox?terminal=rosa-01`** (also linked from `/judge` as **Open soundbox**). It shows the
+stall QR while idle, the open amount during a sale, and a huge **PAID** that it says out loud. Only a
+payment the server captured with PayPal makes a sound, so a fake "payment sent" screenshot stays silent.
+
+1. On an old Android phone, open the soundbox URL in Chrome and choose **Add to Home screen** / **Install app**.
+2. Open it from the home screen and tap **Tap to enable sound** once (browsers block audio until a tap).
+3. Tap **Full screen**; the page keeps the screen awake (Wake Lock) where supported. Keep it plugged in.
+4. Optional kiosk: Android *Screen pinning* (Settings > Security) keeps it on this app.
+
+If the connection drops it shows a red offline badge and reconnects by itself, and it never repeats an
+announcement it already made.
+
 ## Run locally
 
 Requires Node 22+.
@@ -113,6 +127,8 @@ del navegador; botón EN/ES arriba).
   `npm start`.
 - **Sin llaves** funciona con un PayPal simulado; para sandbox llena `.env.local` según
   `.env.example`.
+- **Bocina:** abre `/soundbox?terminal=rosa-01` en un Android viejo, instálala, toca una vez para
+  activar el sonido y déjala en pantalla completa: solo los pagos confirmados por PayPal suenan.
 - **Candado:** la IA solo propone; las devoluciones exigen el PIN cada vez y tienen topes.
 
 La spec y el plan por bloques están en [docs/plan.md](docs/plan.md).
