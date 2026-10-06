@@ -145,7 +145,7 @@ export function VendorApp({
     <main class={`vendor phase-${phase}`}>
       <header class="bar">
         <span class="stall">{stall || "paygent"}</span>
-        <span class={online ? "dot on" : "dot"} role="status">
+        <span class={online ? "status on" : "status"} role="status">
           {online ? t("app.online") : t("app.offline")}
         </span>
         <LangToggle />
