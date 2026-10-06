@@ -219,33 +219,22 @@ export function createApp(deps: AppDeps): Hono {
 
   app.get("/t/:terminal", (c) => {
     c.header("Cache-Control", "no-store");
+    c.header("Vary", "Accept-Language");
+    const lang = pickLang(c.req.header("accept-language"));
+    const msg = PAGE_TEXT[lang];
     const id = terminalId.safeParse(c.req.param("terminal"));
     const terminal = id.success ? sales.store.getTerminal(id.data) : undefined;
-    if (!terminal)
-      return c.html(
-        page("Puesto no encontrado", "Este código no corresponde a ningún puesto."),
-        404,
-      );
+    if (!terminal) return c.html(page(lang, msg.notFoundTitle, msg.notFound), 404);
     const open = sales.openSale(terminal.id);
     if (open) return c.redirect(`/pay/${open.id}`, 302);
     const vendor = sales.store.getVendor(terminal.vendorId);
     const title = vendor?.displayName ?? terminal.label;
     const last = sales.store.salesForTerminal(terminal.id)[0];
     if (last?.status === "paid" || last?.status === "refunded")
-      return c.html(page(title, "Tu último pago ya quedó registrado. ¡Gracias por tu compra!"));
+      return c.html(page(lang, title, msg.paid));
     if (last?.status === "expired" || last?.status === "failed")
-      return c.html(
-        page(
-          title,
-          "El último cobro ya no está disponible. Pide a la vendedora que marque un cobro nuevo y vuelve a escanear.",
-        ),
-      );
-    return c.html(
-      page(
-        title,
-        "No hay una venta abierta en este momento. Pide a la vendedora que marque el cobro y vuelve a escanear.",
-      ),
-    );
+      return c.html(page(lang, title, msg.gone));
+    return c.html(page(lang, title, msg.none));
   });
 
   const policy =
@@ -284,7 +273,44 @@ async function readJson(c: Context): Promise<unknown> {
   }
 }
 
-function page(title: string, message: string): string {
+type Lang = "en" | "es";
+
+const PAGE_TEXT: Record<
+  Lang,
+  Record<"notFoundTitle" | "notFound" | "paid" | "gone" | "none", string>
+> = {
+  en: {
+    notFoundTitle: "Stall not found",
+    notFound: "This code does not belong to any stall.",
+    paid: "Your last payment was recorded. Thanks for your purchase!",
+    gone: "The last charge is no longer available. Ask the vendor for a new charge and scan again.",
+    none: "There is no open sale right now. Ask the vendor to ring it up and scan again.",
+  },
+  es: {
+    notFoundTitle: "Puesto no encontrado",
+    notFound: "Este código no corresponde a ningún puesto.",
+    paid: "Tu último pago ya quedó registrado. ¡Gracias por tu compra!",
+    gone: "El último cobro ya no está disponible. Pide a la vendedora que marque un cobro nuevo y vuelve a escanear.",
+    none: "No hay una venta abierta en este momento. Pide a la vendedora que marque el cobro y vuelve a escanear.",
+  },
+};
+
+/** English by default; Spanish when it outranks English in Accept-Language. */
+export function pickLang(header: string | undefined): Lang {
+  if (!header) return "en";
+  const ranked = header
+    .split(",")
+    .map((part) => {
+      const [tag = "", ...params] = part.trim().toLowerCase().split(";");
+      const q = params.find((p) => p.trim().startsWith("q="));
+      return { tag: tag.trim(), q: q ? Number(q.trim().slice(2)) || 0 : 1 };
+    })
+    .filter((x) => x.tag.startsWith("es") || x.tag.startsWith("en"))
+    .sort((x, y) => y.q - x.q);
+  return ranked[0]?.tag.startsWith("es") ? "es" : "en";
+}
+
+function page(lang: Lang, title: string, message: string): string {
   const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
-  return `<!doctype html><html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><style>body{font-family:system-ui,sans-serif;margin:0;padding:24px;background:#fffaf2;color:#1f1a14;display:flex;min-height:100vh;box-sizing:border-box;align-items:center;justify-content:center;text-align:center}main{max-width:28rem}h1{font-size:1.6rem}p{font-size:1.2rem;line-height:1.5}</style></head><body><main><h1>${esc(title)}</h1><p>${esc(message)}</p></main></body></html>`;
+  return `<!doctype html><html lang="${lang === "es" ? "es-MX" : "en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><style>body{font-family:system-ui,sans-serif;margin:0;padding:24px;background:#fffaf2;color:#1f1a14;display:flex;min-height:100vh;box-sizing:border-box;align-items:center;justify-content:center;text-align:center}main{max-width:28rem}h1{font-size:1.6rem}p{font-size:1.2rem;line-height:1.5}</style></head><body><main><h1>${esc(title)}</h1><p>${esc(message)}</p></main></body></html>`;
 }

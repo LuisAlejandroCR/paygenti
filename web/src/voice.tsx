@@ -4,6 +4,7 @@ import { useRef, useState } from "preact/hooks";
 import { formatMoney, type Money, money } from "../../shared/money";
 import type { CartLine } from "../../shared/types";
 import { api } from "./api";
+import { speechLang, useT } from "./i18n";
 
 interface Recognition {
   lang: string;
@@ -52,6 +53,7 @@ interface Props {
 }
 
 export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
+  const { t, locale } = useT();
   const Ctor = recognitionCtor();
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState("");
@@ -66,27 +68,27 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
     try {
       const r = await api.parseVoice(text, vendorId);
       if (r.lines.length === 0) {
-        setNote("No reconocí productos. Intenta de nuevo o usa el teclado.");
+        setNote(t("voice.noProducts"));
         return;
       }
       onCart(mergeLines(cartRef.current, r.lines));
-      if (r.unmatched.length > 0) setNote(`No entendí: ${r.unmatched.join(", ")}`);
+      if (r.unmatched.length > 0) setNote(t("voice.unmatched", { items: r.unmatched.join(", ") }));
     } catch {
-      setNote("No se pudo interpretar el pedido. Revisa la conexión.");
+      setNote(t("voice.parseFailed"));
     }
   }
 
   function start() {
     if (!Ctor || listening) return;
     const r = new Ctor();
-    r.lang = "es-MX";
+    r.lang = speechLang(locale);
     r.interimResults = false;
     r.maxAlternatives = 1;
     r.onresult = (e) => {
       const text = e.results[0]?.[0]?.transcript ?? "";
       if (text.trim()) void parse(text);
     };
-    r.onerror = () => setNote("No te escuché. Mantén presionado y habla cerca del teléfono.");
+    r.onerror = () => setNote(t("voice.notHeard"));
     r.onend = () => setListening(false);
     rec.current = r;
     setListening(true);
@@ -110,7 +112,7 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
   }
 
   return (
-    <section class="voice" aria-label="Pedido por voz">
+    <section class="voice" aria-label={t("voice.label")}>
       {Ctor ? (
         <button
           type="button"
@@ -120,10 +122,10 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
           onPointerUp={stop}
           onPointerLeave={stop}
         >
-          {listening ? "Escuchando… suelta para terminar" : "Mantén presionado y di el pedido"}
+          {listening ? t("voice.listening") : t("voice.hold")}
         </button>
       ) : (
-        <p class="hint">Tu navegador no permite dictar. Usa el teclado de abajo.</p>
+        <p class="hint">{t("voice.unsupported")}</p>
       )}
       {heard && <p class="heard">«{heard}»</p>}
       {note && <p class="hint">{note}</p>}
@@ -137,7 +139,7 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
                   <button
                     type="button"
                     class="step"
-                    aria-label={`Quitar uno de ${l.name}`}
+                    aria-label={t("voice.removeOne", { name: l.name })}
                     onClick={() => setQty(l.sku, l.qty - 1)}
                   >
                     −
@@ -146,7 +148,7 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
                   <button
                     type="button"
                     class="step"
-                    aria-label={`Agregar uno de ${l.name}`}
+                    aria-label={t("voice.addOne", { name: l.name })}
                     onClick={() => setQty(l.sku, l.qty + 1)}
                   >
                     +
@@ -158,7 +160,7 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
                 <button
                   type="button"
                   class="step remove"
-                  aria-label={`Eliminar ${l.name}`}
+                  aria-label={t("voice.removeAll", { name: l.name })}
                   onClick={() => setQty(l.sku, 0)}
                 >
                   ×
@@ -167,10 +169,12 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
             ))}
           </ul>
           <button type="button" class="primary" disabled={busy} onClick={onCharge}>
-            {busy ? "Creando…" : `Cobrar ${formatMoney(cartTotal(cart))}`}
+            {busy
+              ? t("vendor.creating")
+              : t("vendor.chargeAmount", { amount: formatMoney(cartTotal(cart)) })}
           </button>
           <button type="button" class="secondary" onClick={() => onCart([])}>
-            Vaciar carrito
+            {t("voice.clear")}
           </button>
         </>
       )}

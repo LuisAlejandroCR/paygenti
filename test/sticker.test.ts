@@ -6,6 +6,8 @@ import { MockPayPal } from "../server/paypal/mock";
 import { SALE_TTL_MS, SalesService } from "../server/sales";
 import { MemoryStore } from "../server/store";
 
+const ES = { "Accept-Language": "es-MX,es;q=0.9,en;q=0.5" };
+
 function setup() {
   let now = Date.parse("2026-10-06T12:00:00Z");
   const paypal = new MockPayPal();
@@ -18,13 +20,13 @@ describe("/t/:terminal", () => {
   it("redirects to the open sale", async () => {
     const t = setup();
     const sale = await t.sales.createSale("rosa-01", { amount: 5000 });
-    const res = await t.app.request("/t/rosa-01");
+    const res = await t.app.request("/t/rosa-01", { headers: ES });
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe(`/pay/${sale.id}`);
   });
 
   it("says there is no sale when the terminal has none", async () => {
-    const res = await setup().app.request("/t/rosa-01");
+    const res = await setup().app.request("/t/rosa-01", { headers: ES });
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("No hay una venta abierta");
   });
@@ -34,7 +36,7 @@ describe("/t/:terminal", () => {
     const sale = await t.sales.createSale("rosa-01", { amount: 5000 });
     t.paypal.approve(sale.orderId);
     expect((await t.sales.capture(sale.id)).status).toBe("paid");
-    const res = await t.app.request("/t/rosa-01");
+    const res = await t.app.request("/t/rosa-01", { headers: ES });
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("ya quedó registrado");
   });
@@ -43,7 +45,7 @@ describe("/t/:terminal", () => {
     const t = setup();
     await t.sales.createSale("rosa-01", { amount: 5000 });
     t.advance(SALE_TTL_MS + 1);
-    const res = await t.app.request("/t/rosa-01");
+    const res = await t.app.request("/t/rosa-01", { headers: ES });
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("ya no está disponible");
   });
