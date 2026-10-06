@@ -92,7 +92,7 @@ describe("checkout flow (mock)", () => {
 
     const after = await t.app.request("/t/rosa-01");
     expect(after.status).toBe(200);
-    expect(await after.text()).toContain("No hay una venta abierta");
+    expect(await after.text()).toContain("ya quedó registrado");
   });
 
   it("captures only once (sequential and concurrent)", async () => {
