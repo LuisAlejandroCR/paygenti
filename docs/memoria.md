@@ -4,6 +4,25 @@
 
 # Memoria — paygent
 
+## 2026-10-06 — Bloque 4: el cerrojo (`server/policy/`)
+
+- `decide(action, context)` es puro y falla cerrado: acción, actor, monto o zona horaria raros →
+  denegado con código (`POLICY_ERROR`, `MALFORMED_ACTION`, …). Las razones van en es-MX con el
+  nombre de la vendedora porque se dicen en voz alta.
+- Reembolso/pago: solo `vendor` con PIN verificado; `customer` → `CUSTOMER_NOT_AUTHORIZED`.
+  Topes MXN: 200 por reembolso, 1 000 al día, solo capturas del mismo día local
+  (America/Mexico_City); pagos solo a allowlist (vacía por defecto), 500 al día. Aceptar disputa:
+  siempre denegado, lo decide la vendedora a mano.
+- El PIN lo verifica el `PolicyEngine`, no el agente: hash con sal + `timingSafeEqual`, bloqueo de
+  5 min tras 5 fallos. El log de auditoría quita cualquier campo con forma de PIN/secreto.
+- Presupuesto en dos pasos: `decide` reserva con un ticket (las reservas pendientes cuentan contra
+  el tope diario y contra el saldo de la captura, para que dos reembolsos simultáneos no se
+  cuelen), `commit` lo consume cuando PayPal confirma, `release` lo libera si PayPal falla. Los
+  tickets vencen a los 5 min. Contadores reinician a medianoche local.
+- Batería de inyección: 20 propuestas hostiles (más de 50 intentos) → 0 permitidas.
+- ⏳ Pendiente para quien cablee el agente: pasar `actor` desde la sesión del servidor, nunca desde
+  la salida del modelo; y los contadores viven en memoria (un reinicio los pone en cero).
+
 ## 2026-10-06 — Bloque 3 (núcleo): voz → carrito en `server/voice/`
 
 - Parser por reglas determinista (`rules.ts`): números en español hasta «veinte», dígitos, «media
