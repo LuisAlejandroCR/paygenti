@@ -6,8 +6,11 @@ import { getConnInfo } from "@hono/node-server/conninfo";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { money } from "../../shared/money";
+import { buildCatalog, catalogInput } from "../catalog/catalog";
+import { ExtractError, extractMenu, MAX_IMAGE_BYTES, type VisionClient } from "../catalog/extract";
 import { pickLang } from "../lang";
 import { PayPalError } from "../paypal/gateway";
+import type { Store } from "../store";
 import { type ModelClient, runAgent } from "./agent";
 import { type Authority, type BackOffice, BackOfficeError } from "./tools";
 
@@ -34,7 +37,19 @@ export interface BackOfficeRouteDeps {
   office: BackOffice;
   model?: ModelClient;
   clock?: () => number;
+  /** Where the catalog lives and whose catalog the back office edits. */
+  store: Store;
+  vendorId: string;
+  /** Claude vision for menu photos; omitted when there is no ANTHROPIC_API_KEY. */
+  vision?: VisionClient;
 }
+
+const imageJson = z.strictObject({
+  image: z
+    .string()
+    .min(1)
+    .max(Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 64),
+});
 
 export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
   const { office, model } = deps;
@@ -129,6 +144,60 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
     }
   });
 
+  app.get("/catalog", (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const vendor = deps.store.getVendor(deps.vendorId);
+    return c.json({
+      currency: vendor?.currency,
+      items: vendor?.catalog ?? [],
+      vision: !!deps.vision,
+    });
+  });
+
+  app.put("/catalog", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const vendor = deps.store.getVendor(deps.vendorId);
+    if (!vendor) return c.json({ error: "VENDOR_NOT_FOUND" }, 404);
+    const body = catalogInput.safeParse(await readJson(c));
+    if (!body.success)
+      return c.json(
+        { error: "INVALID_CATALOG", issues: body.error.issues.map((i) => i.path.join(".")) },
+        400,
+      );
+    const catalog = buildCatalog(body.data.items, vendor.currency);
+    deps.store.setCatalog(vendor.id, catalog);
+    office.policy.audit.append({
+      at: new Date(clock()).toISOString(),
+      event: "catalog",
+      actor: "vendor",
+      action: { type: "catalog.save", vendorId: vendor.id, skus: catalog.map((i) => i.sku) },
+      decision: { allow: true, code: "CATALOG_SAVED", reason: `${catalog.length} items saved` },
+    });
+    return c.json({ items: catalog });
+  });
+
+  // Proposes items only; nothing is saved until the vendor reviews them and calls PUT /catalog.
+  app.post("/catalog/extract", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    if (!deps.vision) return c.json({ error: "VISION_DISABLED" }, 503);
+    const bytes = await readImage(c);
+    if (!bytes) return c.json({ error: "INVALID_BODY" }, 400);
+    try {
+      const currency = deps.store.getVendor(deps.vendorId)?.currency ?? "MXN";
+      return c.json({ items: await extractMenu(bytes, currency, deps.vision) });
+    } catch (err) {
+      if (!(err instanceof ExtractError)) throw err;
+      if (err.code === "EXTRACT_FAILED") {
+        console.error(`menu extract failed: ${err.message}`);
+        return c.json({ error: err.code }, 502);
+      }
+      return c.json({ error: err.code }, err.code === "IMAGE_TOO_LARGE" ? 413 : 415);
+    }
+  });
+
   app.get("/audit", (c) => requireVendor(c) ?? c.json({ entries: office.policy.audit.entries() }));
 
   return app;
@@ -153,6 +222,24 @@ function isDay(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(`${s}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
+}
+
+/** Image bytes from multipart (field "image") or JSON `{ image: base64 | data URL }`. */
+async function readImage(c: Context): Promise<Uint8Array | undefined> {
+  const type = c.req.header("content-type") ?? "";
+  try {
+    if (type.startsWith("multipart/form-data")) {
+      const file = (await c.req.parseBody()).image;
+      return file instanceof File ? new Uint8Array(await file.arrayBuffer()) : undefined;
+    }
+    const body = imageJson.safeParse(await c.req.json());
+    if (!body.success) return undefined;
+    const b64 = body.data.image.replace(/^data:[^;,]*;base64,/, "");
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return undefined;
+    return new Uint8Array(Buffer.from(b64, "base64"));
+  } catch {
+    return undefined;
+  }
 }
 
 async function readJson(c: Context): Promise<unknown> {

@@ -96,6 +96,10 @@ Reglas de arquitectura:
 - [x] Soundbox (T3a) en `/soundbox?terminal=rosa-01`: Android viejo en kiosko que anuncia en voz alta
       solo pagos capturados por el servidor (una captura de pantalla falsa no suena); QR en reposo,
       Wake Lock, pantalla completa, reconexión SSE con backoff, sin re-anuncios; instalable (manifest + SW).
+- [x] Foto del menú → catálogo en `/backoffice` (panel «Menú»): Claude vision propone productos
+      (imagen = datos no confiables, salida validada con zod, nunca se guarda sola); la vendedora
+      revisa/edita y guarda con `PUT /api/backoffice/catalog` (SKUs generados, auditado). Sin
+      `ANTHROPIC_API_KEY` → 503 y captura manual; el parser de voz usa el catálogo nuevo al instante.
 
 ## Fuera de alcance hasta que los bloques 0–5 corran
 
