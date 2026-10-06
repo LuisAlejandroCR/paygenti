@@ -14,3 +14,7 @@ AGENTS.md
 CLAUDE.md
 .claude/
 coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright-cli/

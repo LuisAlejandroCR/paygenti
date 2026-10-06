@@ -215,14 +215,16 @@ export function BackOfficeApp() {
   return (
     <main class="backoffice">
       <header class="bar">
-        <span class="stall">{t("bo.title")}</span>
-        <LangToggle />
-        <a class="secondary" href="/backoffice/ledger">
-          {t("ledger.open")}
-        </a>
-        <button type="button" class="secondary" onClick={() => setToken(null)}>
-          {t("bo.exit")}
-        </button>
+        <h1 class="stall">{t("bo.title")}</h1>
+        <nav class="bar-actions">
+          <LangToggle />
+          <a class="bar-btn" href="/backoffice/ledger">
+            {t("ledger.open")}
+          </a>
+          <button type="button" class="bar-btn" onClick={() => setToken(null)}>
+            {t("bo.exit")}
+          </button>
+        </nav>
       </header>
       {error && (
         <p class="error" role="alert">
