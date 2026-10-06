@@ -8,7 +8,8 @@ const api = `http://localhost:${process.env.PORT ?? 8787}`;
 export default defineConfig({
   root: "web",
   plugins: [preact()],
-  build: { outDir: "../dist/web", emptyOutDir: true },
+  // The lazy /backoffice/ledger chunk carries AG Grid (~235 kB gzip); the main bundle stays small.
+  build: { outDir: "../dist/web", emptyOutDir: true, chunkSizeWarningLimit: 900 },
   server: {
     proxy: { "/api": api, "/t": api, "/webhooks": api },
   },

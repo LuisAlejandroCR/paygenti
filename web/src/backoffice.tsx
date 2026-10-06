@@ -6,6 +6,9 @@ import { formatMoney, type Money } from "../../shared/money";
 import { type Key, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 
+/** Session token shared with /backoffice/ledger (same key as ledger.tsx; not imported to keep AG Grid lazy). */
+const LEDGER_TOKEN_KEY = "paygent.bo.token";
+
 interface SaleRow {
   id: string;
   paidAt: string;
@@ -50,7 +53,13 @@ function toMinor(text: string): number | undefined {
 
 export function BackOfficeApp() {
   const { t, locale } = useT();
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => {
+    try {
+      return sessionStorage.getItem(LEDGER_TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  });
   const [agent, setAgent] = useState(false);
   const [error, setError] = useState("");
   const [pin, setPin] = useState("");
@@ -103,6 +112,12 @@ export function BackOfficeApp() {
 
   useEffect(() => {
     if (token) void loadToday();
+    try {
+      if (token) sessionStorage.setItem(LEDGER_TOKEN_KEY, token);
+      else sessionStorage.removeItem(LEDGER_TOKEN_KEY);
+    } catch {
+      // Storage blocked: the ledger page will ask to sign in again.
+    }
   }, [token]);
 
   async function login(e: Event) {
@@ -193,6 +208,9 @@ export function BackOfficeApp() {
       <header class="bar">
         <span class="stall">{t("bo.title")}</span>
         <LangToggle />
+        <a class="secondary" href="/backoffice/ledger">
+          {t("ledger.open")}
+        </a>
         <button type="button" class="secondary" onClick={() => setToken(null)}>
           {t("bo.exit")}
         </button>

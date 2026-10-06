@@ -88,6 +88,8 @@ Reglas de arquitectura:
 - [x] Simulador de cliente en `/judge`: dos paneles (vendedora y cliente) en una sola pantalla.
 - [x] README (inglés primero, sección en español) para el usuario: qué es, cómo correrlo, cuentas sandbox de prueba.
 - [x] Deploy (Render, `render.yaml`) con `npm run build && npm start` sirviendo el build web.
+- [x] Libro del día en `/backoffice/ledger` con AG Grid Community: orden, filtros, búsqueda, fila de
+      totales fija, cuadre por fila, detalle de productos, exportar CSV y actualización en vivo por SSE.
 
 ## Fuera de alcance hasta que los bloques 0–5 corran
 
