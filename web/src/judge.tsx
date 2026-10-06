@@ -28,7 +28,17 @@ export function JudgeApp({ terminal }: { terminal: string }) {
         <h1>
           paygent · {t("judge.title")} <LangToggle />
         </h1>
-        <p>{t("judge.intro")}</p>
+        <p>
+          {t("judge.intro")}{" "}
+          <a
+            class="bar-btn judge-soundbox"
+            href={`/soundbox?terminal=${terminal}`}
+            target="_blank"
+            rel="noopener"
+          >
+            {t("judge.openSoundbox")}
+          </a>
+        </p>
         <ol>
           {STEPS.map((k) => (
             <li key={k}>{t(k)}</li>

@@ -191,6 +191,20 @@ const en = {
   "reason.SALE_NOT_REFUNDABLE": "That sale has no paid charge.",
   "reason.REFUND_FAILED": "PayPal did not accept the refund.",
   "reason.TICKET_INVALID": "That permit doesn't exist or has expired.",
+  "soundbox.title": "Soundbox",
+  "soundbox.enable": "Tap to enable sound",
+  "soundbox.enableHint": "Browsers need one tap before they can speak.",
+  "soundbox.idle": "Scan to pay",
+  "soundbox.open": "To pay",
+  "soundbox.paid": "PAID",
+  "soundbox.failed": "Payment declined",
+  "soundbox.expired": "Charge cancelled or expired",
+  "soundbox.refunded": "Refunded",
+  "soundbox.offline": "Offline, reconnecting…",
+  "soundbox.fullscreen": "Full screen",
+  "soundbox.notFound": "This terminal was not found.",
+  "soundbox.trust": "Only payments confirmed by PayPal make a sound.",
+  "judge.openSoundbox": "Open soundbox",
 } as const;
 
 export type Key = keyof typeof en;
@@ -380,6 +394,20 @@ const es: Dict = {
   "reason.SALE_NOT_REFUNDABLE": "Esa venta no tiene un cobro pagado.",
   "reason.REFUND_FAILED": "PayPal no aceptó la devolución.",
   "reason.TICKET_INVALID": "Ese permiso no existe o ya venció.",
+  "soundbox.title": "Bocina",
+  "soundbox.enable": "Toca para activar el sonido",
+  "soundbox.enableHint": "El navegador necesita un toque antes de poder hablar.",
+  "soundbox.idle": "Escanea para pagar",
+  "soundbox.open": "Por pagar",
+  "soundbox.paid": "PAGADO",
+  "soundbox.failed": "Pago rechazado",
+  "soundbox.expired": "Cobro cancelado o vencido",
+  "soundbox.refunded": "Devuelto",
+  "soundbox.offline": "Sin conexión, reconectando…",
+  "soundbox.fullscreen": "Pantalla completa",
+  "soundbox.notFound": "No se encontró esta terminal.",
+  "soundbox.trust": "Solo los pagos confirmados por PayPal suenan.",
+  "judge.openSoundbox": "Abrir bocina",
 };
 
 export const DICTIONARIES: Record<Locale, Dict> = { en, es };
