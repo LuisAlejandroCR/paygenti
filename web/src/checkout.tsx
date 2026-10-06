@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { formatMoney, money } from "../../shared/money";
 import type { Sale } from "../../shared/types";
-import { type AppConfig, ApiError, api } from "./api";
+import { ApiError, type AppConfig, api } from "./api";
 
 interface PayPalButtons {
   render(el: HTMLElement): Promise<void>;
@@ -28,7 +28,12 @@ function loadSdk(clientId: string, currency: string): Promise<PayPalNamespace> {
   if (window.paypal) return Promise.resolve(window.paypal);
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    const q = new URLSearchParams({ "client-id": clientId, currency, intent: "capture", locale: "es_MX" });
+    const q = new URLSearchParams({
+      "client-id": clientId,
+      currency,
+      intent: "capture",
+      locale: "es_MX",
+    });
     s.src = `https://www.paypal.com/sdk/js?${q}`;
     s.onload = () => (window.paypal ? resolve(window.paypal) : reject(new Error("sdk")));
     s.onerror = () => reject(new Error("sdk"));
@@ -61,9 +66,13 @@ export function Checkout({ saleId }: { saleId: string }) {
       if (updated.status === "failed") setError("El pago fue rechazado. Intenta con otro método.");
     } catch (err) {
       const code = err instanceof ApiError ? err.code : "";
-      if (code === "SALE_EXPIRED") setError("Esta venta expiró. Pide a la vendedora un cobro nuevo.");
+      if (code === "SALE_EXPIRED")
+        setError("Esta venta expiró. Pide a la vendedora un cobro nuevo.");
       else setError("No se pudo completar el pago. Intenta de nuevo.");
-      api.sale(saleId).then((s) => setSale(s.sale), () => {});
+      api.sale(saleId).then(
+        (s) => setSale(s.sale),
+        () => {},
+      );
     }
   }
 
@@ -127,7 +136,9 @@ export function Checkout({ saleId }: { saleId: string }) {
               <td>
                 {l.qty} × {l.name}
               </td>
-              <td class="num">{formatMoney(money(l.unitPrice.minor * l.qty, l.unitPrice.currency))}</td>
+              <td class="num">
+                {formatMoney(money(l.unitPrice.minor * l.qty, l.unitPrice.currency))}
+              </td>
             </tr>
           ))}
         </tbody>

@@ -22,7 +22,8 @@ export function unlockAudio(): void {
 export function spokenAmount(m: Money): string {
   const units = Math.trunc(m.minor / 100);
   const cents = m.minor % 100;
-  const unit = m.currency === "MXN" ? (units === 1 ? "peso" : "pesos") : units === 1 ? "dólar" : "dólares";
+  const unit =
+    m.currency === "MXN" ? (units === 1 ? "peso" : "pesos") : units === 1 ? "dólar" : "dólares";
   return cents ? `${units} ${unit} con ${cents} centavos` : `${units} ${unit}`;
 }
 
@@ -32,7 +33,9 @@ export function announcePaid(total: Money): void {
   try {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "es-MX";
-    const voice = window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith("es"));
+    const voice = window.speechSynthesis
+      .getVoices()
+      .find((v) => v.lang.toLowerCase().startsWith("es"));
     if (!voice && window.speechSynthesis.getVoices().length > 0) return chime();
     if (voice) u.voice = voice;
     u.onerror = () => chime();

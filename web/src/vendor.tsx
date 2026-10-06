@@ -39,7 +39,7 @@ export function VendorApp({ terminal }: { terminal: string }) {
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(false);
   const [left, setLeft] = useState(0);
-  const saleRef = useRef<Sale>();
+  const saleRef = useRef<Sale | undefined>(undefined);
   saleRef.current = sale;
 
   useEffect(() => {
