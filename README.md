@@ -2,7 +2,7 @@
      cómo correrlo, variables de entorno, sandbox de PayPal, el candado de políticas y licencia.
      No es la spec: la spec y el avance por bloques viven en docs/plan.md; el razonamiento en
      docs/memoria.md. -->
-
+include breb and accessibility for blind people for example
 # paygent
 
 **The AI cashier for street vendors.** Say the price, the customer taps or scans, your phone says
