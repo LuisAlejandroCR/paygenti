@@ -85,9 +85,9 @@ Reglas de arquitectura:
 
 ### Bloque 5 — Modo jurado
 
-- [ ] Simulador de cliente en `/judge`: dos paneles (vendedora y cliente) en una sola pantalla.
-- [ ] README en español para el usuario: qué es, cómo correrlo, cuentas sandbox de prueba.
-- [ ] Deploy (Render) con `npm run build && npm start` sirviendo el build web.
+- [x] Simulador de cliente en `/judge`: dos paneles (vendedora y cliente) en una sola pantalla.
+- [x] README (inglés primero, sección en español) para el usuario: qué es, cómo correrlo, cuentas sandbox de prueba.
+- [x] Deploy (Render, `render.yaml`) con `npm run build && npm start` sirviendo el build web.
 
 ## Fuera de alcance hasta que los bloques 0–5 corran
 
