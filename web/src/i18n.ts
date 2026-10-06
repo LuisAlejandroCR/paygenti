@@ -167,6 +167,30 @@ const en = {
   "ledger.rec.void": "Void",
   "ledger.rec.cash": "Cash",
   "ledger.cashTotal": "Cash: {amount}",
+  "reason.POLICY_ERROR": "I couldn't validate the operation; for safety it was not done.",
+  "reason.MALFORMED_ACTION": "The operation data is incomplete; nothing was done.",
+  "reason.UNKNOWN_ACTOR": "I don't know who is asking; nothing was done.",
+  "reason.UNKNOWN_ACTION": "That operation doesn't exist; nothing was done.",
+  "reason.DISPUTE_MANUAL_ONLY": "Disputes are handled by {vendor} by hand, outside the assistant.",
+  "reason.INVALID_AMOUNT": "The amount is not valid; it must be greater than zero.",
+  "reason.CURRENCY_MISMATCH": "The currency doesn't match the account; nothing was done.",
+  "reason.CUSTOMER_NOT_AUTHORIZED": "Only {vendor} can authorize this, not the customer.",
+  "reason.VENDOR_REQUIRED": "Only {vendor} can authorize this; the limit is {limit}.",
+  "reason.PIN_REQUIRED": "{vendor} must confirm with the PIN to authorize this.",
+  "reason.REFUND_OVER_CAP": "The maximum per refund is {max}; you asked for {amount}.",
+  "reason.REFUND_EXCEEDS_CAPTURE":
+    "You can't refund more than was charged: {left} left on that charge.",
+  "reason.CAPTURE_NOT_TODAY": "Only today's charges can be refunded.",
+  "reason.REFUND_DAILY_CAP": "The daily refund limit is {max}; {left} left today.",
+  "reason.REFUND_OK": "Refund authorized for {amount}.",
+  "reason.PAYOUT_NOT_ALLOWLISTED": "That recipient is not on {vendor}'s list; no payout.",
+  "reason.PAYOUT_DAILY_CAP": "The daily payout limit is {max}; {left} left today.",
+  "reason.PAYOUT_OK": "Payout authorized for {amount}.",
+  "reason.ORDER_OK": "Charge for {amount} ready.",
+  "reason.INVOICE_OK": "Invoice for {amount} ready.",
+  "reason.SALE_NOT_REFUNDABLE": "That sale has no paid charge.",
+  "reason.REFUND_FAILED": "PayPal did not accept the refund.",
+  "reason.TICKET_INVALID": "That permit doesn't exist or has expired.",
 } as const;
 
 export type Key = keyof typeof en;
@@ -332,6 +356,30 @@ const es: Dict = {
   "ledger.rec.void": "Anulada",
   "ledger.rec.cash": "Efectivo",
   "ledger.cashTotal": "Efectivo: {amount}",
+  "reason.POLICY_ERROR": "No pude validar la operación; por seguridad no se hace.",
+  "reason.MALFORMED_ACTION": "Los datos de la operación no están completos; no se hace nada.",
+  "reason.UNKNOWN_ACTOR": "No sé quién pide la operación; no se hace nada.",
+  "reason.UNKNOWN_ACTION": "Esa operación no existe; no se hace nada.",
+  "reason.DISPUTE_MANUAL_ONLY": "Las disputas las decide {vendor} a mano, fuera del asistente.",
+  "reason.INVALID_AMOUNT": "El monto no es válido; tiene que ser mayor a cero.",
+  "reason.CURRENCY_MISMATCH": "La moneda no coincide con la de la cuenta; no se hace nada.",
+  "reason.CUSTOMER_NOT_AUTHORIZED": "Esto lo autoriza solo {vendor}, no el cliente.",
+  "reason.VENDOR_REQUIRED": "Solo {vendor} puede autorizar esto; el límite es {limit}.",
+  "reason.PIN_REQUIRED": "Para autorizar esto, {vendor} tiene que confirmar con su PIN.",
+  "reason.REFUND_OVER_CAP": "El máximo por devolución es {max}; pediste {amount}.",
+  "reason.REFUND_EXCEEDS_CAPTURE":
+    "No se puede devolver más de lo cobrado: de ese cobro quedan {left}.",
+  "reason.CAPTURE_NOT_TODAY": "Solo se pueden devolver cobros de hoy.",
+  "reason.REFUND_DAILY_CAP": "El tope de devoluciones del día es {max}; hoy quedan {left}.",
+  "reason.REFUND_OK": "Devolución autorizada por {amount}.",
+  "reason.PAYOUT_NOT_ALLOWLISTED": "Ese destinatario no está en la lista de {vendor}; no se paga.",
+  "reason.PAYOUT_DAILY_CAP": "El tope de pagos del día es {max}; hoy quedan {left}.",
+  "reason.PAYOUT_OK": "Pago autorizado por {amount}.",
+  "reason.ORDER_OK": "Cobro por {amount} listo.",
+  "reason.INVOICE_OK": "Factura por {amount} lista.",
+  "reason.SALE_NOT_REFUNDABLE": "Esa venta no tiene un cobro pagado.",
+  "reason.REFUND_FAILED": "PayPal no aceptó la devolución.",
+  "reason.TICKET_INVALID": "Ese permiso no existe o ya venció.",
 };
 
 export const DICTIONARIES: Record<Locale, Dict> = { en, es };
@@ -391,6 +439,25 @@ export function setLocale(locale: Locale): void {
 }
 
 /** Non-hook translator for code outside components (announce.ts). */
+/** Localized policy/back-office reason for a machine code; falls back to the server text. */
+export function reasonText(
+  code: string | undefined,
+  params?: Record<string, string | number>,
+  fallback?: string,
+  locale: Locale = current,
+): string | undefined {
+  const key = `reason.${code}`;
+  return key in DICTIONARIES[locale] ? translate(locale, key as Key, params) : fallback;
+}
+
+/** Display name of a cart line in the active locale (falls back to the canonical English name). */
+export function lineName(
+  line: { name: string; names?: { en: string; es: string } },
+  locale: Locale = current,
+): string {
+  return line.names?.[locale] ?? line.name;
+}
+
 export function t(key: Key, vars?: Record<string, string | number>): string {
   return translate(current, key, vars);
 }

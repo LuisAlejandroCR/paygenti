@@ -1,4 +1,5 @@
-// server/voice/rules.ts: deterministic Spanish order parser ("dos de rajas y un atole" -> cart lines).
+// server/voice/rules.ts: deterministic Spanish/English order parser ("dos de rajas y un atole",
+// "two rajas tamales and an atole" -> cart lines).
 // Always available, no network. Every line comes from the catalog; unknown fragments go to `unmatched`.
 import type { CartLine, CatalogItem } from "../../shared/types";
 
@@ -34,9 +35,25 @@ const NUMBERS: Record<string, number> = {
   dieciocho: 18,
   diecinueve: 19,
   veinte: 20,
+  a: 1,
+  an: 1,
+  one: 1,
+  another: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  twenty: 20,
 };
 
-const SEPARATORS = new Set([",", ";", "+", "y", "e", "tambien", "ademas"]);
+const SEPARATORS = new Set([",", ";", "+", "y", "e", "tambien", "ademas", "and", "plus", "also"]);
 
 const STOPWORDS = new Set([
   "de",
@@ -70,6 +87,26 @@ const STOPWORDS = new Set([
   "ordenes",
   "pieza",
   "piezas",
+  "of",
+  "with",
+  "the",
+  "some",
+  "please",
+  "i",
+  "want",
+  "we",
+  "would",
+  "like",
+  "give",
+  "get",
+  "us",
+  "to",
+  "go",
+  "more",
+  "cup",
+  "cups",
+  "order",
+  "orders",
 ]);
 
 export function normalize(text: string): string {
@@ -89,11 +126,17 @@ export function stem(word: string): string {
 }
 
 function isQuantityStart(token: string): boolean {
-  return /^\d+$/.test(token) || token in NUMBERS || token === "media" || token === "medio";
+  return (
+    /^\d+$/.test(token) ||
+    token in NUMBERS ||
+    token === "media" ||
+    token === "medio" ||
+    token === "half"
+  );
 }
 
 function isMultiplier(token: string): boolean {
-  return /^(docenas?|par|pares)$/.test(token);
+  return /^(docenas?|par|pares|dozens?|pairs?)$/.test(token);
 }
 
 function splitSegments(tokens: string[]): string[][] {
@@ -131,13 +174,14 @@ function readQuantity(tokens: string[]): { qty: number | null; rest: string[] } 
   } else if (first in NUMBERS) {
     qty = NUMBERS[first] ?? null;
     i += 1;
-  } else if (first === "media" || first === "medio") {
+  } else if (first === "media" || first === "medio" || first === "half") {
     qty = 0.5;
     i += 1;
+    if (tokens[i] === "a") i += 1;
   }
   const next = tokens[i];
   if (next !== undefined && isMultiplier(next)) {
-    qty = (qty ?? 1) * (next.startsWith("docena") ? 12 : 2);
+    qty = (qty ?? 1) * (/^(docena|dozen)/.test(next) ? 12 : 2);
     i += 1;
   }
   if (qty !== null && !Number.isInteger(qty)) qty = null;
@@ -156,7 +200,7 @@ function contentStems(words: string[]): string[] {
 function buildMatchers(catalog: CatalogItem[]): Matcher[] {
   return catalog.map((item) => ({
     item,
-    phrases: [item.name, ...item.aliases]
+    phrases: [item.name, item.names?.en ?? "", item.names?.es ?? "", ...item.aliases]
       .map((p) => contentStems(normalize(p).split(" ")))
       .filter((p) => p.length > 0),
   }));
@@ -206,6 +250,7 @@ export function parseOrder(text: string, catalog: CatalogItem[]): ParseResult {
       bySku.set(item.sku, {
         sku: item.sku,
         name: item.name,
+        ...(item.names && { names: item.names }),
         qty: Math.min(MAX_QTY, add),
         unitPrice: item.price,
       });

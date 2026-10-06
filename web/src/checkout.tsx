@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { formatMoney, money } from "../../shared/money";
 import type { Sale } from "../../shared/types";
 import { ApiError, type AppConfig, api } from "./api";
-import { type Key, type Locale, useT } from "./i18n";
+import { type Key, type Locale, lineName, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 
 interface PayPalButtons {
@@ -138,7 +138,7 @@ export function Checkout({ saleId }: { saleId: string }) {
           {sale.lines.map((l) => (
             <tr key={l.sku}>
               <td>
-                {l.qty} × {l.name}
+                {l.qty} × {lineName(l, locale)}
               </td>
               <td class="num">
                 {formatMoney(money(l.unitPrice.minor * l.qty, l.unitPrice.currency))}

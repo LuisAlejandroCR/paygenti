@@ -35,8 +35,20 @@ describe("parseWithClaude", () => {
     });
 
     expect(res.lines).toEqual([
-      { sku: "tamal-rajas", name: "Tamal de rajas", qty: 2, unitPrice: DEMO_CATALOG[0]?.price },
-      { sku: "atole", name: "Atole", qty: 2, unitPrice: DEMO_CATALOG[3]?.price },
+      {
+        sku: "tamal-rajas",
+        name: "Rajas tamale",
+        names: DEMO_CATALOG[0]?.names,
+        qty: 2,
+        unitPrice: DEMO_CATALOG[0]?.price,
+      },
+      {
+        sku: "atole",
+        name: "Atole",
+        names: DEMO_CATALOG[3]?.names,
+        qty: 2,
+        unitPrice: DEMO_CATALOG[3]?.price,
+      },
     ]);
     expect(sent?.url).toBe(ANTHROPIC_URL);
     const headers = sent?.init.headers as Record<string, string>;

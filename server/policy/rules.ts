@@ -1,7 +1,8 @@
 // server/policy/rules.ts: the deterministic lock ("el cerrojo") — a pure decide(action, context).
 // The AI agent only proposes; this function decides whether money may move. No I/O, no clock reads,
-// fail-closed on anything malformed. Reasons are es-MX because they get spoken to the vendor.
-import type { Currency, Money } from "../../shared/money";
+// fail-closed on anything malformed. `code` + `params` are the stable machine contract (the web
+// localizes them); `reason` is the es-MX sentence spoken to the vendor and kept in the audit log.
+import { type Currency, formatMoney, type Money } from "../../shared/money";
 
 export type Actor = "vendor" | "agent" | "customer";
 
@@ -40,10 +41,15 @@ export interface PolicyContext {
   vendorName: string;
 }
 
+export type DecisionParams = Record<string, string | number>;
+
 export interface Decision {
   allow: boolean;
   reason: string;
+  /** Stable machine code, e.g. REFUND_OVER_CAP; clients map it to localized text. */
   code: string;
+  /** Values for the localized text; money is pre-formatted with formatMoney (e.g. "$200.00"). */
+  params?: DecisionParams;
 }
 
 export const DEFAULT_POLICY_CONFIG: PolicyConfig = Object.freeze({
@@ -81,6 +87,7 @@ function decideUnsafe(action: PolicyAction, ctx: PolicyContext): Decision {
       return deny(
         "DISPUTE_MANUAL_ONLY",
         `Las disputas las decide ${name(ctx)} a mano, fuera del asistente.`,
+        { vendor: name(ctx) },
       );
     case "create_order":
     case "create_invoice":
@@ -92,7 +99,9 @@ function decideUnsafe(action: PolicyAction, ctx: PolicyContext): Decision {
 
 function decideRefund(a: Extract<PolicyAction, { kind: "refund" }>, ctx: PolicyContext): Decision {
   const cfg = ctx.config;
-  const gate = moneyOutGate(ctx, "devoluciones", `y el máximo es ${speak(cfg.maxRefund)}`);
+  const gate = moneyOutGate(ctx, "refunds", `y el máximo es ${speak(cfg.maxRefund)}`, {
+    limit: formatMoney(cfg.maxRefund),
+  });
   if (gate) return gate;
 
   if (!isPositiveMoney(a.amount))
@@ -122,6 +131,7 @@ function decideRefund(a: Extract<PolicyAction, { kind: "refund" }>, ctx: PolicyC
     return deny(
       "REFUND_OVER_CAP",
       `El máximo por devolución es ${speak(cfg.maxRefund)}; pediste ${speak(a.amount)}.`,
+      { max: formatMoney(cfg.maxRefund), amount: formatMoney(a.amount) },
     );
 
   const refundable = a.capturedAmount.minor - a.alreadyRefunded.minor;
@@ -131,6 +141,7 @@ function decideRefund(a: Extract<PolicyAction, { kind: "refund" }>, ctx: PolicyC
       refundable > 0
         ? `No se puede devolver más de lo cobrado: de ese cobro quedan ${speak(withMinor(a.amount, refundable))}.`
         : "Ese cobro ya se devolvió completo.",
+      { left: formatMoney(withMinor(a.amount, Math.max(0, refundable))) },
     );
 
   const capturedAt = Date.parse(a.capturedAt);
@@ -148,15 +159,20 @@ function decideRefund(a: Extract<PolicyAction, { kind: "refund" }>, ctx: PolicyC
     return deny(
       "REFUND_DAILY_CAP",
       `El tope de devoluciones del día es ${speak(cfg.maxRefundPerDay)}; hoy quedan ${speak(withMinor(a.amount, left))}.`,
+      { max: formatMoney(cfg.maxRefundPerDay), left: formatMoney(withMinor(a.amount, left)) },
     );
   }
 
-  return allow("REFUND_OK", `Devolución autorizada por ${speak(a.amount)}.`);
+  return allow("REFUND_OK", `Devolución autorizada por ${speak(a.amount)}.`, {
+    amount: formatMoney(a.amount),
+  });
 }
 
 function decidePayout(a: Extract<PolicyAction, { kind: "payout" }>, ctx: PolicyContext): Decision {
   const cfg = ctx.config;
-  const gate = moneyOutGate(ctx, "pagos", `y el tope del día es ${speak(cfg.maxPayoutPerDay)}`);
+  const gate = moneyOutGate(ctx, "payouts", `y el tope del día es ${speak(cfg.maxPayoutPerDay)}`, {
+    limit: formatMoney(cfg.maxPayoutPerDay),
+  });
   if (gate) return gate;
 
   if (!isPositiveMoney(a.amount))
@@ -170,6 +186,7 @@ function decidePayout(a: Extract<PolicyAction, { kind: "payout" }>, ctx: PolicyC
     return deny(
       "PAYOUT_NOT_ALLOWLISTED",
       `Ese destinatario no está en la lista de ${name(ctx)}; no se paga.`,
+      { vendor: name(ctx) },
     );
 
   if (
@@ -180,10 +197,13 @@ function decidePayout(a: Extract<PolicyAction, { kind: "payout" }>, ctx: PolicyC
     return deny(
       "PAYOUT_DAILY_CAP",
       `El tope de pagos del día es ${speak(cfg.maxPayoutPerDay)}; hoy quedan ${speak(withMinor(a.amount, left))}.`,
+      { max: formatMoney(cfg.maxPayoutPerDay), left: formatMoney(withMinor(a.amount, left)) },
     );
   }
 
-  return allow("PAYOUT_OK", `Pago autorizado por ${speak(a.amount)}.`);
+  return allow("PAYOUT_OK", `Pago autorizado por ${speak(a.amount)}.`, {
+    amount: formatMoney(a.amount),
+  });
 }
 
 function decideCharge(
@@ -199,22 +219,35 @@ function decideCharge(
     a.kind === "create_order"
       ? `Cobro por ${speak(a.amount)} listo.`
       : `Factura por ${speak(a.amount)} lista.`,
+    { amount: formatMoney(a.amount) },
   );
 }
 
 /** Who may move money out at all: only the vendor, and only with a verified PIN. */
-function moneyOutGate(ctx: PolicyContext, what: string, limit: string): Decision | undefined {
+function moneyOutGate(
+  ctx: PolicyContext,
+  kind: "refunds" | "payouts",
+  limit: string,
+  limitParams: DecisionParams,
+): Decision | undefined {
+  const what = kind === "refunds" ? "devoluciones" : "pagos";
+  const params = { vendor: name(ctx), what: kind };
   if (ctx.actor === "customer")
     return deny(
       "CUSTOMER_NOT_AUTHORIZED",
       `Los ${what} los autoriza solo ${name(ctx)}, no el cliente.`,
+      params,
     );
   if (ctx.actor !== "vendor")
-    return deny("VENDOR_REQUIRED", `Solo ${name(ctx)} puede autorizar ${what}, ${limit}.`);
+    return deny("VENDOR_REQUIRED", `Solo ${name(ctx)} puede autorizar ${what}, ${limit}.`, {
+      ...params,
+      ...limitParams,
+    });
   if (ctx.pinVerified !== true)
     return deny(
       "PIN_REQUIRED",
       `Para autorizar ${what}, ${name(ctx)} tiene que confirmar con su PIN.`,
+      params,
     );
   return undefined;
 }
@@ -271,10 +304,10 @@ function name(ctx: PolicyContext): string {
     : "la vendedora";
 }
 
-function allow(code: string, reason: string): Decision {
-  return { allow: true, code, reason };
+function allow(code: string, reason: string, params?: DecisionParams): Decision {
+  return { allow: true, code, reason, ...(params && { params }) };
 }
 
-function deny(code: string, reason: string): Decision {
-  return { allow: false, code, reason };
+function deny(code: string, reason: string, params?: DecisionParams): Decision {
+  return { allow: false, code, reason, ...(params && { params }) };
 }

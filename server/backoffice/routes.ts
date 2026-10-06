@@ -86,7 +86,7 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
       return c.json(await office.createInvoice(amount, body.data.description, authority(c)), 201);
     } catch (err) {
       if (err instanceof BackOfficeError)
-        return c.json({ error: err.code, reason: err.message }, 403);
+        return c.json({ error: err.code, reason: err.message, params: err.params }, 403);
       if (err instanceof PayPalError)
         return c.json({ error: "PAYPAL_ERROR", issue: err.issue }, 502);
       throw err;
@@ -102,7 +102,7 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
       { saleId: body.data.saleId, amount },
       authority(c, body.data.pin),
     );
-    return r.ok ? c.json(r) : c.json({ error: r.code, reason: r.reason }, 403);
+    return r.ok ? c.json(r) : c.json({ error: r.code, reason: r.reason, params: r.params }, 403);
   });
 
   app.post("/agent", async (c) => {
