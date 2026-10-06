@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { formatMoney, money } from "../../shared/money";
 import type { Sale } from "../../shared/types";
 import { ApiError, type AppConfig, api } from "./api";
+import { type Key, type Locale, useT } from "./i18n";
+import { LangToggle } from "./lang-toggle";
 
 interface PayPalButtons {
   render(el: HTMLElement): Promise<void>;
@@ -24,7 +26,7 @@ declare global {
   }
 }
 
-function loadSdk(clientId: string, currency: string): Promise<PayPalNamespace> {
+function loadSdk(clientId: string, currency: string, locale: Locale): Promise<PayPalNamespace> {
   if (window.paypal) return Promise.resolve(window.paypal);
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
@@ -32,7 +34,7 @@ function loadSdk(clientId: string, currency: string): Promise<PayPalNamespace> {
       "client-id": clientId,
       currency,
       intent: "capture",
-      locale: "es_MX",
+      locale: locale === "es" ? "es_MX" : "en_US",
     });
     s.src = `https://www.paypal.com/sdk/js?${q}`;
     s.onload = () => (window.paypal ? resolve(window.paypal) : reject(new Error("sdk")));
@@ -42,10 +44,11 @@ function loadSdk(clientId: string, currency: string): Promise<PayPalNamespace> {
 }
 
 export function Checkout({ saleId }: { saleId: string }) {
+  const { t, locale } = useT();
   const [sale, setSale] = useState<Sale>();
   const [stall, setStall] = useState("");
   const [config, setConfig] = useState<AppConfig>();
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Key | "">("");
   const [busy, setBusy] = useState(false);
   const buttonsRef = useRef<HTMLDivElement>(null);
 
@@ -56,19 +59,18 @@ export function Checkout({ saleId }: { saleId: string }) {
         setStall(s.stall);
         setConfig(c);
       })
-      .catch(() => setError("No encontramos esta venta."));
+      .catch(() => setError("checkout.notFound"));
   }, [saleId]);
 
   async function capture() {
     try {
       const { sale: updated } = await api.capture(saleId);
       setSale(updated);
-      if (updated.status === "failed") setError("El pago fue rechazado. Intenta con otro método.");
+      if (updated.status === "failed") setError("checkout.declinedRetry");
     } catch (err) {
       const code = err instanceof ApiError ? err.code : "";
-      if (code === "SALE_EXPIRED")
-        setError("Esta venta expiró. Pide a la vendedora un cobro nuevo.");
-      else setError("No se pudo completar el pago. Intenta de nuevo.");
+      if (code === "SALE_EXPIRED") setError("checkout.expired");
+      else setError("checkout.failed");
       api.sale(saleId).then(
         (s) => setSale(s.sale),
         () => {},
@@ -82,7 +84,7 @@ export function Checkout({ saleId }: { saleId: string }) {
     if (!payable || config?.paypal !== "sandbox" || !config.clientId || !buttonsRef.current) return;
     const el = buttonsRef.current;
     let cancelled = false;
-    loadSdk(config.clientId, sale.total.currency)
+    loadSdk(config.clientId, sale.total.currency, locale)
       .then((pp) => {
         if (cancelled) return;
         el.replaceChildren();
@@ -91,11 +93,11 @@ export function Checkout({ saleId }: { saleId: string }) {
             style: { layout: "vertical", shape: "pill", height: 55 },
             createOrder: () => sale.orderId,
             onApprove: capture,
-            onError: () => setError("PayPal no pudo procesar el pago."),
+            onError: () => setError("checkout.paypalError"),
           })
           .render(el);
       })
-      .catch(() => setError("No se pudo cargar PayPal. Revisa tu conexión."));
+      .catch(() => setError("checkout.sdkError"));
     return () => {
       cancelled = true;
     };
@@ -109,7 +111,7 @@ export function Checkout({ saleId }: { saleId: string }) {
       await api.mockApprove(sale.orderId, decline);
       await capture();
     } catch {
-      setError("No se pudo simular el pago.");
+      setError("checkout.simulateError");
     } finally {
       setBusy(false);
     }
@@ -119,7 +121,7 @@ export function Checkout({ saleId }: { saleId: string }) {
     return (
       <main class="checkout">
         <p class={error ? "error" : "hint"} role={error ? "alert" : "status"}>
-          {error || "Cargando…"}
+          {error ? t(error) : t("checkout.loading")}
         </p>
       </main>
     );
@@ -127,9 +129,11 @@ export function Checkout({ saleId }: { saleId: string }) {
 
   return (
     <main class="checkout">
-      <h1 class="stall">{stall}</h1>
+      <h1 class="stall">
+        {stall} <LangToggle />
+      </h1>
       <table class="lines">
-        <caption class="sr-only">Productos</caption>
+        <caption class="sr-only">{t("checkout.items")}</caption>
         <tbody>
           {sale.lines.map((l) => (
             <tr key={l.sku}>
@@ -144,7 +148,7 @@ export function Checkout({ saleId }: { saleId: string }) {
         </tbody>
         <tfoot>
           <tr>
-            <th scope="row">Total</th>
+            <th scope="row">{t("checkout.total")}</th>
             <td class="num total">{formatMoney(sale.total)}</td>
           </tr>
         </tfoot>
@@ -152,18 +156,18 @@ export function Checkout({ saleId }: { saleId: string }) {
 
       {sale.status === "paid" && (
         <p class="result paid" role="alert">
-          ¡Pago recibido! Gracias.
+          {t("checkout.paid")}
         </p>
       )}
-      {sale.status === "refunded" && <p class="result">Este pago fue reembolsado.</p>}
+      {sale.status === "refunded" && <p class="result">{t("checkout.refunded")}</p>}
       {sale.status === "expired" && (
         <p class="result bad" role="alert">
-          Esta venta expiró. Pide a la vendedora un cobro nuevo.
+          {t("checkout.expired")}
         </p>
       )}
       {sale.status === "failed" && (
         <p class="result bad" role="alert">
-          Pago rechazado.
+          {t("checkout.declined")}
         </p>
       )}
 
@@ -171,18 +175,18 @@ export function Checkout({ saleId }: { saleId: string }) {
       {payable && config?.paypal === "mock" && (
         <div class="actions">
           <button type="button" class="primary" disabled={busy} onClick={() => simulate(false)}>
-            {busy ? "Procesando…" : "Pagar (simulado)"}
+            {busy ? t("checkout.processing") : t("checkout.payMock")}
           </button>
           <button type="button" class="secondary" disabled={busy} onClick={() => simulate(true)}>
-            Simular rechazo
+            {t("checkout.declineMock")}
           </button>
-          <p class="hint">Modo demostración: no se mueve dinero real.</p>
+          <p class="hint">{t("checkout.demoNote")}</p>
         </div>
       )}
 
       {error && sale.status !== "expired" && (
         <p class="error" role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
     </main>

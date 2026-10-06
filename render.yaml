@@ -1,0 +1,25 @@
+# render.yaml: Render blueprint for paygent — one Node web service that builds the web app and
+# serves it plus the API from server/index.ts. Without PayPal keys it runs on the mock gateway.
+services:
+  - type: web
+    name: paygent
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: PUBLIC_URL
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VENDOR_PIN
+        sync: false

@@ -5,6 +5,8 @@ import { type Currency, formatMoney, fromPayPalValue, type Money } from "../../s
 import type { CartLine, Sale, TerminalEvent } from "../../shared/types";
 import { announcePaid, unlockAudio } from "./announce";
 import { api } from "./api";
+import { useT } from "./i18n";
+import { LangToggle } from "./lang-toggle";
 import { StickerPanel } from "./sticker";
 import { VoiceCart } from "./voice";
 
@@ -31,7 +33,14 @@ function press(digits: string, key: string): string {
   return units === "0" ? key : digits + key;
 }
 
-export function VendorApp({ terminal }: { terminal: string }) {
+export function VendorApp({
+  terminal,
+  onSale,
+}: {
+  terminal: string;
+  onSale?: (sale: Sale | undefined) => void;
+}) {
+  const { t } = useT();
   const [digits, setDigits] = useState("");
   const [phase, setPhase] = useState<Phase>("entry");
   const [sale, setSale] = useState<Sale>();
@@ -62,7 +71,7 @@ export function VendorApp({ terminal }: { terminal: string }) {
           setCurrency(d.vendor.currency);
         },
       )
-      .catch(() => setError("No se encontró esta terminal."));
+      .catch(() => setError(t("vendor.terminalNotFound")));
   }, [terminal]);
 
   useEffect(() => {
@@ -115,9 +124,10 @@ export function VendorApp({ terminal }: { terminal: string }) {
         ? await api.createSaleFromCart(terminal, cart)
         : await api.createSale(terminal, amount?.minor ?? 0);
       setSale(created);
+      onSale?.(created);
       setPhase("waiting");
     } catch {
-      setError("No se pudo crear el cobro. Revisa la conexión e intenta de nuevo.");
+      setError(t("vendor.createFailed"));
     } finally {
       setBusy(false);
     }
@@ -127,6 +137,7 @@ export function VendorApp({ terminal }: { terminal: string }) {
     setDigits("");
     setCart([]);
     setSale(undefined);
+    onSale?.(undefined);
     setPhase("entry");
   }
 
@@ -135,8 +146,9 @@ export function VendorApp({ terminal }: { terminal: string }) {
       <header class="bar">
         <span class="stall">{stall || "paygent"}</span>
         <span class={online ? "dot on" : "dot"} role="status">
-          {online ? "En línea" : "Sin conexión"}
+          {online ? t("app.online") : t("app.offline")}
         </span>
+        <LangToggle />
       </header>
 
       {phase === "entry" && vendorId && (
@@ -150,7 +162,7 @@ export function VendorApp({ terminal }: { terminal: string }) {
       )}
 
       {phase === "entry" && cart.length === 0 && (
-        <section class="entry" aria-label="Captura del monto">
+        <section class="entry" aria-label={t("vendor.amountEntry")}>
           <output class="amount" aria-live="polite">
             ${digits || "0"}
           </output>
@@ -160,7 +172,7 @@ export function VendorApp({ terminal }: { terminal: string }) {
                 key={k}
                 type="button"
                 class="key"
-                aria-label={k === "⌫" ? "Borrar" : k === "." ? "Punto decimal" : k}
+                aria-label={k === "⌫" ? t("vendor.delete") : k === "." ? t("vendor.decimal") : k}
                 onClick={() => setDigits((d) => press(d, k))}
               >
                 {k}
@@ -168,7 +180,11 @@ export function VendorApp({ terminal }: { terminal: string }) {
             ))}
           </div>
           <button type="button" class="primary" disabled={!amount || busy} onClick={() => charge()}>
-            {busy ? "Creando…" : amount ? `Cobrar ${formatMoney(amount)}` : "Cobrar"}
+            {busy
+              ? t("vendor.creating")
+              : amount
+                ? t("vendor.chargeAmount", { amount: formatMoney(amount) })
+                : t("vendor.charge")}
           </button>
         </section>
       )}
@@ -179,41 +195,41 @@ export function VendorApp({ terminal }: { terminal: string }) {
           <img
             class="qr"
             src={`/api/terminals/${terminal}/qr.svg`}
-            alt={`Código QR para pagar en el puesto ${terminal}`}
+            alt={t("vendor.qrAlt", { terminal })}
           />
-          <p class="hint">Escanea o toca el sticker para pagar con PayPal</p>
+          <p class="hint">{t("vendor.scanHint")}</p>
           <p class="timer">
-            Esperando pago… {Math.floor(left / 60000)}:
+            {t("vendor.waiting")} {Math.floor(left / 60000)}:
             {String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}
           </p>
           <button type="button" class="secondary" onClick={reset}>
-            Cancelar
+            {t("vendor.cancel")}
           </button>
         </section>
       )}
 
       {phase === "paid" && sale && (
         <section class="result paid" role="alert">
-          <p class="big">PAGADO</p>
+          <p class="big">{t("vendor.paid")}</p>
           <p class="total">{formatMoney(sale.total)}</p>
           <button type="button" class="primary" onClick={reset}>
-            Nueva venta
+            {t("vendor.newSale")}
           </button>
         </section>
       )}
 
       {(phase === "failed" || phase === "expired") && (
         <section class="result bad" role="alert">
-          <p class="big">{phase === "failed" ? "Pago rechazado" : "Cobro expirado"}</p>
+          <p class="big">{phase === "failed" ? t("vendor.declined") : t("vendor.expired")}</p>
           <button type="button" class="primary" onClick={reset}>
-            Nueva venta
+            {t("vendor.newSale")}
           </button>
         </section>
       )}
 
       {phase === "entry" && payUrl && (
         <button type="button" class="link" onClick={() => setShowSticker((v) => !v)}>
-          {showSticker ? "Ocultar sticker" : "Grabar sticker"}
+          {showSticker ? t("vendor.hideSticker") : t("vendor.writeSticker")}
         </button>
       )}
       {phase === "entry" && showSticker && <StickerPanel terminal={terminal} url={payUrl} />}

@@ -314,3 +314,53 @@ button.link {
   background: var(--bg);
   color: var(--fg);
 }
+
+/* EN/ES toggle and judge mode (two panels, stacked on narrow screens). */
+.lang-toggle {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.lang-toggle [aria-current="true"] {
+  font-weight: 700;
+}
+.judge {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.judge-head h1 {
+  font-size: 1.4rem;
+}
+.judge-head ol {
+  padding-left: 1.2rem;
+  line-height: 1.5;
+}
+.judge-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.judge-panel {
+  border: 1px solid #d9cfc0;
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 0;
+}
+.judge-panel h2 {
+  font-size: 1rem;
+  margin: 4px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+@media (max-width: 760px) {
+  .judge-panels {
+    grid-template-columns: 1fr;
+  }
+}
