@@ -364,3 +364,85 @@ button.link {
     grid-template-columns: 1fr;
   }
 }
+
+/* Daily ledger (/backoffice/ledger): AG Grid host, toolbar, pills and pinned total row. */
+.ledger {
+  max-width: 1200px;
+}
+.ledger-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+  margin: 12px 0;
+}
+.ledger-tools input[type="search"] {
+  flex: 1;
+  min-width: 160px;
+}
+.ledger-live {
+  color: var(--muted);
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ledger-live .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+}
+.ledger-grid {
+  height: 60vh;
+  min-height: 320px;
+  width: 100%;
+}
+.ledger-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.6;
+  border: 1px solid currentColor;
+}
+.ledger-pill.tone-ok {
+  color: var(--ok);
+}
+.ledger-pill.tone-bad {
+  color: var(--bad);
+}
+.ledger-pill.tone-warn {
+  color: #b26a00;
+}
+.ledger-pill.tone-info {
+  color: var(--brand);
+}
+.ledger-pill.tone-muted {
+  color: var(--muted);
+}
+.ledger-total {
+  font-weight: 700;
+}
+.ledger-grid .neg {
+  color: var(--bad);
+}
+.ledger-lines {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ledger-lines th,
+.ledger-lines td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.ledger-lines tfoot td {
+  font-weight: 700;
+}
+@media (prefers-color-scheme: dark) {
+  .ledger-pill.tone-warn {
+    color: #f0b04a;
+  }
+}
