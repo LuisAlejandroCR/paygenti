@@ -1,6 +1,6 @@
 // web/src/api.ts: typed fetch helpers for the paygent API used by the vendor app and checkout.
 // The server is the source of truth; these only move JSON and surface error codes.
-import type { Sale } from "../../shared/types";
+import type { CartLine, Sale } from "../../shared/types";
 
 export interface AppConfig {
   paypal: "mock" | "sandbox";
@@ -35,6 +35,16 @@ export const api = {
       body: JSON.stringify({ amount: amountMinor }),
     }),
   sale: (id: string) => request<{ sale: Sale; stall: string }>(`/api/sales/${id}`),
+  createSaleFromCart: (terminal: string, lines: CartLine[]) =>
+    request<{ sale: Sale }>(`/api/terminals/${terminal}/sales`, {
+      method: "POST",
+      body: JSON.stringify({ lines: lines.map((l) => ({ sku: l.sku, qty: l.qty })) }),
+    }),
+  parseVoice: (text: string, vendorId: string) =>
+    request<{ lines: CartLine[]; unmatched: string[]; source: "llm" | "rules" }>(
+      "/api/voice/parse",
+      { method: "POST", body: JSON.stringify({ text, vendorId }) },
+    ),
   capture: (id: string) => request<{ sale: Sale }>(`/api/sales/${id}/capture`, { method: "POST" }),
   mockApprove: (orderId: string, decline: boolean) =>
     request<unknown>(`/api/mock/orders/${orderId}/approve`, {
