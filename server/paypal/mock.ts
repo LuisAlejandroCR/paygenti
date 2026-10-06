@@ -4,8 +4,10 @@
 import { randomUUID } from "node:crypto";
 import type { Money } from "../../shared/money";
 import {
+  type CreateInvoiceInput,
   type CreateOrderInput,
   type GatewayCapture,
+  type GatewayInvoice,
   type GatewayOrder,
   type GatewayRefund,
   PayPalError,
@@ -101,6 +103,21 @@ export class MockPayPal implements PayPalGateway {
         captureId,
         status: "COMPLETED",
         amount,
+      };
+    });
+  }
+
+  async createInvoice(input: CreateInvoiceInput): Promise<GatewayInvoice> {
+    return this.once(`invoice:${input.idempotencyKey}`, () => {
+      if (input.amount.minor <= 0) {
+        throw new PayPalError("amount must be positive", 422, "INVALID_PARAMETER_VALUE");
+      }
+      const id = `INV2-MOCK-${randomUUID().slice(0, 8).toUpperCase()}`;
+      return {
+        id,
+        status: "UNPAID",
+        amount: input.amount,
+        payUrl: `https://www.sandbox.paypal.com/invoice/p/#${id}`,
       };
     });
   }

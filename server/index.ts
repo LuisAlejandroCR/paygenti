@@ -4,12 +4,18 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app";
+import { AnthropicClient } from "./backoffice/agent";
 import { createGateway } from "./paypal";
 
 const port = Number(process.env.PORT ?? 8787);
 const webRoot = resolve(import.meta.dirname, "../dist/web");
 const paypal = createGateway(process.env);
+const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
+const vendorPin = process.env.VENDOR_PIN?.trim();
+if (!vendorPin) console.warn("VENDOR_PIN not set: using the demo PIN 1234");
 const app = createApp({
+  vendorPin: vendorPin || undefined,
+  agentModel: anthropicKey ? new AnthropicClient(anthropicKey) : undefined,
   paypal,
   publicUrl: process.env.PUBLIC_URL?.trim() || undefined,
   voiceEnv: process.env,

@@ -1,0 +1,123 @@
+// server/backoffice/routes.ts: /api/backoffice/* — PIN login to a vendor session, fixed tool
+// endpoints (sales, reconcile, invoice, refund) and the optional Claude agent. Without a session
+// the caller is treated as a customer, so the policy denies any money movement.
+import { randomBytes } from "node:crypto";
+import { type Context, Hono } from "hono";
+import { z } from "zod";
+import { money } from "../../shared/money";
+import { PayPalError } from "../paypal/gateway";
+import { type ModelClient, runAgent } from "./agent";
+import { type Authority, type BackOffice, BackOfficeError } from "./tools";
+
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const pinField = z.string().max(16).optional();
+const loginBody = z.strictObject({ pin: z.string().max(16) });
+const reconcileBody = z.strictObject({ cashMinor: z.number().int().min(0).max(100_000_000) });
+const invoiceBody = z.strictObject({
+  amountMinor: z.number().int().positive().max(10_000_000),
+  description: z.string().max(200),
+});
+const refundBody = z.strictObject({
+  saleId: z.string().min(1).max(64),
+  amountMinor: z.number().int().positive().max(10_000_000),
+  pin: pinField,
+});
+const agentBody = z.strictObject({ message: z.string().min(1).max(1000), pin: pinField });
+
+export interface BackOfficeRouteDeps {
+  office: BackOffice;
+  model?: ModelClient;
+  clock?: () => number;
+}
+
+export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
+  const { office, model } = deps;
+  const clock = deps.clock ?? Date.now;
+  const sessions = new Map<string, number>();
+  const app = new Hono();
+
+  /** Vendor only with a live session token; everybody else is a customer to the policy. */
+  const authority = (c: Context, pin?: string): Authority => {
+    const token = /^Bearer ([a-f0-9]{64})$/.exec(c.req.header("authorization") ?? "")?.[1];
+    const exp = token ? sessions.get(token) : undefined;
+    const vendor = exp !== undefined && exp > clock();
+    return { actor: vendor ? "vendor" : "customer", pin };
+  };
+  const requireVendor = (c: Context) =>
+    authority(c).actor === "vendor" ? undefined : c.json({ error: "SESSION_REQUIRED" }, 401);
+
+  app.get("/config", (c) => c.json({ agent: model !== undefined, limits: office.policy.config }));
+
+  app.post("/session", async (c) => {
+    const body = loginBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const result = office.policy.verifyPin("vendor", body.data.pin);
+    if (!result.ok) return c.json({ error: result.code }, result.code === "PIN_LOCKED" ? 429 : 401);
+    const token = randomBytes(32).toString("hex");
+    sessions.set(token, clock() + SESSION_TTL_MS);
+    return c.json({ token, expiresInMs: SESSION_TTL_MS });
+  });
+
+  app.get("/sales-today", (c) => requireVendor(c) ?? c.json(office.salesToday()));
+
+  app.post("/reconcile", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const body = reconcileBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    return c.json(office.cashReconcile(body.data.cashMinor));
+  });
+
+  app.post("/invoices", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const body = invoiceBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const amount = money(body.data.amountMinor, office.policy.config.currency);
+    try {
+      return c.json(await office.createInvoice(amount, body.data.description, authority(c)), 201);
+    } catch (err) {
+      if (err instanceof BackOfficeError)
+        return c.json({ error: err.code, reason: err.message }, 403);
+      if (err instanceof PayPalError)
+        return c.json({ error: "PAYPAL_ERROR", issue: err.issue }, 502);
+      throw err;
+    }
+  });
+
+  // No requireVendor here on purpose: the policy itself must refuse a customer, and it audits it.
+  app.post("/refunds", async (c) => {
+    const body = refundBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const amount = money(body.data.amountMinor, office.policy.config.currency);
+    const r = await office.refund(
+      { saleId: body.data.saleId, amount },
+      authority(c, body.data.pin),
+    );
+    return r.ok ? c.json(r) : c.json({ error: r.code, reason: r.reason }, 403);
+  });
+
+  app.post("/agent", async (c) => {
+    if (!model) return c.json({ error: "AGENT_DISABLED" }, 503);
+    const body = agentBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    try {
+      return c.json(await runAgent(model, office, body.data.message, authority(c, body.data.pin)));
+    } catch (err) {
+      console.error(`agent failed: ${(err as Error).message}`);
+      return c.json({ error: "AGENT_FAILED" }, 502);
+    }
+  });
+
+  app.get("/audit", (c) => requireVendor(c) ?? c.json({ entries: office.policy.audit.entries() }));
+
+  return app;
+}
+
+async function readJson(c: Context): Promise<unknown> {
+  try {
+    return await c.req.json();
+  } catch {
+    return undefined;
+  }
+}

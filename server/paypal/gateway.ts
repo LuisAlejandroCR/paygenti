@@ -42,6 +42,23 @@ export interface GatewayRefund {
   amount: Money;
 }
 
+export interface CreateInvoiceInput {
+  amount: Money;
+  description: string;
+  /** Sent as PayPal-Request-Id on the create call. */
+  idempotencyKey: string;
+}
+
+export interface GatewayInvoice {
+  id: string;
+  status: string;
+  amount: Money;
+  /** Payer link (the invoice page where the customer pays). */
+  payUrl: string;
+  /** Base64 PNG of PayPal's QR code; undefined when the gateway does not provide one (mock). */
+  qrPngBase64?: string;
+}
+
 export interface WebhookHeaders {
   authAlgo: string;
   certUrl: string;
@@ -58,6 +75,8 @@ export interface PayPalGateway {
   getOrder(orderId: string): Promise<GatewayOrder>;
   captureOrder(orderId: string, idempotencyKey: string): Promise<GatewayCapture>;
   refundCapture(captureId: string, amount: Money, idempotencyKey: string): Promise<GatewayRefund>;
+  /** Create an invoice, mark it sent without emailing, and fetch its QR (Invoicing v2). */
+  createInvoice(input: CreateInvoiceInput): Promise<GatewayInvoice>;
   /** True only when PayPal confirms the signature for our webhook id. */
   verifyWebhook(headers: WebhookHeaders, rawBody: string): Promise<boolean>;
 }
