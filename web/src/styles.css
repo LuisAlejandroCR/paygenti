@@ -248,28 +248,6 @@ button:disabled {
 .step {
   width: 40px;
   height: 40px;
-.backoffice .panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 12px 0;
-  padding: 14px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.backoffice .panel h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-.backoffice label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.backoffice input {
-  font: inherit;
-  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--bg);
@@ -308,4 +286,31 @@ button.link {
   button {
     display: none !important;
   }
+}
+.backoffice .panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.backoffice .panel h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.backoffice label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.backoffice input {
+  font: inherit;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--fg);
 }
