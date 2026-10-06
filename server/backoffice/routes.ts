@@ -60,6 +60,14 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
 
   app.get("/sales-today", (c) => requireVendor(c) ?? c.json(office.salesToday()));
 
+  app.get("/ledger", (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const date = c.req.query("date");
+    if (date !== undefined && !isDay(date)) return c.json({ error: "INVALID_DATE" }, 400);
+    return c.json(office.ledger(date));
+  });
+
   app.post("/reconcile", async (c) => {
     const denied = requireVendor(c);
     if (denied) return denied;
@@ -112,6 +120,12 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
   app.get("/audit", (c) => requireVendor(c) ?? c.json({ entries: office.policy.audit.entries() }));
 
   return app;
+}
+
+function isDay(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
 }
 
 async function readJson(c: Context): Promise<unknown> {

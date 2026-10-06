@@ -24,6 +24,41 @@ export interface SalesTodayReport {
   }>;
 }
 
+export type Reconciliation =
+  | "matched"
+  | "missing_capture"
+  | "partial_refund"
+  | "refunded"
+  | "pending"
+  | "void"
+  | "cash";
+
+export interface LedgerRow {
+  id: string;
+  kind: "sale" | "refund";
+  method: Sale["method"];
+  status: Sale["status"];
+  terminalId: string;
+  orderId: string;
+  captureId: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  total: Money;
+  paid: Money;
+  refunded: Money;
+  net: Money;
+  items: string;
+  lines: Array<{ sku: string; name: string; qty: number; unitPrice: Money; subtotal: Money }>;
+  reconciliation: Reconciliation;
+}
+
+export interface LedgerReport {
+  day: string;
+  terminals: string[];
+  rows: LedgerRow[];
+  totals: { paid: Money; refunded: Money; net: Money; cash: Money; count: number };
+}
+
 export interface CashReconcile {
   day: string;
   paypal: Money;
@@ -119,6 +154,74 @@ export class BackOffice {
       total: money(total, currency),
       refunded: money(refunded, currency),
       sales: rows,
+    };
+  }
+
+  /** Every sale touched on `day` (local time zone): paid, open, failed or refunded, with lines. */
+  ledger(day: string = this.today()): LedgerReport {
+    const tz = this.policy.config.timeZone;
+    const c = this.policy.config.currency;
+    const all = this.sales.store.allSales();
+    const rows: LedgerRow[] = all
+      .filter((s) => localDay(new Date(s.paidAt ?? s.createdAt), tz) === day)
+      .map((s) => this.ledgerRow(s))
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    const sum = (f: (r: LedgerRow) => number) => rows.reduce((n, r) => n + f(r), 0);
+    const paid = sum((r) => (r.method === "paypal" ? r.paid.minor : 0));
+    const cash = sum((r) => (r.method === "cash" ? r.paid.minor : 0));
+    const refunded = sum((r) => r.refunded.minor);
+    const terminals = [...new Set(all.map((s) => s.terminalId))].sort();
+    return {
+      day,
+      terminals,
+      rows,
+      totals: {
+        paid: money(paid, c),
+        refunded: money(refunded, c),
+        net: money(paid + cash - refunded, c),
+        cash: money(cash, c),
+        count: rows.filter((r) => r.paid.minor > 0).length,
+      },
+    };
+  }
+
+  private ledgerRow(s: Sale): LedgerRow {
+    const c = s.total.currency;
+    const settled = s.status === "paid" || s.status === "refunded";
+    const paid = settled ? s.total.minor : 0;
+    let refunded = (s.captureId && this.refundedByCapture.get(s.captureId)) || 0;
+    if (s.status === "refunded" && refunded === 0) refunded = s.total.minor;
+    let reconciliation: Reconciliation;
+    if (!settled)
+      reconciliation = s.status === "open" || s.status === "approved" ? "pending" : "void";
+    else if (s.method === "cash") reconciliation = "cash";
+    else if (!s.captureId) reconciliation = "missing_capture";
+    else if (refunded >= s.total.minor) reconciliation = "refunded";
+    else if (refunded > 0) reconciliation = "partial_refund";
+    else reconciliation = "matched";
+    return {
+      id: s.id,
+      kind: refunded > 0 ? "refund" : "sale",
+      method: s.method,
+      status: s.status,
+      terminalId: s.terminalId,
+      orderId: s.orderId,
+      captureId: s.captureId ?? null,
+      createdAt: s.createdAt,
+      paidAt: s.paidAt ?? null,
+      total: s.total,
+      paid: money(paid, c),
+      refunded: money(refunded, c),
+      net: money(paid - refunded, c),
+      items: s.lines.map((l) => `${l.qty} × ${l.name}`).join(", "),
+      lines: s.lines.map((l) => ({
+        sku: l.sku,
+        name: l.name,
+        qty: l.qty,
+        unitPrice: l.unitPrice,
+        subtotal: money(l.unitPrice.minor * l.qty, c),
+      })),
+      reconciliation,
     };
   }
 
