@@ -1,5 +1,6 @@
 // web/src/voice.tsx: push-to-talk ordering — Web Speech API (es-MX) transcribes, the server parses
-// into catalog lines, and the vendor edits the cart (qty +/-, remove) before charging.
+// into catalog lines, and the vendor edits the cart (qty +/-, remove) before charging. A text box
+// ("Type the order") goes through the same parser for browsers without speech, and for judges.
 import { useRef, useState } from "preact/hooks";
 import { formatMoney, type Money, money } from "../../shared/money";
 import type { CartLine } from "../../shared/types";
@@ -58,6 +59,7 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState("");
   const [note, setNote] = useState("");
+  const [typed, setTyped] = useState("");
   const rec = useRef<Recognition | undefined>(undefined);
   const cartRef = useRef(cart);
   cartRef.current = cart;
@@ -103,6 +105,14 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
     rec.current?.stop();
   }
 
+  function submitTyped(e: Event) {
+    e.preventDefault();
+    const text = typed.trim();
+    if (!text) return;
+    setTyped("");
+    void parse(text);
+  }
+
   function setQty(sku: string, qty: number) {
     onCart(
       cart
@@ -127,6 +137,19 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
       ) : (
         <p class="hint">{t("voice.unsupported")}</p>
       )}
+      <form class="type-order" onSubmit={submitTyped}>
+        <input
+          type="text"
+          aria-label={t("voice.typeLabel")}
+          placeholder={t("voice.typePlaceholder")}
+          maxLength={500}
+          value={typed}
+          onInput={(e) => setTyped(e.currentTarget.value)}
+        />
+        <button type="submit" class="secondary" disabled={!typed.trim()}>
+          {t("voice.typeSubmit")}
+        </button>
+      </form>
       {heard && <p class="heard">«{heard}»</p>}
       {note && <p class="hint">{note}</p>}
       {cart.length > 0 && (

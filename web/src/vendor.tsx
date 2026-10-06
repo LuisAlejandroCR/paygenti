@@ -1,10 +1,12 @@
 // web/src/vendor.tsx: the vendor's screen — push-to-talk cart with keypad fallback, "Cobrar", QR of
 // /t/:terminal, sticker writer and a live SSE feed; on sale.paid it shows PAGADO and announces it.
+// On load it adopts the terminal's open sale (so /judge never shows a sale the vendor cannot see);
+// "Cancel" cancels that sale on the server so the sticker stops pointing at it.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { type Currency, formatMoney, fromPayPalValue, type Money } from "../../shared/money";
 import type { CartLine, Sale, TerminalEvent } from "../../shared/types";
 import { announcePaid, unlockAudio } from "./announce";
-import { api } from "./api";
+import { ApiError, api } from "./api";
 import { useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 import { StickerPanel } from "./sticker";
@@ -64,11 +66,18 @@ export function VendorApp({
         (d: {
           vendor: { id: string; displayName: string; currency: Currency };
           payUrl: string;
+          openSale: Sale | null;
         }) => {
           setStall(d.vendor.displayName);
           setVendorId(d.vendor.id);
           setPayUrl(d.payUrl);
           setCurrency(d.vendor.currency);
+          // Resume the sale already waiting on this terminal instead of hiding it behind a keypad.
+          if (d.openSale && !saleRef.current) {
+            setSale(d.openSale);
+            onSale?.(d.openSale);
+            setPhase("waiting");
+          }
         },
       )
       .catch(() => setError(t("vendor.terminalNotFound")));
@@ -96,6 +105,9 @@ export function VendorApp({
     es.addEventListener("sale.expired", (e) => {
       const ev = mine(e as MessageEvent<string>);
       if (ev) setPhase("expired");
+    });
+    es.addEventListener("sale.cancelled", (e) => {
+      if (mine(e as MessageEvent<string>)) reset();
     });
     return () => es.close();
   }, [terminal]);
@@ -128,6 +140,30 @@ export function VendorApp({
       setPhase("waiting");
     } catch {
       setError(t("vendor.createFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancel() {
+    const current = saleRef.current;
+    if (!current || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api.cancelSale(current.id);
+      reset();
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : "";
+      if (code === "SALE_ALREADY_PAID") {
+        const { sale: paid } = await api.sale(current.id).catch(() => ({ sale: current }));
+        setSale(paid);
+        setPhase("paid");
+      } else if (code === "SALE_NOT_OPEN" || code === "SALE_NOT_FOUND") {
+        reset();
+      } else {
+        setError(t("vendor.cancelFailed"));
+      }
     } finally {
       setBusy(false);
     }
@@ -202,7 +238,7 @@ export function VendorApp({
             {t("vendor.waiting")} {Math.floor(left / 60000)}:
             {String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}
           </p>
-          <button type="button" class="secondary" onClick={reset}>
+          <button type="button" class="secondary" disabled={busy} onClick={cancel}>
             {t("vendor.cancel")}
           </button>
         </section>

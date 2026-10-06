@@ -3,6 +3,7 @@
 // A refund uses the PIN typed by the human in the HTTP request, never anything the model writes.
 import { z } from "zod";
 import { formatMoney, money } from "../../shared/money";
+import type { Lang } from "../lang";
 import type { Authority, BackOffice } from "./tools";
 
 export const AGENT_MODEL = "claude-sonnet-5-5";
@@ -108,6 +109,9 @@ export interface AgentAction {
 export interface AgentReply {
   text: string;
   actions: AgentAction[];
+  /** Set when `text` is the server's fallback summary: the web localizes the code when it can. */
+  code?: string;
+  params?: Record<string, string | number>;
 }
 
 export async function runAgent(
@@ -115,6 +119,7 @@ export async function runAgent(
   office: BackOffice,
   message: string,
   who: Authority,
+  lang: Lang = "en",
 ): Promise<AgentReply> {
   const safe = message.slice(0, MAX_TEXT).replace(/[<>]/g, " ");
   const messages: ModelMessage[] = [{ role: "user", content: `<request>${safe}</request>` }];
@@ -155,7 +160,7 @@ export async function runAgent(
     }
     messages.push({ role: "user", content: results });
   }
-  return { text: summarize(actions), actions };
+  return { ...summarize(actions, lang), actions };
 }
 
 async function runTool(
@@ -189,7 +194,7 @@ async function runTool(
       // Only sale_id and amount are taken from the model; actor and PIN come from the human request.
       const r = await office.refund(
         { saleId: p.data.sale_id, amount: money(p.data.amount_minor, currency) },
-        { actor: who.actor, pin: who.pin },
+        { actor: who.actor, pin: who.pin, client: who.client },
       );
       return { ok: r.ok, result: r };
     }
@@ -198,13 +203,35 @@ async function runTool(
   }
 }
 
-function summarize(actions: AgentAction[]): string {
+const SUMMARY: Record<Lang, { failed: string; done: string; doneAmount: string }> = {
+  en: { failed: "I could not complete the request.", done: "Done.", doneAmount: "Done: {amount}." },
+  es: { failed: "No pude completar la solicitud.", done: "Listo.", doneAmount: "Listo: {amount}." },
+};
+
+/** Text when the model ran out of turns: the last tool's outcome, in the caller's language. */
+export function summarize(
+  actions: AgentAction[],
+  lang: Lang,
+): { text: string; code?: string; params?: Record<string, string | number> } {
+  const msg = SUMMARY[lang];
   const last = actions.at(-1);
-  if (!last) return "No pude completar la solicitud.";
-  const r = last.result as { reason?: string; amount?: { minor: number; currency: "MXN" } };
-  if (r?.reason) return r.reason;
-  if (r?.amount) return `Listo: ${formatMoney(money(r.amount.minor, r.amount.currency))}.`;
-  return "Listo.";
+  if (!last) return { text: msg.failed };
+  const r = last.result as {
+    code?: string;
+    reason?: string;
+    params?: Record<string, string | number>;
+    amount?: { minor: number; currency: "MXN" };
+  };
+  // Policy reasons are es-MX; the code + params let the web show them in the viewer's language.
+  if (r?.reason) return { text: r.reason, code: r.code, params: r.params };
+  if (r?.amount)
+    return {
+      text: msg.doneAmount.replace(
+        "{amount}",
+        formatMoney(money(r.amount.minor, r.amount.currency)),
+      ),
+    };
+  return { text: msg.done };
 }
 
 const apiResponse = z.object({

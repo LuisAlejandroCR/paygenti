@@ -1,5 +1,6 @@
 // e2e/voice.spec.ts: voice cart on the vendor screen. Headless Chromium has no microphone, so a
 // fake SpeechRecognition returns a fixed transcript; the server parser and cart editing are real.
+// The typed order box needs no speech support at all and goes through the same parser.
 import { expect, expectNoOverflow, test } from "./fixtures";
 
 test("voice order builds an editable cart", async ({ page, tx, lang }) => {
@@ -39,4 +40,17 @@ test("voice order builds an editable cart", async ({ page, tx, lang }) => {
   await page.getByRole("button", { name: tx.clear }).click();
   await expect(cart).toHaveCount(0);
   await expect(page.locator(".entry")).toBeVisible();
+});
+
+test("typed order builds the same cart without speech support", async ({ page, tx, lang }) => {
+  const typed = lang === "es" ? "2 tamales de rajas y un atole" : "2 rajas tamales and an atole";
+  await page.goto("/");
+  await page.getByRole("textbox", { name: tx.typeOrder }).fill(typed);
+  await page.getByRole("button", { name: tx.typeAdd, exact: true }).click();
+  await expect(page.locator(".cart li")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: tx.charge })).toHaveText(/70/); // 2 x 25 + 20
+  await expect(page.getByRole("textbox", { name: tx.typeOrder })).toHaveValue("");
+  await expectNoOverflow(page);
+  await page.getByRole("button", { name: tx.clear }).click();
+  await expect(page.locator(".cart li")).toHaveCount(0);
 });

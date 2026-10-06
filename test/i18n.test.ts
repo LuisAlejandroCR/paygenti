@@ -106,3 +106,22 @@ describe("policy reason codes", () => {
     expect(reasonText("NOT_A_CODE", undefined, "fallback", "en")).toBe("fallback");
   });
 });
+
+describe("audit reason codes", () => {
+  it("every PIN/commit/release audit code has text in both languages", () => {
+    for (const code of [
+      "PIN_OK",
+      "PIN_WRONG",
+      "PIN_LOCKED",
+      "COMMITTED",
+      "RELEASED",
+      "TICKET_INVALID",
+    ]) {
+      expect(reasonText(code, undefined, undefined, "en")).toBeTruthy();
+      expect(reasonText(code, undefined, undefined, "es")).toBeTruthy();
+      expect(reasonText(code, undefined, undefined, "en")).not.toBe(
+        reasonText(code, undefined, undefined, "es"),
+      );
+    }
+  });
+});

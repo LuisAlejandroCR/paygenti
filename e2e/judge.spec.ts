@@ -1,5 +1,6 @@
 // e2e/judge.spec.ts: judge mode end to end — keypad charge paid and declined on the mock gateway,
-// the vendor header layout, and the /t/rosa-01 sticker route in each of its branches.
+// vendor cancel reaching the customer and the sticker, adopting an open sale on load, the vendor
+// header layout, and the /t/rosa-01 sticker route in each of its branches.
 import type { Page } from "@playwright/test";
 import { apiSale, expect, expectNoOverflow, test } from "./fixtures";
 
@@ -31,6 +32,34 @@ test.describe("judge flow", () => {
     await customer.getByRole("button", { name: tx.declineMock }).click();
     await expect(customer.getByText(tx.customerDeclined, { exact: true })).toBeVisible();
     await expect(vendor.getByText(tx.vendorDeclined, { exact: true })).toBeVisible();
+  });
+
+  test("cancel: customer sees cancelled and the sticker has no open sale", async ({ page, tx }) => {
+    const vendor = await charge(page, "17");
+    const customer = page.locator(".judge-panel").nth(1);
+    await expect(customer.getByRole("button", { name: tx.payMock })).toBeVisible();
+    await vendor.getByRole("button", { name: tx.cancel, exact: true }).click();
+    await expect(vendor.locator(".entry")).toBeVisible();
+    await expect(customer.getByText(tx.customerCancelled)).toBeVisible();
+    await expect(customer.getByRole("button", { name: tx.payMock })).toHaveCount(0);
+    await page.goto("/t/rosa-01");
+    await expect(page.getByText(tx.tNone)).toBeVisible();
+  });
+
+  test("on load both panels show the same already-open sale", async ({ page, request, tx }) => {
+    const res = await request.post("/api/terminals/rosa-01/sales", { data: { amount: 3700 } });
+    const { sale } = (await res.json()) as { sale: { id: string } };
+    await page.goto("/judge");
+    const vendor = page.locator(".judge-panel").first();
+    const customer = page.locator(".judge-panel").nth(1);
+    await expect(vendor.locator(".waiting .total")).toHaveText(/37\.00/);
+    await expect(customer.locator(".lines .total")).toHaveText(/37\.00/);
+    await expectNoOverflow(page);
+    await vendor.getByRole("button", { name: tx.cancel, exact: true }).click();
+    await expect(vendor.locator(".entry")).toBeVisible();
+    expect((await (await request.get(`/api/sales/${sale.id}`)).json()).sale.status).toBe(
+      "cancelled",
+    );
   });
 
   test("vendor header: status label does not overlap the language toggle", async ({ page, tx }) => {

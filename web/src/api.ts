@@ -45,6 +45,8 @@ export const api = {
       "/api/voice/parse",
       { method: "POST", body: JSON.stringify({ text, vendorId }) },
     ),
+  cancelSale: (id: string) =>
+    request<{ sale: Sale }>(`/api/sales/${id}/cancel`, { method: "POST" }),
   capture: (id: string) => request<{ sale: Sale }>(`/api/sales/${id}/capture`, { method: "POST" }),
   mockApprove: (orderId: string, decline: boolean) =>
     request<unknown>(`/api/mock/orders/${orderId}/approve`, {

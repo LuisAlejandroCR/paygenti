@@ -33,6 +33,8 @@ export interface Request {
   actor: Actor;
   /** Raw PIN as typed by the vendor; verified here, never stored or logged. */
   pin?: string;
+  /** Who is typing (e.g. "ip:1.2.3.4", "session:<hash>"); PIN failures are counted per key. */
+  client?: readonly string[];
 }
 
 export type EngineDecision = Decision & { ticket?: string };
@@ -78,8 +80,8 @@ export class PolicyEngine {
 
     let pinVerified = false;
     if (req.pin !== undefined) {
-      const result = this.#pin.verify(req.pin);
-      this.#logPin(now, req.actor, result);
+      const result = this.#pin.verify(req.pin, req.client);
+      this.#logPin(now, req.actor, result, req.client);
       pinVerified = result.ok;
     }
 
@@ -169,9 +171,9 @@ export class PolicyEngine {
   }
 
   /** Check the vendor PIN to open a back-office session; same guard and lockout as decide(). */
-  verifyPin(actor: Actor, pin: unknown): PinResult {
-    const result = this.#pin.verify(pin);
-    this.#logPin(this.#now(), actor, result);
+  verifyPin(actor: Actor, pin: unknown, client?: readonly string[]): PinResult {
+    const result = this.#pin.verify(pin, client);
+    this.#logPin(this.#now(), actor, result, client);
     return result;
   }
 
@@ -211,12 +213,12 @@ export class PolicyEngine {
     return { minor, currency: this.config.currency };
   }
 
-  #logPin(now: Date, actor: Actor, result: PinResult): void {
+  #logPin(now: Date, actor: Actor, result: PinResult, client?: readonly string[]): void {
     this.audit.append({
       at: now.toISOString(),
       event: "pin",
       actor,
-      action: { check: "vendor_pin" },
+      action: { check: "vendor_pin", client: client ?? [] },
       decision: {
         allow: result.ok,
         code: result.code,

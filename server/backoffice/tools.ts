@@ -86,6 +86,8 @@ export interface RefundRequest {
 export interface Authority {
   actor: Actor;
   pin?: string;
+  /** Client keys (IP, hashed session) that PIN failures are counted against. */
+  client?: readonly string[];
 }
 
 export type RefundResult =
@@ -291,7 +293,7 @@ export class BackOffice {
         capturedAmount: sale.total,
         alreadyRefunded: money(already, sale.total.currency),
       },
-      { actor: who.actor, pin: who.pin },
+      { actor: who.actor, pin: who.pin, client: who.client },
     );
     if (!decision.allow || !decision.ticket)
       return { ok: false, code: decision.code, reason: decision.reason, params: decision.params };

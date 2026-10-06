@@ -1,5 +1,6 @@
 // server/sales.ts: the sale lifecycle — create (one open sale per terminal, 5 min TTL), capture
-// (idempotent, server-confirmed), webhook updates, and a per-terminal event bus feeding SSE.
+// (idempotent, server-confirmed), cancel (refused once a capture started), webhook updates, and a
+// per-terminal event bus feeding SSE.
 // Only this service changes a sale's status; routes and webhooks go through it.
 import { randomUUID } from "node:crypto";
 import { addMoney, fromPayPalValue, type Money, money } from "../shared/money";
@@ -104,6 +105,27 @@ export class SalesService {
     return p;
   }
 
+  /**
+   * Vendor cancels an unpaid sale. Race-safe because both checks and the status write happen
+   * synchronously: a capture already in flight wins (CAPTURE_IN_PROGRESS), a paid sale stays paid
+   * (SALE_ALREADY_PAID), and any capture started afterwards sees "cancelled" and is refused.
+   * PayPal Orders v2 has no void for an uncaptured CAPTURE-intent order, so the order is left to
+   * lapse; we never capture it.
+   */
+  cancel(saleId: string): Sale {
+    const sale = this.getSale(saleId);
+    if (!sale) throw new SaleError("SALE_NOT_FOUND", 404, "unknown sale");
+    if (sale.status === "cancelled") return sale;
+    if (sale.status === "paid" || sale.status === "refunded")
+      throw new SaleError("SALE_ALREADY_PAID", 409, "sale already paid");
+    if (!isOpen(sale)) throw new SaleError("SALE_NOT_OPEN", 409, `sale is ${sale.status}`);
+    if (this.inflight.has(saleId))
+      throw new SaleError("CAPTURE_IN_PROGRESS", 409, "a capture is already running");
+    const updated = this.save(sale, { status: "cancelled" });
+    this.emit({ type: "sale.cancelled", sale: updated });
+    return updated;
+  }
+
   async handleWebhook(event: WebhookEvent): Promise<void> {
     const r = event.resource;
     switch (event.event_type) {
@@ -186,6 +208,8 @@ export class SalesService {
     if (sale.status === "paid" || sale.status === "refunded") return sale;
     if (sale.status === "expired") throw new SaleError("SALE_EXPIRED", 409, "sale expired");
     if (sale.status === "failed") throw new SaleError("SALE_FAILED", 409, "sale failed");
+    if (sale.status === "cancelled")
+      throw new SaleError("SALE_CANCELLED", 409, "sale was cancelled");
     try {
       const cap = await this.paypal.captureOrder(sale.orderId, `${sale.id}:capture`);
       if (cap.status === "COMPLETED") return this.markPaid(sale, cap.id);

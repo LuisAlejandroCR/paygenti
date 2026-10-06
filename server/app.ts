@@ -10,12 +10,15 @@ import { z } from "zod";
 import type { ModelClient } from "./backoffice/agent";
 import { backofficeRoutes } from "./backoffice/routes";
 import { BackOffice } from "./backoffice/tools";
+import { type Lang, pickLang } from "./lang";
 import { PayPalError, type PayPalGateway } from "./paypal/gateway";
 import { MockPayPal } from "./paypal/mock";
 import { PolicyEngine } from "./policy";
 import { type Clock, SaleError, SalesService } from "./sales";
 import { MemoryStore } from "./store";
 import { parseVoice, type VoiceEnv } from "./voice";
+
+export { pickLang };
 
 export interface AppDeps {
   paypal: PayPalGateway;
@@ -134,6 +137,12 @@ export function createApp(deps: AppDeps): Hono {
     if (!id.success) return c.json({ error: "SALE_NOT_FOUND" }, 404);
     const sale = await sales.capture(id.data);
     return c.json({ sale });
+  });
+
+  app.post("/api/sales/:id/cancel", (c) => {
+    const id = uuid.safeParse(c.req.param("id"));
+    if (!id.success) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    return c.json({ sale: sales.cancel(id.data) });
   });
 
   app.get("/api/terminals/:id/events", (c) => {
@@ -273,8 +282,6 @@ async function readJson(c: Context): Promise<unknown> {
   }
 }
 
-type Lang = "en" | "es";
-
 const PAGE_TEXT: Record<
   Lang,
   Record<"notFoundTitle" | "notFound" | "paid" | "gone" | "none", string>
@@ -294,21 +301,6 @@ const PAGE_TEXT: Record<
     none: "No hay una venta abierta en este momento. Pide a la vendedora que marque el cobro y vuelve a escanear.",
   },
 };
-
-/** English by default; Spanish when it outranks English in Accept-Language. */
-export function pickLang(header: string | undefined): Lang {
-  if (!header) return "en";
-  const ranked = header
-    .split(",")
-    .map((part) => {
-      const [tag = "", ...params] = part.trim().toLowerCase().split(";");
-      const q = params.find((p) => p.trim().startsWith("q="));
-      return { tag: tag.trim(), q: q ? Number(q.trim().slice(2)) || 0 : 1 };
-    })
-    .filter((x) => x.tag.startsWith("es") || x.tag.startsWith("en"))
-    .sort((x, y) => y.q - x.q);
-  return ranked[0]?.tag.startsWith("es") ? "es" : "en";
-}
 
 function page(lang: Lang, title: string, message: string): string {
   const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);

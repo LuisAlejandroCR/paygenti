@@ -176,13 +176,18 @@ export function BackOfficeApp() {
 
   async function askAgent(e: Event) {
     e.preventDefault();
-    const r = await call<{ text: string }>("/agent", {
+    const r = await call<{
+      text: string;
+      code?: string;
+      params?: Record<string, string | number>;
+    }>("/agent", {
       message: ask,
+      locale,
       ...(askPin && { pin: askPin }),
     });
     setAskPin("");
     if (r) {
-      setAnswer(r.text);
+      setAnswer((r.code && reasonText(r.code, r.params, undefined, locale)) || r.text);
       void loadToday();
     }
   }

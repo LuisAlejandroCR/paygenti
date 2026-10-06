@@ -251,6 +251,67 @@ describe("PinGuard", () => {
   });
 });
 
+describe("PinGuard per-client lockout", () => {
+  it("one client's wrong guesses do not lock out another client", () => {
+    const g = new PinGuard({ pin: "4321", now: () => 0 });
+    for (let i = 0; i < 4; i++) expect(g.verify("0000", "ip:attacker").code).toBe("PIN_WRONG");
+    expect(g.verify("0000", "ip:attacker").code).toBe("PIN_LOCKED");
+    expect(g.verify("4321", "ip:attacker").ok).toBe(false);
+    expect(g.isLocked("ip:attacker")).toBe(true);
+    expect(g.isLocked("ip:vendor")).toBe(false);
+    expect(g.verify("4321", "ip:vendor").ok).toBe(true);
+    expect(g.verify("0000", "ip:vendor")).toMatchObject({ code: "PIN_WRONG", attemptsLeft: 4 });
+  });
+
+  it("charges every key: a locked session stays locked from a new IP", () => {
+    const g = new PinGuard({ pin: "4321", now: () => 0 });
+    for (let i = 0; i < 5; i++) g.verify("0000", ["ip:a", "session:s1"]);
+    expect(g.verify("4321", ["ip:b", "session:s1"]).code).toBe("PIN_LOCKED");
+    expect(g.verify("4321", ["ip:b"]).ok).toBe(true);
+  });
+
+  it("backs off exponentially on repeated lockouts, capped", () => {
+    let t = 0;
+    const g = new PinGuard({ pin: "4321", now: () => t, maxLockoutMs: 15 * 60_000 });
+    const lockOut = () => {
+      let last = g.verify("0000", "ip:x");
+      for (let i = 1; i < 5; i++) last = g.verify("0000", "ip:x");
+      return last;
+    };
+    expect(lockOut()).toMatchObject({ code: "PIN_LOCKED", retryAfterMs: 5 * 60_000 });
+    t += 5 * 60_000;
+    expect(lockOut()).toMatchObject({ code: "PIN_LOCKED", retryAfterMs: 10 * 60_000 });
+    t += 10 * 60_000;
+    expect(lockOut()).toMatchObject({ code: "PIN_LOCKED", retryAfterMs: 15 * 60_000 });
+    t += 15 * 60_000;
+    // The right PIN after the lock lapses resets the backoff.
+    expect(g.verify("4321", "ip:x").ok).toBe(true);
+    expect(lockOut()).toMatchObject({ code: "PIN_LOCKED", retryAfterMs: 5 * 60_000 });
+  });
+
+  it("a global backstop locks everyone after many failures from rotating clients", () => {
+    let t = 0;
+    const g = new PinGuard({ pin: "4321", now: () => t, globalMaxAttempts: 20 });
+    for (let i = 0; i < 19; i++) expect(g.verify("0000", `ip:bot-${i}`).code).toBe("PIN_WRONG");
+    expect(g.verify("0000", "ip:bot-19").code).toBe("PIN_LOCKED");
+    expect(g.verify("4321", "ip:vendor")).toMatchObject({ ok: false, code: "PIN_LOCKED" });
+    t = 5 * 60_000;
+    expect(g.verify("4321", "ip:vendor").ok).toBe(true);
+  });
+
+  it("the engine audits PIN checks with the client keys and never the PIN", () => {
+    const engine = new PolicyEngine({ vendorName: "Rosa", pin: "4321", now: () => NOON });
+    expect(engine.verifyPin("vendor", "0000", ["ip:9.9.9.9"]).ok).toBe(false);
+    const [entry] = engine.audit.entries();
+    expect(entry).toMatchObject({
+      event: "pin",
+      action: { check: "vendor_pin", client: ["ip:9.9.9.9"] },
+      decision: { allow: false, code: "PIN_WRONG" },
+    });
+    expect(JSON.stringify(entry)).not.toContain("0000");
+  });
+});
+
 describe("AuditLog", () => {
   it("is append-only, frozen, and strips PIN-like fields", () => {
     const log = new AuditLog();

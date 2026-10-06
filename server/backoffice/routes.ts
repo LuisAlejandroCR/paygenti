@@ -1,10 +1,12 @@
 // server/backoffice/routes.ts: /api/backoffice/* — PIN login to a vendor session, fixed tool
 // endpoints (sales, reconcile, invoice, refund) and the optional Claude agent. Without a session
 // the caller is treated as a customer, so the policy denies any money movement.
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { getConnInfo } from "@hono/node-server/conninfo";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { money } from "../../shared/money";
+import { pickLang } from "../lang";
 import { PayPalError } from "../paypal/gateway";
 import { type ModelClient, runAgent } from "./agent";
 import { type Authority, type BackOffice, BackOfficeError } from "./tools";
@@ -22,7 +24,11 @@ const refundBody = z.strictObject({
   amountMinor: z.number().int().positive().max(10_000_000),
   pin: pinField,
 });
-const agentBody = z.strictObject({ message: z.string().min(1).max(1000), pin: pinField });
+const agentBody = z.strictObject({
+  message: z.string().min(1).max(1000),
+  pin: pinField,
+  locale: z.enum(["en", "es"]).optional(),
+});
 
 export interface BackOfficeRouteDeps {
   office: BackOffice;
@@ -41,7 +47,10 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
     const token = /^Bearer ([a-f0-9]{64})$/.exec(c.req.header("authorization") ?? "")?.[1];
     const exp = token ? sessions.get(token) : undefined;
     const vendor = exp !== undefined && exp > clock();
-    return { actor: vendor ? "vendor" : "customer", pin };
+    const client = [clientIp(c)];
+    if (token)
+      client.push(`session:${createHash("sha256").update(token).digest("hex").slice(0, 16)}`);
+    return { actor: vendor ? "vendor" : "customer", pin, client };
   };
   const requireVendor = (c: Context) =>
     authority(c).actor === "vendor" ? undefined : c.json({ error: "SESSION_REQUIRED" }, 401);
@@ -51,7 +60,7 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
   app.post("/session", async (c) => {
     const body = loginBody.safeParse(await readJson(c));
     if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
-    const result = office.policy.verifyPin("vendor", body.data.pin);
+    const result = office.policy.verifyPin("vendor", body.data.pin, [clientIp(c)]);
     if (!result.ok) return c.json({ error: result.code }, result.code === "PIN_LOCKED" ? 429 : 401);
     const token = randomBytes(32).toString("hex");
     sessions.set(token, clock() + SESSION_TTL_MS);
@@ -110,7 +119,10 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
     const body = agentBody.safeParse(await readJson(c));
     if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
     try {
-      return c.json(await runAgent(model, office, body.data.message, authority(c, body.data.pin)));
+      const lang = body.data.locale ?? pickLang(c.req.header("accept-language"));
+      return c.json(
+        await runAgent(model, office, body.data.message, authority(c, body.data.pin), lang),
+      );
     } catch (err) {
       console.error(`agent failed: ${(err as Error).message}`);
       return c.json({ error: "AGENT_FAILED" }, 502);
@@ -120,6 +132,21 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
   app.get("/audit", (c) => requireVendor(c) ?? c.json({ entries: office.policy.audit.entries() }));
 
   return app;
+}
+
+/**
+ * The caller's IP: first hop of X-Forwarded-For (Render's proxy sets it), else the socket address.
+ * X-Forwarded-For can be forged when there is no proxy in front; the PIN guard's global backstop
+ * still caps guesses from rotating addresses.
+ */
+export function clientIp(c: Context): string {
+  const first = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
+  if (first) return `ip:${first.slice(0, 64)}`;
+  try {
+    return `ip:${getConnInfo(c).remote.address ?? "unknown"}`;
+  } catch {
+    return "ip:unknown";
+  }
 }
 
 function isDay(s: string): boolean {
