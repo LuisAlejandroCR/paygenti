@@ -7,8 +7,12 @@ import { bodyLimit } from "hono/body-limit";
 import { streamSSE } from "hono/streaming";
 import QRCode from "qrcode";
 import { z } from "zod";
+import type { ModelClient } from "./backoffice/agent";
+import { backofficeRoutes } from "./backoffice/routes";
+import { BackOffice } from "./backoffice/tools";
 import { PayPalError, type PayPalGateway } from "./paypal/gateway";
 import { MockPayPal } from "./paypal/mock";
+import { PolicyEngine } from "./policy";
 import { type Clock, SaleError, SalesService } from "./sales";
 import { MemoryStore } from "./store";
 import { parseVoice, type VoiceEnv } from "./voice";
@@ -23,6 +27,11 @@ export interface AppDeps {
   staticRoot?: string;
   /** Env for the voice parser (ANTHROPIC_API_KEY); omitted means rules parser only. */
   voiceEnv?: VoiceEnv;
+  /** Back-office lock; defaults to a PolicyEngine with vendorPin (demo "1234"). */
+  policy?: PolicyEngine;
+  vendorPin?: string;
+  /** Claude client for /api/backoffice/agent; omitted when there is no ANTHROPIC_API_KEY. */
+  agentModel?: ModelClient;
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -238,6 +247,19 @@ export function createApp(deps: AppDeps): Hono {
       ),
     );
   });
+
+  const policy =
+    deps.policy ??
+    new PolicyEngine({
+      vendorName: sales.store.getVendor("rosa")?.displayName.split(" ")[0] ?? "la vendedora",
+      pin: deps.vendorPin ?? "1234",
+      now: deps.clock ? () => new Date(deps.clock?.() ?? Date.now()) : undefined,
+    });
+  const office = new BackOffice({ sales, paypal, policy, clock: deps.clock });
+  app.route(
+    "/api/backoffice",
+    backofficeRoutes({ office, model: deps.agentModel, clock: deps.clock }),
+  );
 
   app.all("/api/*", (c) => c.json({ error: "NOT_FOUND" }, 404));
 
