@@ -1,0 +1,329 @@
+// web/src/i18n.ts: English/Spanish dictionary for every UI string, locale detection
+// (navigator.language: es* -> Spanish, else English) and the useT() hook behind the EN/ES toggle.
+// The choice persists in localStorage; DOM access is guarded so tests can import this in Node.
+import { useEffect, useState } from "preact/hooks";
+
+export type Locale = "en" | "es";
+export const LOCALES: readonly Locale[] = ["en", "es"];
+const STORAGE_KEY = "paygent.locale";
+
+const en = {
+  "app.online": "Online",
+  "app.offline": "Offline",
+  "app.langToggle": "Switch language",
+  "vendor.terminalNotFound": "This terminal was not found.",
+  "vendor.createFailed": "Could not create the charge. Check the connection and try again.",
+  "vendor.amountEntry": "Amount entry",
+  "vendor.delete": "Delete",
+  "vendor.decimal": "Decimal point",
+  "vendor.creating": "Creating…",
+  "vendor.charge": "Charge",
+  "vendor.chargeAmount": "Charge {amount}",
+  "vendor.qrAlt": "QR code to pay at stall {terminal}",
+  "vendor.scanHint": "Scan or tap the sticker to pay with PayPal",
+  "vendor.waiting": "Waiting for payment…",
+  "vendor.cancel": "Cancel",
+  "vendor.paid": "PAID",
+  "vendor.newSale": "New sale",
+  "vendor.declined": "Payment declined",
+  "vendor.expired": "Charge expired",
+  "vendor.hideSticker": "Hide sticker",
+  "vendor.writeSticker": "Write sticker",
+  "announce.received": "Received: {amount}",
+  "money.peso": "peso",
+  "money.pesos": "pesos",
+  "money.dollar": "dollar",
+  "money.dollars": "dollars",
+  "money.withCents": "{units} and {cents} cents",
+  "checkout.notFound": "We could not find this sale.",
+  "checkout.declinedRetry": "The payment was declined. Try another method.",
+  "checkout.expired": "This sale expired. Ask the vendor for a new charge.",
+  "checkout.failed": "The payment could not be completed. Try again.",
+  "checkout.paypalError": "PayPal could not process the payment.",
+  "checkout.sdkError": "Could not load PayPal. Check your connection.",
+  "checkout.simulateError": "Could not simulate the payment.",
+  "checkout.loading": "Loading…",
+  "checkout.items": "Items",
+  "checkout.total": "Total",
+  "checkout.paid": "Payment received! Thank you.",
+  "checkout.refunded": "This payment was refunded.",
+  "checkout.declined": "Payment declined.",
+  "checkout.processing": "Processing…",
+  "checkout.payMock": "Pay (simulated)",
+  "checkout.declineMock": "Simulate decline",
+  "checkout.demoNote": "Demo mode: no real money moves.",
+  "sticker.label": "Write sticker",
+  "sticker.title": "Stall sticker",
+  "sticker.approach": "Hold the sticker to the phone…",
+  "sticker.write": "Write NFC sticker",
+  "sticker.done": "Sticker written. Try it with another phone.",
+  "sticker.error": "Could not write it. Make sure NFC is on and try again.",
+  "sticker.noNfc":
+    "This browser cannot write NFC (use Chrome on Android). Print this QR and stick it on the stall.",
+  "sticker.qrAlt": "Printable QR code for stall {terminal}",
+  "sticker.print": "Print QR",
+  "voice.noProducts": "No products recognized. Try again or use the keypad.",
+  "voice.unmatched": "Did not understand: {items}",
+  "voice.parseFailed": "Could not read the order. Check the connection.",
+  "voice.notHeard": "I did not hear you. Hold the button and speak close to the phone.",
+  "voice.label": "Voice order",
+  "voice.listening": "Listening… release to finish",
+  "voice.hold": "Hold and say the order",
+  "voice.unsupported": "Your browser cannot dictate. Use the keypad below.",
+  "voice.removeOne": "Remove one {name}",
+  "voice.addOne": "Add one {name}",
+  "voice.removeAll": "Remove {name}",
+  "voice.clear": "Clear cart",
+  "bo.pinWrong": "Wrong PIN.",
+  "bo.pinLocked": "Too many attempts. Wait a few minutes.",
+  "bo.sessionRequired": "Your session expired. Sign in again with your PIN.",
+  "bo.agentFailed": "The assistant did not answer. Use the buttons.",
+  "bo.offline": "No connection to the server.",
+  "bo.error": "Error: {code}",
+  "bo.cashFormat": "Type the cash in pesos, for example 350.",
+  "bo.invoiceFormat": "Type the invoice amount in pesos.",
+  "bo.refundFormat": "Type how much to refund in pesos.",
+  "bo.title": "My business",
+  "bo.pin": "Vendor PIN",
+  "bo.enter": "Enter",
+  "bo.exit": "Sign out",
+  "bo.askTitle": "Ask the assistant",
+  "bo.askPlaceholder": "How much did I sell today?",
+  "bo.askPin": "PIN (refunds only)",
+  "bo.ask": "Ask",
+  "bo.today": "Today's sales",
+  "bo.salesCount": "{count} sales",
+  "bo.refund": "Refund",
+  "bo.refunded": "Refunded",
+  "bo.refresh": "Refresh",
+  "bo.refundTitle": "Refund",
+  "bo.refundAmount": "How much to refund? (pesos)",
+  "bo.confirmPin": "Confirm with your PIN",
+  "bo.cancel": "Cancel",
+  "bo.reconcileTitle": "Daily reconcile",
+  "bo.cash": "Cash in the till (pesos)",
+  "bo.reconcile": "Reconcile",
+  "bo.refunds": "Refunds",
+  "bo.cashRow": "Cash",
+  "bo.total": "Total",
+  "bo.invoiceTitle": "Invoice with QR",
+  "bo.amount": "Amount (pesos)",
+  "bo.concept": "Description",
+  "bo.createInvoice": "Create invoice",
+  "bo.invoiceQrAlt": "QR for invoice {id}",
+  "bo.openInvoice": "Open invoice",
+  "judge.title": "Judge mode",
+  "judge.intro":
+    "One screen, two phones: the vendor on the left, the customer on the right. Runs on a mock PayPal gateway unless sandbox keys are set.",
+  "judge.step1":
+    "Vendor: type an amount (e.g. 95) or hold the mic and say “two mole tamales and an atole”.",
+  "judge.step2": "Vendor: tap “Charge”. The QR appears — that is what the customer would scan.",
+  "judge.step3":
+    "Customer: the checkout opens on the right. Tap “Pay (simulated)” or “Simulate decline”.",
+  "judge.step4": "Vendor: the screen turns PAID and the phone says the amount out loud.",
+  "judge.step5":
+    "Bonus: open /backoffice (PIN 1234) and try a refund — the policy lock asks for the PIN again.",
+  "judge.vendor": "Vendor",
+  "judge.customer": "Customer",
+  "judge.noSale": "No open sale. Create one in the vendor panel.",
+} as const;
+
+export type Key = keyof typeof en;
+type Dict = Record<Key, string>;
+
+const es: Dict = {
+  "app.online": "En línea",
+  "app.offline": "Sin conexión",
+  "app.langToggle": "Cambiar idioma",
+  "vendor.terminalNotFound": "No se encontró esta terminal.",
+  "vendor.createFailed": "No se pudo crear el cobro. Revisa la conexión e intenta de nuevo.",
+  "vendor.amountEntry": "Captura del monto",
+  "vendor.delete": "Borrar",
+  "vendor.decimal": "Punto decimal",
+  "vendor.creating": "Creando…",
+  "vendor.charge": "Cobrar",
+  "vendor.chargeAmount": "Cobrar {amount}",
+  "vendor.qrAlt": "Código QR para pagar en el puesto {terminal}",
+  "vendor.scanHint": "Escanea o toca el sticker para pagar con PayPal",
+  "vendor.waiting": "Esperando pago…",
+  "vendor.cancel": "Cancelar",
+  "vendor.paid": "PAGADO",
+  "vendor.newSale": "Nueva venta",
+  "vendor.declined": "Pago rechazado",
+  "vendor.expired": "Cobro expirado",
+  "vendor.hideSticker": "Ocultar sticker",
+  "vendor.writeSticker": "Grabar sticker",
+  "announce.received": "Recibido: {amount}",
+  "money.peso": "peso",
+  "money.pesos": "pesos",
+  "money.dollar": "dólar",
+  "money.dollars": "dólares",
+  "money.withCents": "{units} con {cents} centavos",
+  "checkout.notFound": "No encontramos esta venta.",
+  "checkout.declinedRetry": "El pago fue rechazado. Intenta con otro método.",
+  "checkout.expired": "Esta venta expiró. Pide a la vendedora un cobro nuevo.",
+  "checkout.failed": "No se pudo completar el pago. Intenta de nuevo.",
+  "checkout.paypalError": "PayPal no pudo procesar el pago.",
+  "checkout.sdkError": "No se pudo cargar PayPal. Revisa tu conexión.",
+  "checkout.simulateError": "No se pudo simular el pago.",
+  "checkout.loading": "Cargando…",
+  "checkout.items": "Productos",
+  "checkout.total": "Total",
+  "checkout.paid": "¡Pago recibido! Gracias.",
+  "checkout.refunded": "Este pago fue reembolsado.",
+  "checkout.declined": "Pago rechazado.",
+  "checkout.processing": "Procesando…",
+  "checkout.payMock": "Pagar (simulado)",
+  "checkout.declineMock": "Simular rechazo",
+  "checkout.demoNote": "Modo demostración: no se mueve dinero real.",
+  "sticker.label": "Grabar sticker",
+  "sticker.title": "Sticker del puesto",
+  "sticker.approach": "Acerca el sticker al teléfono…",
+  "sticker.write": "Grabar sticker NFC",
+  "sticker.done": "Sticker grabado. Pruébalo con otro teléfono.",
+  "sticker.error": "No se pudo grabar. Revisa que el NFC esté activo e intenta de nuevo.",
+  "sticker.noNfc":
+    "Este navegador no puede grabar NFC (usa Chrome en Android). Imprime este QR y pégalo en el puesto.",
+  "sticker.qrAlt": "Código QR del puesto {terminal} para imprimir",
+  "sticker.print": "Imprimir QR",
+  "voice.noProducts": "No reconocí productos. Intenta de nuevo o usa el teclado.",
+  "voice.unmatched": "No entendí: {items}",
+  "voice.parseFailed": "No se pudo interpretar el pedido. Revisa la conexión.",
+  "voice.notHeard": "No te escuché. Mantén presionado y habla cerca del teléfono.",
+  "voice.label": "Pedido por voz",
+  "voice.listening": "Escuchando… suelta para terminar",
+  "voice.hold": "Mantén presionado y di el pedido",
+  "voice.unsupported": "Tu navegador no permite dictar. Usa el teclado de abajo.",
+  "voice.removeOne": "Quitar uno de {name}",
+  "voice.addOne": "Agregar uno de {name}",
+  "voice.removeAll": "Eliminar {name}",
+  "voice.clear": "Vaciar carrito",
+  "bo.pinWrong": "PIN incorrecto.",
+  "bo.pinLocked": "Demasiados intentos. Espera unos minutos.",
+  "bo.sessionRequired": "La sesión venció. Entra de nuevo con tu PIN.",
+  "bo.agentFailed": "El asistente no respondió. Usa los botones.",
+  "bo.offline": "Sin conexión con el servidor.",
+  "bo.error": "Error: {code}",
+  "bo.cashFormat": "Escribe el efectivo en pesos, por ejemplo 350.",
+  "bo.invoiceFormat": "Escribe el monto de la factura en pesos.",
+  "bo.refundFormat": "Escribe cuánto devolver en pesos.",
+  "bo.title": "Mi negocio",
+  "bo.pin": "PIN de la vendedora",
+  "bo.enter": "Entrar",
+  "bo.exit": "Salir",
+  "bo.askTitle": "Pregúntale al asistente",
+  "bo.askPlaceholder": "¿Cuánto vendí hoy?",
+  "bo.askPin": "PIN (solo para devoluciones)",
+  "bo.ask": "Preguntar",
+  "bo.today": "Ventas de hoy",
+  "bo.salesCount": "{count} ventas",
+  "bo.refund": "Devolver",
+  "bo.refunded": "Devuelta",
+  "bo.refresh": "Actualizar",
+  "bo.refundTitle": "Devolución",
+  "bo.refundAmount": "¿Cuánto devolver? (pesos)",
+  "bo.confirmPin": "Confirma con tu PIN",
+  "bo.cancel": "Cancelar",
+  "bo.reconcileTitle": "Cuadre del día",
+  "bo.cash": "Efectivo en caja (pesos)",
+  "bo.reconcile": "Cuadrar",
+  "bo.refunds": "Devoluciones",
+  "bo.cashRow": "Efectivo",
+  "bo.total": "Total",
+  "bo.invoiceTitle": "Factura con QR",
+  "bo.amount": "Monto (pesos)",
+  "bo.concept": "Concepto",
+  "bo.createInvoice": "Crear factura",
+  "bo.invoiceQrAlt": "QR de la factura {id}",
+  "bo.openInvoice": "Abrir factura",
+  "judge.title": "Modo jurado",
+  "judge.intro":
+    "Una pantalla, dos teléfonos: la vendedora a la izquierda, el cliente a la derecha. Usa un PayPal simulado salvo que haya llaves de sandbox.",
+  "judge.step1":
+    "Vendedora: escribe un monto (ej. 95) o mantén el micrófono y di “dos tamales de mole y un atole”.",
+  "judge.step2": "Vendedora: toca “Cobrar”. Aparece el QR — eso es lo que escanearía el cliente.",
+  "judge.step3":
+    "Cliente: el cobro se abre a la derecha. Toca “Pagar (simulado)” o “Simular rechazo”.",
+  "judge.step4": "Vendedora: la pantalla dice PAGADO y el teléfono anuncia el monto en voz alta.",
+  "judge.step5":
+    "Extra: abre /backoffice (PIN 1234) y prueba una devolución — el candado de políticas vuelve a pedir el PIN.",
+  "judge.vendor": "Vendedora",
+  "judge.customer": "Cliente",
+  "judge.noSale": "No hay venta abierta. Crea una en el panel de la vendedora.",
+};
+
+export const DICTIONARIES: Record<Locale, Dict> = { en, es };
+
+/** es* -> Spanish; anything else (or nothing) -> English. A stored valid choice wins. */
+export function detectLocale(navigatorLanguage?: string | null, stored?: string | null): Locale {
+  if (stored === "en" || stored === "es") return stored;
+  return navigatorLanguage?.toLowerCase().startsWith("es") ? "es" : "en";
+}
+
+/** BCP-47 tag for speech recognition and synthesis. */
+export function speechLang(locale: Locale): string {
+  return locale === "es" ? "es-MX" : "en-US";
+}
+
+export function translate(
+  locale: Locale,
+  key: Key,
+  vars?: Record<string, string | number>,
+): string {
+  const text = DICTIONARIES[locale][key];
+  return vars ? text.replace(/\{(\w+)\}/g, (m, k: string) => String(vars[k] ?? m)) : text;
+}
+
+interface Env {
+  navigator?: { language?: string };
+  localStorage?: { getItem(k: string): string | null; setItem(k: string, v: string): void };
+  document?: { documentElement: { lang: string } };
+}
+const env = globalThis as Env;
+
+function readStored(): string | null {
+  try {
+    return env.localStorage?.getItem(STORAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+let current: Locale = detectLocale(env.navigator?.language, readStored());
+const listeners = new Set<(l: Locale) => void>();
+if (env.document) env.document.documentElement.lang = speechLang(current);
+
+export function getLocale(): Locale {
+  return current;
+}
+
+export function setLocale(locale: Locale): void {
+  current = locale;
+  try {
+    env.localStorage?.setItem(STORAGE_KEY, locale);
+  } catch {
+    // Storage blocked (private mode): the choice lasts for this page only.
+  }
+  if (env.document) env.document.documentElement.lang = speechLang(locale);
+  for (const fn of listeners) fn(locale);
+}
+
+/** Non-hook translator for code outside components (announce.ts). */
+export function t(key: Key, vars?: Record<string, string | number>): string {
+  return translate(current, key, vars);
+}
+
+/** Re-renders the component when the locale changes. */
+export function useT() {
+  const [locale, set] = useState(current);
+  useEffect(() => {
+    listeners.add(set);
+    return () => {
+      listeners.delete(set);
+    };
+  }, []);
+  return {
+    locale,
+    t: (key: Key, vars?: Record<string, string | number>) => translate(locale, key, vars),
+  };
+}

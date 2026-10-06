@@ -3,6 +3,8 @@
 // All numbers come from the server; this page only renders them.
 import { useEffect, useState } from "preact/hooks";
 import { formatMoney, type Money } from "../../shared/money";
+import { type Key, useT } from "./i18n";
+import { LangToggle } from "./lang-toggle";
 
 interface SaleRow {
   id: string;
@@ -33,11 +35,11 @@ interface Invoice {
   qr: string;
 }
 
-const ERRORS: Record<string, string> = {
-  PIN_WRONG: "PIN incorrecto.",
-  PIN_LOCKED: "Demasiados intentos. Espera unos minutos.",
-  SESSION_REQUIRED: "La sesión venció. Entra de nuevo con tu PIN.",
-  AGENT_FAILED: "El asistente no respondió. Usa los botones.",
+const ERRORS: Record<string, Key> = {
+  PIN_WRONG: "bo.pinWrong",
+  PIN_LOCKED: "bo.pinLocked",
+  SESSION_REQUIRED: "bo.sessionRequired",
+  AGENT_FAILED: "bo.agentFailed",
 };
 
 function toMinor(text: string): number | undefined {
@@ -47,6 +49,7 @@ function toMinor(text: string): number | undefined {
 }
 
 export function BackOfficeApp() {
+  const { t, locale } = useT();
   const [token, setToken] = useState<string | null>(null);
   const [agent, setAgent] = useState(false);
   const [error, setError] = useState("");
@@ -76,12 +79,15 @@ export function BackOfficeApp() {
       body: body === undefined ? undefined : JSON.stringify(body),
     }).catch(() => undefined);
     if (!res) {
-      setError("Sin conexión con el servidor.");
+      setError(t("bo.offline"));
       return undefined;
     }
     const data = (await res.json().catch(() => ({}))) as T & { error?: string; reason?: string };
     if (!res.ok) {
-      setError(data.reason ?? ERRORS[data.error ?? ""] ?? `Error: ${data.error ?? res.status}`);
+      const known = ERRORS[data.error ?? ""];
+      setError(
+        data.reason ?? (known ? t(known) : t("bo.error", { code: data.error ?? res.status })),
+      );
       if (res.status === 401 && data.error === "SESSION_REQUIRED") setToken(null);
       return undefined;
     }
@@ -114,7 +120,7 @@ export function BackOfficeApp() {
   async function reconcile(e: Event) {
     e.preventDefault();
     const minor = toMinor(cash || "0");
-    if (minor === undefined) return setError("Escribe el efectivo en pesos, por ejemplo 350.");
+    if (minor === undefined) return setError(t("bo.cashFormat"));
     const r = await call<Reconcile>("/reconcile", { cashMinor: minor });
     if (r) setRec(r);
   }
@@ -122,7 +128,7 @@ export function BackOfficeApp() {
   async function makeInvoice(e: Event) {
     e.preventDefault();
     const minor = toMinor(invAmount);
-    if (!minor) return setError("Escribe el monto de la factura en pesos.");
+    if (!minor) return setError(t("bo.invoiceFormat"));
     const r = await call<Invoice>("/invoices", { amountMinor: minor, description: invDesc });
     if (r) setInvoice(r);
   }
@@ -131,7 +137,7 @@ export function BackOfficeApp() {
     e.preventDefault();
     if (!refund) return;
     const minor = toMinor(refund.amount);
-    if (!minor) return setError("Escribe cuánto devolver en pesos.");
+    if (!minor) return setError(t("bo.refundFormat"));
     const r = await call<{ reason: string }>("/refunds", {
       saleId: refund.saleId,
       amountMinor: minor,
@@ -160,10 +166,12 @@ export function BackOfficeApp() {
   if (!token)
     return (
       <main class="backoffice">
-        <h1>Mi negocio</h1>
+        <h1>
+          {t("bo.title")} <LangToggle />
+        </h1>
         <form onSubmit={login} class="panel">
           <label>
-            PIN de la vendedora
+            {t("bo.pin")}
             <input
               type="password"
               inputMode="numeric"
@@ -173,7 +181,7 @@ export function BackOfficeApp() {
             />
           </label>
           <button type="submit" class="primary" disabled={pin.length < 4}>
-            Entrar
+            {t("bo.enter")}
           </button>
         </form>
         {error && <p class="error">{error}</p>}
@@ -183,9 +191,10 @@ export function BackOfficeApp() {
   return (
     <main class="backoffice">
       <header class="bar">
-        <span class="stall">Mi negocio</span>
+        <span class="stall">{t("bo.title")}</span>
+        <LangToggle />
         <button type="button" class="secondary" onClick={() => setToken(null)}>
-          Salir
+          {t("bo.exit")}
         </button>
       </header>
       {error && (
@@ -201,39 +210,41 @@ export function BackOfficeApp() {
 
       {agent && (
         <form class="panel" onSubmit={askAgent}>
-          <h2>Pregúntale al asistente</h2>
+          <h2>{t("bo.askTitle")}</h2>
           <input
-            placeholder="¿Cuánto vendí hoy?"
+            placeholder={t("bo.askPlaceholder")}
             value={ask}
             onInput={(e) => setAsk(e.currentTarget.value)}
           />
           <input
             type="password"
             inputMode="numeric"
-            placeholder="PIN (solo para devoluciones)"
+            placeholder={t("bo.askPin")}
             value={askPin}
             onInput={(e) => setAskPin(e.currentTarget.value)}
           />
           <button type="submit" class="primary" disabled={!ask.trim()}>
-            Preguntar
+            {t("bo.ask")}
           </button>
           {answer && <p>{answer}</p>}
         </form>
       )}
 
       <section class="panel">
-        <h2>Ventas de hoy</h2>
+        <h2>{t("bo.today")}</h2>
         {today && (
           <>
             <p class="total">
-              {formatMoney(today.total)} · {today.count} ventas
+              {formatMoney(today.total)} · {t("bo.salesCount", { count: today.count })}
             </p>
             <table class="lines">
               <tbody>
                 {today.sales.map((s) => (
                   <tr key={s.id}>
                     <td>
-                      {new Date(s.paidAt).toLocaleTimeString("es-MX", { timeStyle: "short" })}
+                      {new Date(s.paidAt).toLocaleTimeString(locale === "es" ? "es-MX" : "en-US", {
+                        timeStyle: "short",
+                      })}
                     </td>
                     <td>{s.items}</td>
                     <td class="num">{formatMoney(s.total)}</td>
@@ -244,10 +255,10 @@ export function BackOfficeApp() {
                           class="secondary"
                           onClick={() => setRefund({ saleId: s.id, amount: "", pin: "" })}
                         >
-                          Devolver
+                          {t("bo.refund")}
                         </button>
                       ) : (
-                        "Devuelta"
+                        t("bo.refunded")
                       )}
                     </td>
                   </tr>
@@ -257,15 +268,15 @@ export function BackOfficeApp() {
           </>
         )}
         <button type="button" class="secondary" onClick={() => void loadToday()}>
-          Actualizar
+          {t("bo.refresh")}
         </button>
       </section>
 
       {refund && (
         <form class="panel" onSubmit={doRefund}>
-          <h2>Devolución</h2>
+          <h2>{t("bo.refundTitle")}</h2>
           <label>
-            ¿Cuánto devolver? (pesos)
+            {t("bo.refundAmount")}
             <input
               inputMode="decimal"
               value={refund.amount}
@@ -273,7 +284,7 @@ export function BackOfficeApp() {
             />
           </label>
           <label>
-            Confirma con tu PIN
+            {t("bo.confirmPin")}
             <input
               type="password"
               inputMode="numeric"
@@ -283,22 +294,22 @@ export function BackOfficeApp() {
             />
           </label>
           <button type="submit" class="primary">
-            Devolver
+            {t("bo.refund")}
           </button>
           <button type="button" class="secondary" onClick={() => setRefund(null)}>
-            Cancelar
+            {t("bo.cancel")}
           </button>
         </form>
       )}
 
       <form class="panel" onSubmit={reconcile}>
-        <h2>Cuadre del día</h2>
+        <h2>{t("bo.reconcileTitle")}</h2>
         <label>
-          Efectivo en caja (pesos)
+          {t("bo.cash")}
           <input inputMode="decimal" value={cash} onInput={(e) => setCash(e.currentTarget.value)} />
         </label>
         <button type="submit" class="primary">
-          Cuadrar
+          {t("bo.reconcile")}
         </button>
         {rec && (
           <table class="lines">
@@ -308,16 +319,16 @@ export function BackOfficeApp() {
                 <td class="num">{formatMoney(rec.paypal)}</td>
               </tr>
               <tr>
-                <td>Devoluciones</td>
+                <td>{t("bo.refunds")}</td>
                 <td class="num">−{formatMoney(rec.refunded)}</td>
               </tr>
               <tr>
-                <td>Efectivo</td>
+                <td>{t("bo.cashRow")}</td>
                 <td class="num">{formatMoney(rec.cash)}</td>
               </tr>
               <tr>
                 <td>
-                  <strong>Total</strong>
+                  <strong>{t("bo.total")}</strong>
                 </td>
                 <td class="num">
                   <strong>{formatMoney(rec.total)}</strong>
@@ -329,9 +340,9 @@ export function BackOfficeApp() {
       </form>
 
       <form class="panel" onSubmit={makeInvoice}>
-        <h2>Factura con QR</h2>
+        <h2>{t("bo.invoiceTitle")}</h2>
         <label>
-          Monto (pesos)
+          {t("bo.amount")}
           <input
             inputMode="decimal"
             value={invAmount}
@@ -339,19 +350,19 @@ export function BackOfficeApp() {
           />
         </label>
         <label>
-          Concepto
+          {t("bo.concept")}
           <input value={invDesc} onInput={(e) => setInvDesc(e.currentTarget.value)} />
         </label>
         <button type="submit" class="primary">
-          Crear factura
+          {t("bo.createInvoice")}
         </button>
         {invoice && (
           <div class="qr">
-            <img src={invoice.qr} alt={`QR de la factura ${invoice.id}`} />
+            <img src={invoice.qr} alt={t("bo.invoiceQrAlt", { id: invoice.id })} />
             <p>
               {formatMoney(invoice.amount)} ·{" "}
               <a href={invoice.payUrl} target="_blank" rel="noreferrer">
-                Abrir factura
+                {t("bo.openInvoice")}
               </a>
             </p>
           </div>

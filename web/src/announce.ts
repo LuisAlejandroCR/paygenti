@@ -1,6 +1,7 @@
-// web/src/announce.ts: says "Recibido: 95 pesos" out loud with speechSynthesis (es-MX) and falls
-// back to a WebAudio chime when speech is unavailable or fails. unlockAudio() must run on a tap.
+// web/src/announce.ts: says "Received: 95 pesos" / "Recibido: 95 pesos" with speechSynthesis in the
+// current locale (en-US / es-MX) and falls back to a WebAudio chime when speech is unavailable or fails. unlockAudio() must run on a tap.
 import type { Money } from "../../shared/money";
+import { getLocale, type Key, type Locale, speechLang, translate } from "./i18n";
 
 let ctx: AudioContext | undefined;
 
@@ -19,23 +20,30 @@ export function unlockAudio(): void {
   }
 }
 
-export function spokenAmount(m: Money): string {
+export function spokenAmount(m: Money, locale: Locale = getLocale()): string {
   const units = Math.trunc(m.minor / 100);
   const cents = m.minor % 100;
-  const unit =
-    m.currency === "MXN" ? (units === 1 ? "peso" : "pesos") : units === 1 ? "dólar" : "dólares";
-  return cents ? `${units} ${unit} con ${cents} centavos` : `${units} ${unit}`;
+  const one = units === 1;
+  const mxn: Key = one ? "money.peso" : "money.pesos";
+  const usd: Key = one ? "money.dollar" : "money.dollars";
+  const whole = `${units} ${translate(locale, m.currency === "MXN" ? mxn : usd)}`;
+  return cents ? translate(locale, "money.withCents", { units: whole, cents }) : whole;
+}
+
+export function paidAnnouncement(m: Money, locale: Locale = getLocale()): string {
+  return translate(locale, "announce.received", { amount: spokenAmount(m, locale) });
 }
 
 export function announcePaid(total: Money): void {
-  const text = `Recibido: ${spokenAmount(total)}`;
+  const locale = getLocale();
+  const text = paidAnnouncement(total, locale);
   if (!("speechSynthesis" in window)) return chime();
   try {
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "es-MX";
+    u.lang = speechLang(locale);
     const voice = window.speechSynthesis
       .getVoices()
-      .find((v) => v.lang.toLowerCase().startsWith("es"));
+      .find((v) => v.lang.toLowerCase().startsWith(locale));
     if (!voice && window.speechSynthesis.getVoices().length > 0) return chime();
     if (voice) u.voice = voice;
     u.onerror = () => chime();

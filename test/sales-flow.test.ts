@@ -9,6 +9,8 @@ import { SALE_TTL_MS, SalesService } from "../server/sales";
 import { MemoryStore } from "../server/store";
 import type { Sale, TerminalEvent } from "../shared/types";
 
+const ES = { "Accept-Language": "es-MX,es;q=0.9,en;q=0.5" };
+
 const json = (body: unknown) => ({
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -68,7 +70,7 @@ describe("checkout flow (mock)", () => {
     expect(sale.total).toEqual({ minor: 9600, currency: "MXN" });
     expect(sale.status).toBe("open");
 
-    const redirect = await t.app.request("/t/rosa-01");
+    const redirect = await t.app.request("/t/rosa-01", { headers: ES });
     expect(redirect.status).toBe(302);
     expect(redirect.headers.get("location")).toBe(`/pay/${sale.id}`);
 
@@ -90,7 +92,7 @@ describe("checkout flow (mock)", () => {
     expect(paid.captureId).toBeTruthy();
     expect(t.events.map((e) => e.type)).toEqual(["sale.open", "sale.paid"]);
 
-    const after = await t.app.request("/t/rosa-01");
+    const after = await t.app.request("/t/rosa-01", { headers: ES });
     expect(after.status).toBe(200);
     expect(await after.text()).toContain("ya quedó registrado");
   });
