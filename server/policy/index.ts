@@ -168,6 +168,13 @@ export class PolicyEngine {
     return existed;
   }
 
+  /** Check the vendor PIN to open a back-office session; same guard and lockout as decide(). */
+  verifyPin(actor: Actor, pin: unknown): PinResult {
+    const result = this.#pin.verify(pin);
+    this.#logPin(this.#now(), actor, result);
+    return result;
+  }
+
   /** Committed totals for the current local day. */
   totals(): { day: string; refunded: Money; paidOut: Money } {
     this.#roll(this.#now());

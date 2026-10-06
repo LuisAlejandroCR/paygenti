@@ -3,8 +3,10 @@
 // Every write carries PayPal-Request-Id; every call has a timeout; secrets are never logged.
 import { type Currency, fromPayPalValue, type Money, toPayPalValue } from "../../shared/money";
 import {
+  type CreateInvoiceInput,
   type CreateOrderInput,
   type GatewayCapture,
+  type GatewayInvoice,
   type GatewayOrder,
   type GatewayRefund,
   type OrderStatus,
@@ -137,6 +139,45 @@ export class RestPayPal implements PayPalGateway {
     return { id: refund.id, captureId, status: refund.status, amount };
   }
 
+  async createInvoice(input: CreateInvoiceInput): Promise<GatewayInvoice> {
+    const currency_code = input.amount.currency;
+    const created = await this.call<{ id?: string; href?: string; status?: string }>(
+      "POST",
+      "/v2/invoicing/invoices",
+      {
+        body: {
+          detail: { currency_code, note: input.description.slice(0, 200) },
+          items: [
+            {
+              name: input.description.slice(0, 200) || "Venta",
+              quantity: "1",
+              unit_amount: { currency_code, value: toPayPalValue(input.amount) },
+            },
+          ],
+        },
+        requestId: input.idempotencyKey,
+      },
+    );
+    const id = created.id ?? /\/invoices\/([^/?]+)/.exec(created.href ?? "")?.[1];
+    if (!id) throw new PayPalError("invoice response without an id", 502, "MALFORMED_RESPONSE");
+    const path = `/v2/invoicing/invoices/${encodeURIComponent(id)}`;
+    const sent = await this.call<{ href?: string }>("POST", `${path}/send`, {
+      body: { send_to_recipient: false, send_to_invoicer: false },
+      requestId: `${input.idempotencyKey}:send`,
+    });
+    const qrText = await this.callText("POST", `${path}/generate-qr-code`, {
+      width: 300,
+      height: 300,
+    });
+    return {
+      id,
+      status: "SENT",
+      amount: input.amount,
+      payUrl: sent.href ?? `https://www.sandbox.paypal.com/invoice/p/#${id}`,
+      qrPngBase64: extractBase64(qrText),
+    };
+  }
+
   async verifyWebhook(headers: WebhookHeaders, rawBody: string): Promise<boolean> {
     if (!this.webhookId) return false;
     try {
@@ -180,6 +221,21 @@ export class RestPayPal implements PayPalGateway {
     const res = await this.send(`${this.baseUrl}${path}`, { method, headers, body: payload });
     if (res.status === 401) this.token = undefined;
     return this.parse<T>(res);
+  }
+
+  /** Like call() but returns the raw body (generate-qr-code answers base64 text, not JSON). */
+  private async callText(method: "POST", path: string, body: unknown): Promise<string> {
+    const token = await this.accessToken();
+    const res = await this.send(`${this.baseUrl}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return this.parse<string>(res);
+    return res.text();
   }
 
   private async accessToken(): Promise<string> {
@@ -247,6 +303,13 @@ export class RestPayPal implements PayPalGateway {
     }
     return data as T;
   }
+}
+
+/** The QR endpoint may wrap the base64 PNG in a multipart envelope; keep the longest base64 run. */
+function extractBase64(text: string): string | undefined {
+  const lines = text.split(/\r?\n/).map((l) => l.trim());
+  const runs = lines.filter((l) => l.length >= 100 && /^[A-Za-z0-9+/=]+$/.test(l));
+  return runs.sort((a, b) => b.length - a.length)[0];
 }
 
 function toOrder(order: PayPalOrder, fallback?: Money): GatewayOrder {

@@ -11,6 +11,8 @@ export interface Store {
   findSaleByCaptureId(captureId: string): Sale | undefined;
   /** Newest first. */
   salesForTerminal(terminalId: string): Sale[];
+  /** Every sale, newest first (back-office reports). */
+  allSales(): Sale[];
   saveSale(sale: Sale): void;
 }
 
@@ -83,6 +85,10 @@ export class MemoryStore implements Store {
 
   salesForTerminal(terminalId: string): Sale[] {
     return [...this.sales.values()].filter((s) => s.terminalId === terminalId).reverse();
+  }
+
+  allSales(): Sale[] {
+    return [...this.sales.values()].reverse();
   }
 
   saveSale(sale: Sale): void {
