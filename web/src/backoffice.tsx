@@ -5,6 +5,7 @@ import { useEffect, useState } from "preact/hooks";
 import { formatMoney, type Money } from "../../shared/money";
 import { type Key, reasonText, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
+import { MenuEditor } from "./menu-editor";
 
 /** Session token shared with /backoffice/ledger (same key as ledger.tsx; not imported to keep AG Grid lazy). */
 const LEDGER_TOKEN_KEY = "paygent.bo.token";
@@ -402,6 +403,8 @@ export function BackOfficeApp() {
           </div>
         )}
       </form>
+
+      <MenuEditor token={token} onAuthLost={() => setToken(null)} />
     </main>
   );
 }

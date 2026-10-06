@@ -1,7 +1,7 @@
 // server/store.ts: persistence behind a small Store interface; MemoryStore is enough for the demo.
 // Seeds the demo vendor (Rosa, tamales y atole, MXN) and her terminal "rosa-01".
 import { money } from "../shared/money";
-import type { Sale, Terminal, Vendor } from "../shared/types";
+import type { CatalogItem, Sale, Terminal, Vendor } from "../shared/types";
 
 export interface Store {
   getVendor(id: string): Vendor | undefined;
@@ -14,6 +14,8 @@ export interface Store {
   /** Every sale, newest first (back-office reports). */
   allSales(): Sale[];
   saveSale(sale: Sale): void;
+  /** Replaces a vendor's catalog; later reads (voice parser, vendor app) see it immediately. */
+  setCatalog(vendorId: string, catalog: CatalogItem[]): void;
 }
 
 export const DEMO_VENDOR: Vendor = {
@@ -130,5 +132,12 @@ export class MemoryStore implements Store {
 
   saveSale(sale: Sale): void {
     this.sales.set(sale.id, sale);
+  }
+
+  setCatalog(vendorId: string, catalog: CatalogItem[]): void {
+    const vendor = this.vendors.get(vendorId);
+    if (!vendor) throw new Error(`store: unknown vendor ${vendorId}`);
+    // A new object: DEMO_VENDOR (shared by every MemoryStore) is never mutated.
+    this.vendors.set(vendorId, { ...vendor, catalog: structuredClone(catalog) });
   }
 }

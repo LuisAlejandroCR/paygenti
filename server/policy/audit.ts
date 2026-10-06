@@ -2,7 +2,7 @@
 // Entries are deep-frozen copies; any field that looks like a PIN or secret is stripped before
 // storing, so even a hostile action carrying `{ pin: "1234" }` never lands in the log.
 
-export type AuditEvent = "decide" | "commit" | "release" | "pin";
+export type AuditEvent = "decide" | "commit" | "release" | "pin" | "catalog";
 
 export interface AuditEntry {
   seq: number;
