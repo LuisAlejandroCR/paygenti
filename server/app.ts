@@ -11,6 +11,7 @@ import { PayPalError, type PayPalGateway } from "./paypal/gateway";
 import { MockPayPal } from "./paypal/mock";
 import { type Clock, SaleError, SalesService } from "./sales";
 import { MemoryStore } from "./store";
+import { parseVoice, type VoiceEnv } from "./voice";
 
 export interface AppDeps {
   paypal: PayPalGateway;
@@ -20,6 +21,8 @@ export interface AppDeps {
   publicUrl?: string;
   /** Directory with the built web app (dist/web); omitted in tests and when not built. */
   staticRoot?: string;
+  /** Env for the voice parser (ANTHROPIC_API_KEY); omitted means rules parser only. */
+  voiceEnv?: VoiceEnv;
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -36,6 +39,10 @@ const createSaleBody = z.union([
   }),
   z.strictObject({ amount: z.number().int().positive().max(10_000_000) }),
 ]);
+const voiceBody = z.strictObject({
+  text: z.string().trim().min(1).max(500),
+  vendorId: z.string().regex(/^[a-z0-9-]{1,40}$/),
+});
 const approveBody = z.strictObject({ decline: z.boolean().optional() });
 const webhookBody = z.object({
   event_type: z.string().max(100),
@@ -146,6 +153,15 @@ export function createApp(deps: AppDeps): Hono {
     });
   });
 
+  app.post("/api/voice/parse", async (c) => {
+    const body = voiceBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const vendor = sales.store.getVendor(body.data.vendorId);
+    if (!vendor) return c.json({ error: "VENDOR_NOT_FOUND" }, 404);
+    const result = await parseVoice(body.data.text, vendor.catalog, deps.voiceEnv ?? {});
+    return c.json(result);
+  });
+
   app.post("/api/mock/orders/:orderId/approve", async (c) => {
     if (!(paypal instanceof MockPayPal)) return c.json({ error: "NOT_FOUND" }, 404);
     const id = orderId.safeParse(c.req.param("orderId"));
@@ -204,9 +220,20 @@ export function createApp(deps: AppDeps): Hono {
     const open = sales.openSale(terminal.id);
     if (open) return c.redirect(`/pay/${open.id}`, 302);
     const vendor = sales.store.getVendor(terminal.vendorId);
+    const title = vendor?.displayName ?? terminal.label;
+    const last = sales.store.salesForTerminal(terminal.id)[0];
+    if (last?.status === "paid" || last?.status === "refunded")
+      return c.html(page(title, "Tu último pago ya quedó registrado. ¡Gracias por tu compra!"));
+    if (last?.status === "expired" || last?.status === "failed")
+      return c.html(
+        page(
+          title,
+          "El último cobro ya no está disponible. Pide a la vendedora que marque un cobro nuevo y vuelve a escanear.",
+        ),
+      );
     return c.html(
       page(
-        vendor?.displayName ?? terminal.label,
+        title,
         "No hay una venta abierta en este momento. Pide a la vendedora que marque el cobro y vuelve a escanear.",
       ),
     );

@@ -1,10 +1,12 @@
-// web/src/vendor.tsx: the vendor's screen — big keypad, "Cobrar", QR of /t/:terminal and a live
-// SSE feed; when the server confirms sale.paid it shows PAGADO and says "Recibido: N pesos".
+// web/src/vendor.tsx: the vendor's screen — push-to-talk cart with keypad fallback, "Cobrar", QR of
+// /t/:terminal, sticker writer and a live SSE feed; on sale.paid it shows PAGADO and announces it.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { type Currency, formatMoney, fromPayPalValue, type Money } from "../../shared/money";
-import type { Sale, TerminalEvent } from "../../shared/types";
+import type { CartLine, Sale, TerminalEvent } from "../../shared/types";
 import { announcePaid, unlockAudio } from "./announce";
 import { api } from "./api";
+import { StickerPanel } from "./sticker";
+import { VoiceCart } from "./voice";
 
 type Phase = "entry" | "waiting" | "paid" | "failed" | "expired";
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"] as const;
@@ -39,16 +41,27 @@ export function VendorApp({ terminal }: { terminal: string }) {
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(false);
   const [left, setLeft] = useState(0);
+  const [vendorId, setVendorId] = useState("");
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [payUrl, setPayUrl] = useState("");
+  const [showSticker, setShowSticker] = useState(false);
   const saleRef = useRef<Sale | undefined>(undefined);
   saleRef.current = sale;
 
   useEffect(() => {
     fetch(`/api/terminals/${terminal}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("terminal"))))
-      .then((d: { vendor: { displayName: string; currency: Currency } }) => {
-        setStall(d.vendor.displayName);
-        setCurrency(d.vendor.currency);
-      })
+      .then(
+        (d: {
+          vendor: { id: string; displayName: string; currency: Currency };
+          payUrl: string;
+        }) => {
+          setStall(d.vendor.displayName);
+          setVendorId(d.vendor.id);
+          setPayUrl(d.payUrl);
+          setCurrency(d.vendor.currency);
+        },
+      )
       .catch(() => setError("No se encontró esta terminal."));
   }, [terminal]);
 
@@ -92,13 +105,15 @@ export function VendorApp({ terminal }: { terminal: string }) {
 
   const amount = toMinor(digits, currency);
 
-  async function charge() {
-    if (!amount || busy) return;
+  async function charge(fromCart = false) {
+    if (busy || (fromCart ? cart.length === 0 : !amount)) return;
     unlockAudio();
     setBusy(true);
     setError("");
     try {
-      const { sale: created } = await api.createSale(terminal, amount.minor);
+      const { sale: created } = fromCart
+        ? await api.createSaleFromCart(terminal, cart)
+        : await api.createSale(terminal, amount?.minor ?? 0);
       setSale(created);
       setPhase("waiting");
     } catch {
@@ -110,6 +125,7 @@ export function VendorApp({ terminal }: { terminal: string }) {
 
   function reset() {
     setDigits("");
+    setCart([]);
     setSale(undefined);
     setPhase("entry");
   }
@@ -123,7 +139,17 @@ export function VendorApp({ terminal }: { terminal: string }) {
         </span>
       </header>
 
-      {phase === "entry" && (
+      {phase === "entry" && vendorId && (
+        <VoiceCart
+          vendorId={vendorId}
+          cart={cart}
+          onCart={setCart}
+          onCharge={() => charge(true)}
+          busy={busy}
+        />
+      )}
+
+      {phase === "entry" && cart.length === 0 && (
         <section class="entry" aria-label="Captura del monto">
           <output class="amount" aria-live="polite">
             ${digits || "0"}
@@ -141,7 +167,7 @@ export function VendorApp({ terminal }: { terminal: string }) {
               </button>
             ))}
           </div>
-          <button type="button" class="primary" disabled={!amount || busy} onClick={charge}>
+          <button type="button" class="primary" disabled={!amount || busy} onClick={() => charge()}>
             {busy ? "Creando…" : amount ? `Cobrar ${formatMoney(amount)}` : "Cobrar"}
           </button>
         </section>
@@ -184,6 +210,13 @@ export function VendorApp({ terminal }: { terminal: string }) {
           </button>
         </section>
       )}
+
+      {phase === "entry" && payUrl && (
+        <button type="button" class="link" onClick={() => setShowSticker((v) => !v)}>
+          {showSticker ? "Ocultar sticker" : "Grabar sticker"}
+        </button>
+      )}
+      {phase === "entry" && showSticker && <StickerPanel terminal={terminal} url={payUrl} />}
 
       {error && (
         <p class="error" role="alert">
