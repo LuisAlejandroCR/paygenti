@@ -1,9 +1,10 @@
 // web/src/checkout.tsx: the customer's /pay/:saleId page — stall, lines and total before paying.
 // Sandbox: PayPal JS SDK buttons approve the server-created order, then our server captures.
 // Mock: "Pagar (simulado)" / "Simular rechazo" drive the mock gateway through the same capture.
+// Listens to the terminal's SSE feed so a vendor cancel (or paid/expired) shows up live.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { formatMoney, money } from "../../shared/money";
-import type { Sale } from "../../shared/types";
+import type { Sale, TerminalEvent } from "../../shared/types";
 import { ApiError, type AppConfig, api } from "./api";
 import { type Key, type Locale, lineName, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
@@ -62,6 +63,19 @@ export function Checkout({ saleId }: { saleId: string }) {
       .catch(() => setError("checkout.notFound"));
   }, [saleId]);
 
+  const terminalId = sale?.terminalId;
+  useEffect(() => {
+    if (!terminalId) return;
+    const es = new EventSource(`/api/terminals/${terminalId}/events`);
+    const onEvent = (e: Event) => {
+      const ev = JSON.parse((e as MessageEvent<string>).data) as TerminalEvent;
+      if (ev.sale.id === saleId) setSale(ev.sale);
+    };
+    for (const type of ["sale.paid", "sale.failed", "sale.expired", "sale.cancelled"])
+      es.addEventListener(type, onEvent);
+    return () => es.close();
+  }, [terminalId, saleId]);
+
   async function capture() {
     try {
       const { sale: updated } = await api.capture(saleId);
@@ -70,6 +84,7 @@ export function Checkout({ saleId }: { saleId: string }) {
     } catch (err) {
       const code = err instanceof ApiError ? err.code : "";
       if (code === "SALE_EXPIRED") setError("checkout.expired");
+      else if (code === "SALE_CANCELLED") setError("checkout.cancelled");
       else setError("checkout.failed");
       api.sale(saleId).then(
         (s) => setSale(s.sale),
@@ -165,6 +180,11 @@ export function Checkout({ saleId }: { saleId: string }) {
           {t("checkout.expired")}
         </p>
       )}
+      {sale.status === "cancelled" && (
+        <p class="result bad" role="alert">
+          {t("checkout.cancelled")}
+        </p>
+      )}
       {sale.status === "failed" && (
         <p class="result bad" role="alert">
           {t("checkout.declined")}
@@ -184,7 +204,7 @@ export function Checkout({ saleId }: { saleId: string }) {
         </div>
       )}
 
-      {error && sale.status !== "expired" && (
+      {error && sale.status !== "expired" && sale.status !== "cancelled" && (
         <p class="error" role="alert">
           {t(error)}
         </p>

@@ -30,6 +30,11 @@ export const TEXT = {
     exportCsv: "Export CSV",
     tPaid: "Your last payment was recorded",
     tGone: "The last charge is no longer available",
+    tNone: "There is no open sale right now",
+    cancel: "Cancel",
+    customerCancelled: "The vendor cancelled this charge. Nothing was paid.",
+    typeOrder: "Type the order",
+    typeAdd: "Add",
   },
   es: {
     online: "En línea",
@@ -58,6 +63,11 @@ export const TEXT = {
     exportCsv: "Exportar CSV",
     tPaid: "Tu último pago ya quedó registrado",
     tGone: "El último cobro ya no está disponible",
+    tNone: "No hay una venta abierta en este momento",
+    cancel: "Cancelar",
+    customerCancelled: "La vendedora canceló este cobro. No se pagó nada.",
+    typeOrder: "Escribe el pedido",
+    typeAdd: "Agregar",
   },
 } as const;
 

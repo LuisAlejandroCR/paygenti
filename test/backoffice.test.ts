@@ -3,7 +3,12 @@
 // injection battery driven by a fake model: zero money movements without a valid PIN.
 import { describe, expect, it } from "vitest";
 import { createApp } from "../server/app";
-import type { ContentBlock, ModelClient, ModelRequest } from "../server/backoffice/agent";
+import {
+  type ContentBlock,
+  type ModelClient,
+  type ModelRequest,
+  summarize,
+} from "../server/backoffice/agent";
 import { MockPayPal } from "../server/paypal/mock";
 import type { Money } from "../shared/money";
 
@@ -123,6 +128,47 @@ describe("back-office tools", () => {
     const r = await json("/api/backoffice/agent", { message: "¿cuánto vendí?" }, token);
     expect(r.data.text).toBe("Hecho.");
     expect(model.requests[0]?.messages[0]?.content).toContain("<request>");
+  });
+});
+
+describe("PIN lockout is scoped per client", () => {
+  it("five wrong PINs from one IP lock that IP only; the vendor's IP still logs in", async () => {
+    const { app } = await setup();
+    const login = (pin: string, ip: string) =>
+      app.request("/api/backoffice/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Forwarded-For": `${ip}, 10.0.0.1` },
+        body: JSON.stringify({ pin }),
+      });
+    for (let i = 0; i < 4; i++) expect((await login("0000", "203.0.113.7")).status).toBe(401);
+    expect((await login("0000", "203.0.113.7")).status).toBe(429);
+    expect((await login(PIN, "203.0.113.7")).status).toBe(429);
+    const vendor = await login(PIN, "198.51.100.2");
+    expect(vendor.status).toBe(200);
+    expect(((await vendor.json()) as { token: string }).token).toMatch(/^[a-f0-9]{64}$/);
+  });
+});
+
+describe("agent fallback summary", () => {
+  it("is localized and carries the policy code for the web", () => {
+    expect(summarize([], "en").text).toBe("I could not complete the request.");
+    expect(summarize([], "es").text).toBe("No pude completar la solicitud.");
+    const paid = [
+      { tool: "create_invoice", ok: true, result: { amount: { minor: 12000, currency: "MXN" } } },
+    ];
+    expect(summarize(paid, "en").text).toBe("Done: $120.00 MXN.");
+    expect(summarize(paid, "es").text).toBe("Listo: $120.00 MXN.");
+    const denied = [
+      {
+        tool: "refund",
+        ok: false,
+        result: { code: "PIN_REQUIRED", reason: "x", params: { vendor: "Rosa" } },
+      },
+    ];
+    expect(summarize(denied, "en")).toMatchObject({
+      code: "PIN_REQUIRED",
+      params: { vendor: "Rosa" },
+    });
   });
 });
 

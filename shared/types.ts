@@ -41,7 +41,14 @@ export interface CartLine {
   unitPrice: Money;
 }
 
-export type SaleStatus = "open" | "approved" | "paid" | "failed" | "expired" | "refunded";
+export type SaleStatus =
+  | "open"
+  | "approved"
+  | "paid"
+  | "failed"
+  | "expired"
+  | "refunded"
+  | "cancelled";
 
 export interface Sale {
   id: string;
@@ -64,4 +71,5 @@ export type TerminalEvent =
   | { type: "sale.paid"; sale: Sale }
   | { type: "sale.failed"; sale: Sale; reason: string }
   | { type: "sale.expired"; sale: Sale }
+  | { type: "sale.cancelled"; sale: Sale }
   | { type: "sale.refunded"; sale: Sale; amount: Money };
