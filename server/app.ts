@@ -7,11 +7,13 @@ import { bodyLimit } from "hono/body-limit";
 import { streamSSE } from "hono/streaming";
 import QRCode from "qrcode";
 import { z } from "zod";
+import { verifyPassport } from "../shared/passport";
 import type { ModelClient } from "./backoffice/agent";
 import { backofficeRoutes } from "./backoffice/routes";
 import { BackOffice } from "./backoffice/tools";
 import type { VisionClient } from "./catalog/extract";
 import { type Lang, pickLang } from "./lang";
+import { PassportSigner } from "./passport";
 import { PayPalError, type PayPalGateway } from "./paypal/gateway";
 import { MockPayPal } from "./paypal/mock";
 import { PolicyEngine } from "./policy";
@@ -38,6 +40,8 @@ export interface AppDeps {
   agentModel?: ModelClient;
   /** Claude vision for menu photo -> catalog; omitted when there is no ANTHROPIC_API_KEY. */
   menuVision?: VisionClient;
+  /** Sales passport signer; defaults to an ephemeral demo key. */
+  passportSigner?: PassportSigner;
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -57,6 +61,11 @@ const createSaleBody = z.union([
 const voiceBody = z.strictObject({
   text: z.string().trim().min(1).max(500),
   vendorId: z.string().regex(/^[a-z0-9-]{1,40}$/),
+});
+const passportVerifyBody = z.object({
+  report: z.record(z.string(), z.unknown()),
+  signature: z.string().max(200),
+  keyId: z.string().max(64),
 });
 const approveBody = z.strictObject({ decline: z.boolean().optional() });
 const webhookBody = z.object({
@@ -262,6 +271,28 @@ export function createApp(deps: AppDeps): Hono {
       pin: deps.vendorPin ?? "1234",
       now: deps.clock ? () => new Date(deps.clock?.() ?? Date.now()) : undefined,
     });
+  const signer = deps.passportSigner ?? PassportSigner.ephemeral();
+  app.get("/api/passport/public-key", (c) =>
+    c.json({
+      keyId: signer.keyId,
+      algorithm: "Ed25519",
+      publicKey: Buffer.from(signer.publicKeyRaw).toString("base64url"),
+      pem: signer.publicKeyPem,
+      demo: signer.demo,
+    }),
+  );
+  // Fallback for browsers without WebCrypto Ed25519; stateless, nothing is logged or stored.
+  app.post("/api/passport/verify", async (c) => {
+    const body = passportVerifyBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    if (body.data.keyId !== signer.keyId) return c.json({ valid: false, reason: "UNKNOWN_KEY" });
+    const valid = await verifyPassport(
+      { report: body.data.report as never, signature: body.data.signature },
+      signer.publicKeyRaw,
+    ).catch(() => false);
+    return c.json({ valid });
+  });
+
   const office = new BackOffice({ sales, paypal, policy, clock: deps.clock });
   app.route(
     "/api/backoffice",
@@ -272,6 +303,8 @@ export function createApp(deps: AppDeps): Hono {
       store: sales.store,
       vendorId: "rosa",
       vision: deps.menuVision,
+      passport: signer,
+      publicUrl: deps.publicUrl,
     }),
   );
 

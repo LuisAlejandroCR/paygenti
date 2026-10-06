@@ -680,3 +680,61 @@ button.link {
     width: auto;
   }
 }
+/* Sales passport (/backoffice panel and public /verify): verdict badge, range inputs, print view. */
+.verdict {
+  font-size: 2rem;
+  font-weight: 800;
+  text-align: center;
+  margin: 0;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 3px solid currentColor;
+}
+.verdict.valid {
+  color: var(--ok);
+}
+.verdict.invalid {
+  color: var(--bad);
+}
+.passport-panel .range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.passport-panel .range label {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.passport-panel input[type="date"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+.passport h3 {
+  margin: 8px 0 0;
+  font-size: 1rem;
+}
+.passport .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.verify textarea {
+  width: 100%;
+  box-sizing: border-box;
+  word-break: break-all;
+}
+.passport .hint,
+.passport h2 {
+  overflow-wrap: anywhere;
+}
+@media print {
+  .backoffice:not(.verify) > :not(.passport-panel),
+  .passport-panel > :not(.passport),
+  .no-print {
+    display: none !important;
+  }
+  .backoffice .panel {
+    border: 0;
+  }
+}
