@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import QRCode from "qrcode";
 import { type Money, money } from "../../shared/money";
 import type { Sale } from "../../shared/types";
+import type { PassportSale } from "../passport";
 import { PayPalError, type PayPalGateway } from "../paypal/gateway";
 import { type Actor, type DecisionParams, localDay, type PolicyEngine } from "../policy";
 import type { SalesService } from "../sales";
@@ -192,6 +193,24 @@ export class BackOffice {
         count: rows.filter((r) => r.paid.minor > 0).length,
       },
     };
+  }
+
+  /** Every settled sale reduced to day, method and amounts (sales passport input; no buyer data). */
+  passportSales(): PassportSale[] {
+    const tz = this.policy.config.timeZone;
+    return this.sales.store
+      .allSales()
+      .filter((s) => (s.status === "paid" || s.status === "refunded") && s.paidAt !== undefined)
+      .map((s) => {
+        const r = this.ledgerRow(s);
+        return {
+          day: localDay(new Date(s.paidAt ?? s.createdAt), tz),
+          method: s.method,
+          captured: s.method === "paypal" && !!s.captureId,
+          total: s.total.minor,
+          refunded: r.refunded.minor,
+        };
+      });
   }
 
   private ledgerRow(s: Sale): LedgerRow {

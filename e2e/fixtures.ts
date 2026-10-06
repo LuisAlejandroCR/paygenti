@@ -42,6 +42,10 @@ export const TEXT = {
     menuAdd: "Add item",
     menuSave: "Save menu",
     menuSaved: /Menu saved: \d+ items/,
+    passportGenerate: "Generate passport",
+    passportOpen: "Open verify link",
+    valid: "VALID",
+    invalid: "INVALID",
   },
   es: {
     online: "En línea",
@@ -82,6 +86,10 @@ export const TEXT = {
     menuAdd: "Agregar producto",
     menuSave: "Guardar menú",
     menuSaved: /Menú guardado: \d+ productos/,
+    passportGenerate: "Generar pasaporte",
+    passportOpen: "Abrir enlace de verificación",
+    valid: "VÁLIDO",
+    invalid: "INVÁLIDO",
   },
 } as const;
 

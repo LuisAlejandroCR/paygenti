@@ -6,6 +6,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app";
 import { AnthropicClient } from "./backoffice/agent";
 import { AnthropicVisionClient } from "./catalog/extract";
+import { PassportSigner } from "./passport";
 import { createGateway } from "./paypal";
 
 const port = Number(process.env.PORT ?? 8787);
@@ -14,7 +15,11 @@ const paypal = createGateway(process.env);
 const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
 const vendorPin = process.env.VENDOR_PIN?.trim();
 if (!vendorPin) console.warn("VENDOR_PIN not set: using the demo PIN 1234");
+const passportSigner = PassportSigner.fromEnv(process.env.PASSPORT_SIGNING_KEY);
+if (passportSigner.demo)
+  console.warn("PASSPORT_SIGNING_KEY not set: sales passports use an ephemeral demo key");
 const app = createApp({
+  passportSigner,
   vendorPin: vendorPin || undefined,
   agentModel: anthropicKey ? new AnthropicClient(anthropicKey) : undefined,
   menuVision: anthropicKey ? new AnthropicVisionClient(anthropicKey) : undefined,
