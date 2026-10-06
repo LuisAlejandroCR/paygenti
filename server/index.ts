@@ -12,6 +12,7 @@ const paypal = createGateway(process.env);
 const app = createApp({
   paypal,
   publicUrl: process.env.PUBLIC_URL?.trim() || undefined,
+  voiceEnv: process.env,
   staticRoot: existsSync(webRoot) ? webRoot : undefined,
 });
 
