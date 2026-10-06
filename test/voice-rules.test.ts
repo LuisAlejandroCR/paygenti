@@ -1,4 +1,4 @@
-// test/voice-rules.test.ts: battery of dictated Spanish orders against the rules parser.
+// test/voice-rules.test.ts: battery of dictated Spanish and English orders against the rules parser.
 // Plan requires >= 9/10 exact carts; every line must come from the catalog.
 import { describe, expect, it } from "vitest";
 import { DEMO_CATALOG } from "../server/voice/demo-catalog";
@@ -19,6 +19,15 @@ const BATTERY: Array<[string, Cart]> = [
   ["cinco tamales de rajas con queso y dos atolitos", { "tamal-rajas": 5, atole: 2 }],
   ["un tamal de mole, otro de rajas y otro de mole", { "tamal-mole": 2, "tamal-rajas": 1 }],
   ["diez de dulce", { "tamal-dulce": 10 }],
+  ["two rajas tamales and an atole", { "tamal-rajas": 2, atole: 1 }],
+  ["half a dozen mole tamales", { "tamal-mole": 6 }],
+  ["three sweet tamales, two champurrados", { "tamal-dulce": 3, champurrado: 2 }],
+  [
+    "one rajas tamale, one mole tamale and two atoles",
+    { "tamal-rajas": 1, "tamal-mole": 1, atole: 2 },
+  ],
+  ["Give me a dozen sweet tamales please", { "tamal-dulce": 12 }],
+  ["a pair of atoles plus a hot chocolate", { atole: 2, champurrado: 1 }],
 ];
 
 function toCart(text: string): Cart {

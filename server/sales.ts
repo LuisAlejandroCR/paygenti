@@ -278,12 +278,24 @@ function upCaptureId(r: Record<string, unknown>): string | undefined {
 function resolveLines(vendor: Vendor, input: CreateSaleInput): CartLine[] {
   if ("amount" in input) {
     return [
-      { sku: "monto", name: "Cobro", qty: 1, unitPrice: money(input.amount, vendor.currency) },
+      {
+        sku: "monto",
+        name: "Sale",
+        names: { en: "Sale", es: "Cobro" },
+        qty: 1,
+        unitPrice: money(input.amount, vendor.currency),
+      },
     ];
   }
   return input.lines.map((l) => {
     const item = vendor.catalog.find((c) => c.sku === l.sku);
     if (!item) throw new SaleError("UNKNOWN_SKU", 400, `unknown sku ${l.sku}`);
-    return { sku: item.sku, name: item.name, qty: l.qty, unitPrice: item.price };
+    return {
+      sku: item.sku,
+      name: item.name,
+      ...(item.names && { names: item.names }),
+      qty: l.qty,
+      unitPrice: item.price,
+    };
   });
 }

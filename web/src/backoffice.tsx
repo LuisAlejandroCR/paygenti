@@ -3,7 +3,7 @@
 // All numbers come from the server; this page only renders them.
 import { useEffect, useState } from "preact/hooks";
 import { formatMoney, type Money } from "../../shared/money";
-import { type Key, useT } from "./i18n";
+import { type Key, reasonText, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 
 /** Session token shared with /backoffice/ledger (same key as ledger.tsx; not imported to keep AG Grid lazy). */
@@ -91,11 +91,16 @@ export function BackOfficeApp() {
       setError(t("bo.offline"));
       return undefined;
     }
-    const data = (await res.json().catch(() => ({}))) as T & { error?: string; reason?: string };
+    const data = (await res.json().catch(() => ({}))) as T & {
+      error?: string;
+      reason?: string;
+      params?: Record<string, string | number>;
+    };
     if (!res.ok) {
       const known = ERRORS[data.error ?? ""];
       setError(
-        data.reason ?? (known ? t(known) : t("bo.error", { code: data.error ?? res.status })),
+        reasonText(data.error, data.params, data.reason, locale) ??
+          (known ? t(known) : t("bo.error", { code: data.error ?? res.status })),
       );
       if (res.status === 401 && data.error === "SESSION_REQUIRED") setToken(null);
       return undefined;
@@ -153,14 +158,18 @@ export function BackOfficeApp() {
     if (!refund) return;
     const minor = toMinor(refund.amount);
     if (!minor) return setError(t("bo.refundFormat"));
-    const r = await call<{ reason: string }>("/refunds", {
+    const r = await call<{
+      code: string;
+      reason: string;
+      params?: Record<string, string | number>;
+    }>("/refunds", {
       saleId: refund.saleId,
       amountMinor: minor,
       pin: refund.pin,
     });
     setRefund(null);
     if (r) {
-      setNotice(r.reason);
+      setNotice(reasonText(r.code, r.params, r.reason, locale) ?? r.reason);
       void loadToday();
     }
   }

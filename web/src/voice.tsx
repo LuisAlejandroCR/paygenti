@@ -4,7 +4,7 @@ import { useRef, useState } from "preact/hooks";
 import { formatMoney, type Money, money } from "../../shared/money";
 import type { CartLine } from "../../shared/types";
 import { api } from "./api";
-import { speechLang, useT } from "./i18n";
+import { lineName, speechLang, useT } from "./i18n";
 
 interface Recognition {
   lang: string;
@@ -134,12 +134,12 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
           <ul class="cart">
             {cart.map((l) => (
               <li key={l.sku}>
-                <span class="cart-name">{l.name}</span>
+                <span class="cart-name">{lineName(l, locale)}</span>
                 <span class="qty">
                   <button
                     type="button"
                     class="step"
-                    aria-label={t("voice.removeOne", { name: l.name })}
+                    aria-label={t("voice.removeOne", { name: lineName(l, locale) })}
                     onClick={() => setQty(l.sku, l.qty - 1)}
                   >
                     −
@@ -148,7 +148,7 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
                   <button
                     type="button"
                     class="step"
-                    aria-label={t("voice.addOne", { name: l.name })}
+                    aria-label={t("voice.addOne", { name: lineName(l, locale) })}
                     onClick={() => setQty(l.sku, l.qty + 1)}
                   >
                     +
@@ -160,7 +160,7 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
                 <button
                   type="button"
                   class="step remove"
-                  aria-label={t("voice.removeAll", { name: l.name })}
+                  aria-label={t("voice.removeAll", { name: lineName(l, locale) })}
                   onClick={() => setQty(l.sku, 0)}
                 >
                   ×
