@@ -4,12 +4,23 @@
 import { createHash, randomBytes } from "node:crypto";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { type Context, Hono } from "hono";
+import QRCode from "qrcode";
 import { z } from "zod";
 import { money } from "../../shared/money";
+import { encodePayload } from "../../shared/passport";
 import { buildCatalog, catalogInput } from "../catalog/catalog";
 import { ExtractError, extractMenu, MAX_IMAGE_BYTES, type VisionClient } from "../catalog/extract";
 import { pickLang } from "../lang";
+import {
+  addDays,
+  buildPassport,
+  DEFAULT_RANGE_DAYS,
+  daysBetween,
+  MAX_RANGE_DAYS,
+  type PassportSigner,
+} from "../passport";
 import { PayPalError } from "../paypal/gateway";
+import { localDay } from "../policy";
 import type { Store } from "../store";
 import { type ModelClient, runAgent } from "./agent";
 import { type Authority, type BackOffice, BackOfficeError } from "./tools";
@@ -27,6 +38,16 @@ const refundBody = z.strictObject({
   amountMinor: z.number().int().positive().max(10_000_000),
   pin: pinField,
 });
+const dayField = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine(isDay)
+  .optional();
+const passportBody = z.strictObject({
+  from: dayField,
+  to: dayField,
+  cashMinor: z.number().int().min(0).max(1_000_000_000).optional(),
+});
 const agentBody = z.strictObject({
   message: z.string().min(1).max(1000),
   pin: pinField,
@@ -42,6 +63,10 @@ export interface BackOfficeRouteDeps {
   vendorId: string;
   /** Claude vision for menu photos; omitted when there is no ANTHROPIC_API_KEY. */
   vision?: VisionClient;
+  /** Signs sales passports; the public half is served at /api/passport/public-key. */
+  passport: PassportSigner;
+  /** Base URL for verify links; defaults to the request origin. */
+  publicUrl?: string;
 }
 
 const imageJson = z.strictObject({
@@ -196,6 +221,41 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
       }
       return c.json({ error: err.code }, err.code === "IMAGE_TOO_LARGE" ? 413 : 415);
     }
+  });
+
+  app.post("/passport", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const body = passportBody.safeParse((await readJson(c)) ?? {});
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const { timeZone, currency } = office.policy.config;
+    const today = localDay(new Date(clock()), timeZone);
+    const to = body.data.to ?? today;
+    const from = body.data.from ?? addDays(to, -(DEFAULT_RANGE_DAYS - 1));
+    const span = daysBetween(from, to);
+    if (span < 0 || span >= MAX_RANGE_DAYS) return c.json({ error: "INVALID_RANGE" }, 400);
+    const vendor = deps.store.getVendor(deps.vendorId);
+    const report = buildPassport({
+      vendor: { id: deps.vendorId, name: vendor?.displayName ?? deps.vendorId },
+      currency,
+      timeZone,
+      from,
+      to,
+      issuedAt: new Date(clock()).toISOString(),
+      demoKey: deps.passport.demo,
+      sales: office.passportSales(),
+      cashDictated: body.data.cashMinor,
+    });
+    const signed = deps.passport.sign(report);
+    const origin = (deps.publicUrl ?? new URL(c.req.url).origin).replace(/\/+$/, "");
+    const verifyUrl = `${origin}/verify#${encodePayload(signed)}`;
+    let qr: string | null = null;
+    try {
+      qr = await QRCode.toDataURL(verifyUrl, { errorCorrectionLevel: "L", margin: 1 });
+    } catch {
+      // Too long for a QR code (very busy period): the link still works.
+    }
+    return c.json({ ...signed, verifyUrl, qr });
   });
 
   app.get("/audit", (c) => requireVendor(c) ?? c.json({ entries: office.policy.audit.entries() }));

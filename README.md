@@ -58,6 +58,20 @@ She reviews the table, edits, adds or removes rows and taps **Save** — the voi
 vendor app use the new catalog immediately, and the save is written to the audit log. Without a
 key the same table works for manual entry.
 
+## Sales passport (signed)
+
+A vendor paid mostly in cash has no record a lender trusts. In `/backoffice` the **Sales passport**
+panel issues one for a date range (default: last 30 days): PayPal-captured sales count, totals,
+refunds, net, days active, average ticket and a per-day series. Only captured PayPal payments
+count as verified; cash she declares is shown apart, labelled self-reported. No buyer data is
+included. The report is canonical JSON (sorted keys) signed with Ed25519; the panel shows a QR
+and a link to `/verify#<payload>`. The payload lives in the URL fragment, so it never reaches
+server logs; anyone can open it without logging in, and the browser checks the signature with
+WebCrypto against `GET /api/passport/public-key` (fallback: `POST /api/passport/verify`).
+Changing any number makes it INVALID. Set `PASSPORT_SIGNING_KEY` (Ed25519 PKCS8, PEM or base64
+DER) for a stable key; without it each start uses an ephemeral key and the report says
+"demo key".
+
 ## Run locally
 
 Requires Node 22+.
@@ -89,6 +103,7 @@ Copy `.env.example` to `.env.local`. Every value is optional.
 | `PAYPAL_WEBHOOK_ID` | Verifies `/webhooks/paypal` signatures |
 | `ANTHROPIC_API_KEY` | Claude for voice-to-cart and the back-office agent; otherwise a rule parser runs |
 | `VENDOR_PIN` | PIN that unlocks the back office and refunds (demo default `1234`) |
+| `PASSPORT_SIGNING_KEY` | Ed25519 private key (PKCS8 PEM or base64 DER) that signs sales passports; otherwise an ephemeral demo key |
 
 ## PayPal sandbox setup
 
@@ -142,5 +157,7 @@ del navegador; botón EN/ES arriba).
 - **Bocina:** abre `/soundbox?terminal=rosa-01` en un Android viejo, instálala, toca una vez para
   activar el sonido y déjala en pantalla completa: solo los pagos confirmados por PayPal suenan.
 - **Candado:** la IA solo propone; las devoluciones exigen el PIN cada vez y tienen topes.
+- **Pasaporte de ventas:** en `/backoffice` genera un reporte firmado (Ed25519) de las ventas
+  confirmadas por PayPal, con el efectivo aparte como declarado; cualquiera lo verifica en `/verify`.
 
 La spec y el plan por bloques están en [docs/plan.md](docs/plan.md).

@@ -23,3 +23,5 @@ services:
         sync: false
       - key: VENDOR_PIN
         sync: false
+      - key: PASSPORT_SIGNING_KEY
+        sync: false

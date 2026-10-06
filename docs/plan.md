@@ -100,6 +100,11 @@ Reglas de arquitectura:
       (imagen = datos no confiables, salida validada con zod, nunca se guarda sola); la vendedora
       revisa/edita y guarda con `PUT /api/backoffice/catalog` (SKUs generados, auditado). Sin
       `ANTHROPIC_API_KEY` → 503 y captura manual; el parser de voz usa el catálogo nuevo al instante.
+- [x] Pasaporte de ventas firmado: panel «Pasaporte de ventas» en `/backoffice` genera un reporte
+      (rango, por defecto 30 días) solo con ventas PayPal capturadas, devoluciones restadas y el
+      efectivo aparte como «declarado»; JSON canónico firmado con Ed25519 (`PASSPORT_SIGNING_KEY`
+      o llave demo efímera). `/verify#<payload>` público verifica en el navegador (WebCrypto,
+      respaldo `POST /api/passport/verify`); cambiar un número lo vuelve INVÁLIDO.
 
 ## Fuera de alcance hasta que los bloques 0–5 corran
 
