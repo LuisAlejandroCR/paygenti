@@ -6,7 +6,7 @@ import type { Sale, TerminalEvent } from "../../shared/types";
 
 export type SoundboxView =
   | { kind: "idle" }
-  | { kind: "open" | "paid" | "failed" | "expired" | "refunded"; sale: Sale };
+  | { kind: "open" | "paid" | "failed" | "expired" | "cancelled" | "refunded"; sale: Sale };
 
 export interface KeyValue {
   getItem(key: string): string | null;
@@ -77,6 +77,8 @@ export function applyEvent(
       return { view: { kind: "failed", sale: event.sale } };
     case "sale.expired":
       return { view: { kind: "expired", sale: event.sale } };
+    case "sale.cancelled":
+      return { view: { kind: "cancelled", sale: event.sale } };
     case "sale.refunded":
       return { view: { kind: "refunded", sale: event.sale } };
     default:

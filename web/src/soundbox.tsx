@@ -15,7 +15,14 @@ import {
   sessionStore,
 } from "./soundbox-logic";
 
-const EVENTS = ["sale.open", "sale.paid", "sale.failed", "sale.expired", "sale.refunded"] as const;
+const EVENTS = [
+  "sale.open",
+  "sale.paid",
+  "sale.failed",
+  "sale.expired",
+  "sale.cancelled",
+  "sale.refunded",
+] as const;
 
 interface WakeLockSentinelLike {
   release(): Promise<void>;

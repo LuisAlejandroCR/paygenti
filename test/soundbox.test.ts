@@ -53,12 +53,13 @@ describe("applyEvent", () => {
     expect(applyEvent(idle, { type: "sale.paid", sale: sale("b") }, set).announce).toBeDefined();
   });
 
-  it("failed, expired and refunded never announce", () => {
+  it("failed, expired, cancelled and refunded never announce", () => {
     const set = new AnnouncedSales();
     const s = sale("c");
     const events: TerminalEvent[] = [
       { type: "sale.failed", sale: s, reason: "DECLINED" },
       { type: "sale.expired", sale: s },
+      { type: "sale.cancelled", sale: s },
       { type: "sale.refunded", sale: s, amount: s.total },
     ];
     for (const ev of events) {

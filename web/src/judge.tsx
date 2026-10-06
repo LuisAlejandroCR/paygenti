@@ -1,7 +1,8 @@
 // web/src/judge.tsx: judge mode at /judge — vendor and customer side by side on one screen
 // (stacked on mobile) with a short guided script. Works with zero env vars on the mock gateway.
-import { useEffect, useState } from "preact/hooks";
-import type { Sale } from "../../shared/types";
+// The customer panel follows the vendor panel only: the vendor adopts any open sale on load, so
+// both panels always show the same sale.
+import { useState } from "preact/hooks";
 import { Checkout } from "./checkout";
 import { type Key, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
@@ -12,15 +13,6 @@ const STEPS: Key[] = ["judge.step1", "judge.step2", "judge.step3", "judge.step4"
 export function JudgeApp({ terminal }: { terminal: string }) {
   const { t } = useT();
   const [saleId, setSaleId] = useState<string>();
-
-  useEffect(() => {
-    fetch(`/api/terminals/${terminal}`)
-      .then((r) => (r.ok ? r.json() : undefined))
-      .then((d?: { openSale: Sale | null }) => {
-        if (d?.openSale) setSaleId((cur) => cur ?? d.openSale?.id);
-      })
-      .catch(() => {});
-  }, [terminal]);
 
   return (
     <div class="judge">
