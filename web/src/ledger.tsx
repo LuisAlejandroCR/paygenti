@@ -6,6 +6,7 @@ import {
   ClientSideRowModelApiModule,
   ClientSideRowModelModule,
   type ColDef,
+  ColumnApiModule,
   CsvExportModule,
   createGrid,
   type GridApi,
@@ -22,9 +23,11 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { formatMoney, type Money, money } from "../../shared/money";
 import { type Key, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
+import { hiddenColumns, OPTIONAL_COLUMNS } from "./ledger-columns";
 
 ModuleRegistry.registerModules([
   ClientSideRowModelModule,
+  ColumnApiModule,
   ClientSideRowModelApiModule,
   RowApiModule,
   TextFilterModule,
@@ -161,7 +164,8 @@ export function LedgerApp() {
       valueFormatter: (p) => formatMoney(money(Math.round((p.value as number) * 100), "MXN")),
       filter: "agNumberColumnFilter",
       type: "rightAligned",
-      width: 120,
+      flex: 1,
+      minWidth: 72,
       cellClass: (p) => (field === "net" && (p.value as number) < 0 ? "neg" : undefined),
     });
     const columnDefs: ColDef<Row>[] = [
@@ -194,7 +198,7 @@ export function LedgerApp() {
           p.data && !p.data.isTotal ? pill(p.value, STATUS_TONE[p.data.status] ?? "muted") : "",
         width: 120,
       },
-      { field: "items", headerName: t("ledger.col.items"), flex: 1, minWidth: 180 },
+      { field: "items", headerName: t("ledger.col.items"), flex: 2, minWidth: 96 },
       moneyCol("paid", "ledger.col.paid"),
       moneyCol("refunded", "ledger.col.refunded"),
       moneyCol("net", "ledger.col.net"),
@@ -222,9 +226,12 @@ export function LedgerApp() {
       onRowClicked: (e) => {
         if (e.data && !e.data.isTotal) setSelected(e.data);
       },
+      onGridSizeChanged: (e) => fitColumns(e.api, e.clientWidth),
+      onFirstDataRendered: (e) => fitColumns(e.api, host.current?.clientWidth ?? 1200),
       onModelUpdated: (e) => pinTotals(e.api, (amount) => t("ledger.cashTotal", { amount })),
     });
     grid.current = api;
+    fitColumns(api, host.current.clientWidth);
     return () => {
       api.destroy();
       grid.current = null;
@@ -293,11 +300,13 @@ export function LedgerApp() {
   return (
     <main class="backoffice ledger">
       <header class="bar">
-        <span class="stall">{t("ledger.title")}</span>
-        <LangToggle />
-        <a class="secondary" href="/backoffice">
-          {t("ledger.back")}
-        </a>
+        <h1 class="stall">{t("ledger.title")}</h1>
+        <nav class="bar-actions">
+          <LangToggle />
+          <a class="bar-btn" href="/backoffice">
+            {t("ledger.back")}
+          </a>
+        </nav>
       </header>
       <div class="ledger-tools">
         <label>
@@ -357,6 +366,16 @@ export function LedgerApp() {
       </section>
     </main>
   );
+}
+
+/** Shows only the columns that fit, so phones keep Items, Paid, Refunded and Net on screen. */
+function fitColumns(api: GridApi<Row>, width: number) {
+  const hide = new Set(hiddenColumns(width));
+  api.setColumnsVisible(
+    OPTIONAL_COLUMNS.filter((c) => !hide.has(c)),
+    true,
+  );
+  api.setColumnsVisible([...hide], false);
 }
 
 /** Pinned bottom row: sums over the rows that survive the current filters and quick search. */
