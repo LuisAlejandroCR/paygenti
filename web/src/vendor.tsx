@@ -8,15 +8,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { currencyInfo, decimalsOf } from "../../shared/currency";
 import { type Currency, formatMoney, fromPayPalValue, type Money } from "../../shared/money";
 import type { CartLine, CatalogItem, Sale, TerminalEvent } from "../../shared/types";
-import {
-  type Command,
-  canListen,
-  listenOnce,
-  parseCommand,
-  playSound,
-  speak,
-  usePref,
-} from "./a11y";
+import { type Command, listenOnce, parseCommand, playSound, speak, usePref } from "./a11y";
 import { A11yToggles } from "./a11y-toggles";
 import { announcePaid, spokenAmount, unlockAudio } from "./announce";
 import { ApiError, api } from "./api";
@@ -25,6 +17,7 @@ import { BackspaceIcon, ClockIcon, PaidCheck, XCircleIcon } from "./icons";
 import { LangToggle } from "./lang-toggle";
 import { Onboarding } from "./onboarding";
 import { StickerPanel } from "./sticker";
+import { useSpeechMode } from "./stt";
 import { VoiceCart } from "./voice";
 
 type Phase = "entry" | "waiting" | "paid" | "failed" | "expired";
@@ -78,6 +71,8 @@ export function VendorApp({
   const saleRef = useRef<Sale | undefined>(undefined);
   saleRef.current = sale;
   const [voiceMode] = usePref("voice");
+  const speechMode = useSpeechMode();
+  const speechAvailable = speechMode === "native" || speechMode === "record";
   const [said, setSaid] = useState("");
   const warned = useRef(false);
   const focusRef = useRef<HTMLElement>(null);
@@ -271,7 +266,13 @@ export function VendorApp({
   function listen() {
     unlockAudio();
     playSound("entry");
-    if (!listenOnce((text) => run(parseCommand(text)))) say(t("a11y.noSpeech"));
+    if (speechMode !== "native" && speechMode !== "record") return say(t("a11y.noSpeech"));
+    const ok = listenOnce(
+      (text) => run(parseCommand(text)),
+      speechMode,
+      () => say(t("a11y.noSpeech")),
+    );
+    if (!ok) say(t("a11y.noSpeech"));
   }
 
   // Keyboard-only flow: digits/./Backspace type the amount, Enter charges, Escape cancels or resets.
@@ -341,12 +342,12 @@ export function VendorApp({
           type="button"
           class="listen"
           onClick={listen}
-          aria-describedby={canListen() ? undefined : "no-speech"}
+          aria-describedby={speechAvailable ? undefined : "no-speech"}
         >
           {t("a11y.listen")}
         </button>
       )}
-      {voiceMode && !canListen() && (
+      {voiceMode && !speechAvailable && (
         <p id="no-speech" class="hint">
           {t("a11y.noSpeech")}
         </p>
