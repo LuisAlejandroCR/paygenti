@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "description": "The AI cashier for street vendors: say the price, the customer taps, your phone says paid.",
   "scripts": {
-    "dev": "tsx watch server/index.ts",
+    "dev": "tsx watch --env-file-if-exists=.env.local server/index.ts",
     "dev:web": "vite",
     "build": "vite build",
-    "start": "tsx server/index.ts",
+    "start": "tsx --env-file-if-exists=.env.local server/index.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "lint": "biome check .",
