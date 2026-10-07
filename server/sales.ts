@@ -15,8 +15,6 @@ type Listener = (event: TerminalEvent) => void;
 export const SALE_TTL_MS = 5 * 60 * 1000;
 /** A push-rail sale stays pending this long so the vendor can check her bank app. */
 export const BANK_TTL_MS = 30 * 60 * 1000;
-    return updated;
-  }
 
 /** "+5 min" step and the hard ceiling on a sale's life (accessibility: WCAG 2.2.1 timing adjustable). */
 export const SALE_EXTEND_MS = 5 * 60 * 1000;
@@ -179,8 +177,7 @@ export class SalesService {
   extend(saleId: string): Sale {
     const sale = this.getSale(saleId);
     if (!sale) throw new SaleError("SALE_NOT_FOUND", 404, "unknown sale");
-    if (sale.status !== "open")
-      throw new SaleError("SALE_NOT_OPEN", 409, `sale is ${sale.status}`);
+    if (sale.status !== "open") throw new SaleError("SALE_NOT_OPEN", 409, `sale is ${sale.status}`);
     const ceiling = Date.parse(sale.createdAt) + SALE_MAX_LIFE_MS;
     const next = Math.min(Date.parse(sale.expiresAt) + SALE_EXTEND_MS, ceiling);
     if (next <= Date.parse(sale.expiresAt))
