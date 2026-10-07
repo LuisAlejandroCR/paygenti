@@ -2,6 +2,7 @@
 // Mounts the sales API, SSE, the sticker redirect /t/:terminal, the PayPal webhook, the mock-only
 // approve route and (when built) the web app with SPA fallback. server/index.ts only wires env.
 // Webhooks: sale events go to SalesService, payout events (PAYMENT.PAYOUTS*) to the payout desk.
+
 import { serveStatic } from "@hono/node-server/serve-static";
 import { type Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -14,6 +15,7 @@ import type { PayPalTools } from "./backoffice/paypal-tools";
 import { backofficeRoutes } from "./backoffice/routes";
 import { BackOffice } from "./backoffice/tools";
 import type { VisionClient } from "./catalog/extract";
+import type { IntegrationStatus } from "./integrations";
 import { type Lang, pickLang } from "./lang";
 import { PassportSigner } from "./passport";
 import { PayPalError, type PayPalGateway } from "./paypal/gateway";
@@ -44,6 +46,8 @@ export interface AppDeps {
   paypalTools?: PayPalTools;
   /** Claude vision for menu photo -> catalog; omitted when there is no ANTHROPIC_API_KEY. */
   menuVision?: VisionClient;
+  /** Third-party modes from Integrations, shown on /api/health. */
+  integrations?: Record<string, IntegrationStatus>;
   /** Sales passport signer; defaults to an ephemeral demo key. */
   passportSigner?: PassportSigner;
 }
@@ -121,7 +125,13 @@ export function createApp(deps: AppDeps): Hono {
   app.use("/api/*", (c, next) => (c.req.path === EXTRACT_PATH ? imageLimit : limit)(c, next));
   app.use("/webhooks/*", limit);
 
-  app.get("/api/health", (c) => c.json({ ok: true, paypal: paypal.mode }));
+  // Public route: modes only, never the failure reason (it stays in the server log).
+  app.get("/api/health", (c) => {
+    const integrations =
+      deps.integrations &&
+      Object.fromEntries(Object.entries(deps.integrations).map(([k, v]) => [k, v.mode]));
+    return c.json({ ok: true, paypal: paypal.mode, ...(integrations && { integrations }) });
+  });
 
   app.get("/api/config", (c) =>
     c.json({ paypal: paypal.mode, clientId: paypal.clientId ?? null, publicUrl: base(c, deps) }),
