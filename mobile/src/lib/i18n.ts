@@ -135,6 +135,19 @@ const en = {
   "say.failed": "Payment declined. {amount} was not paid.",
   "say.expired": "Charge expired. {amount} was not paid.",
   "say.cancelled": "Charge cancelled.",
+  "stalls.all": "All my paygents",
+  "stalls.count": "{count} sales",
+  "stalls.signInHint": "Unlock a stall to see its totals here.",
+  "stalls.noFx": "Each currency is totaled on its own; never converted or mixed.",
+  "stalls.pending": "{count} proposals await your PIN",
+  "stalls.approvals": "Claude proposals",
+  "stalls.approvalsHint": "Claude can only propose. Nothing moves until you approve with this stall's PIN.",
+  "stalls.kindRefund": "Refund",
+  "stalls.kindPayout": "Payout",
+  "stalls.approve": "Approve",
+  "stalls.reject": "Reject",
+  "stalls.approved": "Approved: the money moved.",
+  "stalls.rejected": "Rejected: nothing moved.",
 } as const;
 
 export type Key = keyof typeof en;
@@ -271,6 +284,19 @@ const es: Dict = {
   "say.failed": "Pago rechazado. No se pagaron {amount}.",
   "say.expired": "Cobro expirado. No se pagaron {amount}.",
   "say.cancelled": "Cobro cancelado.",
+  "stalls.all": "Todos mis paygents",
+  "stalls.count": "{count} ventas",
+  "stalls.signInHint": "Desbloquea un puesto para ver aquí sus totales.",
+  "stalls.noFx": "Cada moneda se suma por separado; nunca se convierte ni se mezcla.",
+  "stalls.pending": "{count} propuestas esperan tu PIN",
+  "stalls.approvals": "Propuestas de Claude",
+  "stalls.approvalsHint": "Claude solo puede proponer. Nada se mueve hasta que apruebes con el PIN de este puesto.",
+  "stalls.kindRefund": "Reembolso",
+  "stalls.kindPayout": "Pago a proveedor",
+  "stalls.approve": "Aprobar",
+  "stalls.reject": "Rechazar",
+  "stalls.approved": "Aprobado: el dinero se movió.",
+  "stalls.rejected": "Rechazado: no se movió nada.",
 };
 
 export const DICTIONARIES: Readonly<Record<Locale, Dict>> = { en, es };
