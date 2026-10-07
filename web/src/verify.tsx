@@ -2,6 +2,7 @@
 // (never sent to the server) or a pasted link, checks its Ed25519 signature in the browser with
 // WebCrypto against /api/passport/public-key (server fallback) and shows VALID/INVALID with figures.
 import { useEffect, useState } from "preact/hooks";
+import { isPayPalCurrency } from "../../shared/currency";
 import { type Currency, formatMoney, money } from "../../shared/money";
 import {
   decodePayload,
@@ -101,7 +102,7 @@ export function VerifyApp() {
 function Result({ valid, passport }: { valid: boolean; passport: SignedPassport }) {
   const { t } = useT();
   const r = passport.report;
-  const cur = (r.currency === "USD" ? "USD" : "MXN") as Currency;
+  const cur: Currency = isPayPalCurrency(r.currency) ? r.currency : "USD";
   const m = (minor: number) => formatMoney(money(Number(minor) || 0, cur));
   return (
     <section class="panel passport">

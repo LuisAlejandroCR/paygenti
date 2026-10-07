@@ -1,5 +1,5 @@
 // server/voice/demo-catalog.ts: tamales-and-atole demo catalog used by the voice parser tests.
-// Prices are integer MXN minor units built with shared/money.ts.
+// Prices are integer minor units (the demo menu is in MXN) built with shared/money.ts.
 import { money } from "../../shared/money";
 import type { CatalogItem } from "../../shared/types";
 

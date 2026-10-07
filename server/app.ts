@@ -271,6 +271,9 @@ export function createApp(deps: AppDeps): Hono {
       pin: deps.vendorPin ?? "1234",
       now: deps.clock ? () => new Date(deps.clock?.() ?? Date.now()) : undefined,
     });
+  // The lock follows the vendor's charge currency (caps per currency; MXN keeps its defaults).
+  const seeded = sales.store.getVendor("rosa");
+  if (seeded && !deps.policy) policy.setCurrency(seeded.currency, seeded.timeZone);
   const signer = deps.passportSigner ?? PassportSigner.ephemeral();
   app.get("/api/passport/public-key", (c) =>
     c.json({
