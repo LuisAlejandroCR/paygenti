@@ -4,6 +4,55 @@
 
 # Memoria — paygent
 
+## 2026-10-07 — Checkout con Venmo, Pay Later y tarjeta: JS SDK v6 (`feat/venmo-paylater`)
+
+- Hechos verificados (leídos 2026-10-07):
+  - https://developer.paypal.com/v5-v6 — guía de migración: el ejemplo de v5 lleva el comentario
+    «v5 (deprecated)»; v6 carga `https://www.paypal.com/web-sdk/v6/core` sin parámetros y se
+    configura en `createInstance({ clientId, components, pageType })`. Sin fecha de fin para v5.
+  - https://developer.paypal.com/sdk/js/set-up.md — sandbox `https://www.sandbox.paypal.com/web-sdk/v6/core`;
+    el `clientId` basta para PayPal, tarjetas, Venmo y pagos únicos; el client token solo es
+    obligatorio para Fastlane. https://developer.paypal.com/sdk/js/reference/ ya sirve la
+    referencia v6 (v5 quedó como legado).
+  - https://developer.paypal.com/docsai/payments/methods/paypal/sdk/js/v6/paypal-checkout — pago
+    único con la orden creada y capturada en el servidor: `session.start({ presentationMode: "auto" },
+    createOrderPromise)` con `{ orderId }`; `onApprove` trae `orderId`.
+  - https://developer.paypal.com/venmo.md — Venmo: «US-based merchants and US-based consumers
+    only», «Payment must be in USD»; componente `venmo-payments`, `<venmo-button>`.
+    https://developer.paypal.com/docs/checkout/pay-with-venmo/ — móvil: Safari iOS o Chrome Android
+    con la app; escritorio por QR.
+  - https://developer.paypal.com/pay-later/overview — Pay Later solo en US/USD, CA/CAD, GB/GBP,
+    DE/FR/IT/ES (EUR) y AU/AUD; México/MXN no aparece. https://developer.paypal.com/pay-later/integrate.md
+    — mensaje `<paypal-message auto-bootstrap amount currency-code>` (componente `paypal-messages`);
+    si el país o la moneda no aplica, no se pinta.
+  - https://developer.paypal.com/cards/standalone-payment-button — tarjeta como invitado:
+    componente `paypal-guest-payments`, `<paypal-basic-card-button>` dentro de
+    `<paypal-basic-card-container>`. Esa página usa client token, pero el ejemplo oficial
+    https://github.com/paypal-examples/v6-web-sdk-sample-integration (leído 2026-10-07) usa `clientId`, y los
+    tipos de `@paypal/paypal-js@11.2.1` (`sdk-v6`) confirman `testBuyerCountry` y `locale` en
+    `createInstance` y los nombres de `isEligible`: `paypal`, `venmo`, `paylater`, `card`.
+  - Sandbox: v5 usaba `buyer-country` en la URL; en v6 es `testBuyerCountry` en `createInstance`
+    («solo sandbox, nunca en producción»).
+- Decisión: **migrar a v6**. Es la versión documentada y vigente, cubre pago único con
+  crear/capturar en el servidor, usa el mismo `clientId` que ya expone `/api/config` (sin endpoint
+  de client token, así que `server/paypal/*` no se tocó) y trae la elegibilidad explícita
+  (`findEligibleMethods`) que este bloque necesita. La spec ya decía «JS SDK v6».
+- Diseño: `shared/funding.ts` es la regla estática por moneda (PayPal siempre; Venmo solo USD; Pay
+  Later solo USD/CAD/GBP/EUR/AUD; tarjeta en toda moneda PayPal) y fija el orden PayPal → Venmo →
+  Pay Later → tarjeta. `web/src/paypal-sdk.ts` carga el script, pide solo los componentes que la
+  moneda permite y monta los botones que además `findEligibleMethods({ currencyCode, amount })`
+  aprueba. Si la elegibilidad falla, queda solo PayPal. En sandbox `testBuyerCountry` sale de la
+  moneda (USD → US, MXN → MX, EUR → ES) o de `?buyerCountry=XX`. `data-funding` (candidatos) y
+  `data-funding-shown` (montados) en `<main class="checkout">` sirven a e2e y depuración.
+- Verificado en vivo (sandbox, 375 px, sin iniciar sesión en PayPal ni aprobar pagos): venta MXN →
+  PayPal + tarjeta; venta USD (comprador US) → PayPal, Pay Later («Pay in 4 interest-free payments
+  of $30.00» bajo el total) y tarjeta. Venmo no apareció: la API de elegibilidad del sandbox
+  (`POST /v2/payments/find-eligible-methods`, comprador US, USD, UA móvil y escritorio) no lista
+  `venmo` para esta app; o la cuenta comercial sandbox no es de EE. UU. o no tiene Venmo activado.
+  Sin overflow horizontal; etiquetas del SDK en es/en según el idioma.
+- Pendiente conocido: el mensaje de Pay Later sigue el país del comprador, no el idioma de la
+  interfaz (sale en inglés para un comprador US aunque la página esté en español).
+
 ## 2026-10-06 — Persistencia en Postgres (`feat/persistence`)
 
 - `PostgresStore` (`server/db/postgres.ts`) se elige si hay `DATABASE_URL`; si no, `MemoryStore`
