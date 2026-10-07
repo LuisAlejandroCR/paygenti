@@ -17,7 +17,7 @@ interface SessionOptions {
   onCancel(): void;
   onError(error: unknown): void;
 }
-interface SdkInstance {
+export interface SdkInstance {
   findEligibleMethods(options: { currencyCode: string; amount?: string }): Promise<EligibleMethods>;
   createPayPalOneTimePaymentSession(options: SessionOptions): PaymentSession;
   createVenmoOneTimePaymentSession?(options: SessionOptions): PaymentSession;
@@ -25,6 +25,9 @@ interface SdkInstance {
   createPayPalGuestOneTimePaymentSession?(
     options: SessionOptions,
   ): PaymentSession | Promise<PaymentSession>;
+  /** Components "applepay-payments" / "googlepay-payments" (see web/src/wallet-buttons.ts). */
+  createApplePayOneTimePaymentSession?(): unknown;
+  createGooglePayOneTimePaymentSession?(): unknown;
   createPayPalMessages?(options: { currencyCode?: string; buyerCountry?: string }): unknown;
 }
 interface PayPalWebSdk {
@@ -96,9 +99,12 @@ export interface CheckoutSdk {
   details: (source: FundingSource) => { productCode?: string; countryCode?: string } | undefined;
 }
 
-export async function prepareCheckout(o: CheckoutSdkOptions): Promise<CheckoutSdk> {
+/** One cached SDK instance per client id / components / locale / test buyer country. */
+export async function sdkInstance(
+  o: Pick<CheckoutSdkOptions, "env" | "clientId" | "locale" | "testBuyerCountry">,
+  components: string[],
+): Promise<SdkInstance> {
   const paypal = await loadScript(o.env);
-  const components = componentsFor(o.candidates);
   const testBuyerCountry = o.env === "sandbox" ? o.testBuyerCountry : undefined;
   const locale = o.locale === "es" ? "es-MX" : "en-US";
   const key = [o.clientId, components.join(","), locale, testBuyerCountry ?? ""].join("|");
@@ -114,7 +120,11 @@ export async function prepareCheckout(o: CheckoutSdkOptions): Promise<CheckoutSd
     instance.catch(() => instances.delete(key));
     instances.set(key, instance);
   }
-  const sdk = await instance;
+  return instance;
+}
+
+export async function prepareCheckout(o: CheckoutSdkOptions): Promise<CheckoutSdk> {
+  const sdk = await sdkInstance(o, componentsFor(o.candidates));
   try {
     const methods = await sdk.findEligibleMethods({ currencyCode: o.currency, amount: o.amount });
     return {
