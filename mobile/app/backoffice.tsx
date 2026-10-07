@@ -1,16 +1,20 @@
 // app/backoffice.tsx: back office on the existing API — PIN login (vendor session), today's sales,
 // refund of a sale with the PIN re-entered (the server's policy decides; no client-side rules)
-// and today's ledger with totals.
+// and today's ledger with totals. With 2+ stalls: a switcher (each stall has its own PIN session),
+// "All my paygents" totals per currency, and Claude's proposals to approve with the stall PIN.
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useApp } from "@/app-state";
 import { ApiError, type Ledger, type SalesToday } from "@/lib/api";
 import { formatMoney, money, parseAmount } from "@/lib/money";
+import { ALL_STALLS } from "@/lib/stalls";
+import { ApprovalsCard, OwnerTotals, StallSwitcher } from "@/stalls-ui";
 import { FONTS } from "@/lib/theme";
 import { Body, Button, Card, Field, Message, Screen, Title } from "@/ui";
 
 export default function BackOfficeScreen() {
-  const { api, token, setToken, t, colors } = useApp();
+  const { api, token, setToken, t, colors, stall, setStall } = useApp();
+  const [showAll, setShowAll] = useState(false);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,6 +42,28 @@ export default function BackOfficeScreen() {
     if (token) load();
   }, [token, load]);
 
+  const switcher = (
+    <StallSwitcher
+      selected={showAll ? ALL_STALLS : stall}
+      onSelect={(id, s) => {
+        setShowAll(id === ALL_STALLS);
+        setToday(undefined);
+        setLedger(undefined);
+        setRefundOf(undefined);
+        if (id !== ALL_STALLS) setStall(id, s?.terminals[0]);
+        setError("");
+      }}
+    />
+  );
+
+  if (showAll)
+    return (
+      <Screen>
+        {switcher}
+        <OwnerTotals />
+      </Screen>
+    );
+
   async function login() {
     setBusy(true);
     setError("");
@@ -56,6 +82,7 @@ export default function BackOfficeScreen() {
   if (!token)
     return (
       <Screen>
+        {switcher}
         <Card>
           <Field
             label={t("bo.pin")}
@@ -74,6 +101,8 @@ export default function BackOfficeScreen() {
 
   return (
     <Screen>
+      {switcher}
+      <ApprovalsCard onChanged={() => void load()} />
       <Card>
         <Title>{t("bo.today")}</Title>
         {today && (

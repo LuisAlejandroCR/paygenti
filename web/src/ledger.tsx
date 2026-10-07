@@ -2,6 +2,7 @@
 // day's sales with sorting, filters, quick search, status/reconciliation pills, a pinned total row
 // recomputed over the filtered rows, line-item detail on row click, CSV export and SSE live updates.
 // Payouts to suppliers are a separate section under the grid, so the grid's sales totals stay exact.
+
 import {
   CellStyleModule,
   ClientSideRowModelApiModule,
@@ -27,6 +28,7 @@ import type { Payout } from "../../shared/types";
 import { type Key, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 import { hiddenColumns, OPTIONAL_COLUMNS } from "./ledger-columns";
+import { boUrl, tokenKey } from "./stall";
 
 ModuleRegistry.registerModules([
   ClientSideRowModelModule,
@@ -42,7 +44,7 @@ ModuleRegistry.registerModules([
   RowStyleModule,
 ]);
 
-export const TOKEN_KEY = "paygent.bo.token";
+export const TOKEN_KEY = tokenKey();
 
 interface Line {
   sku: string;
@@ -152,7 +154,7 @@ export function LedgerApp() {
 
   async function load(d = dayRef.current) {
     if (!token) return;
-    const res = await fetch(d ? `/api/backoffice/ledger?date=${d}` : "/api/backoffice/ledger", {
+    const res = await fetch(boUrl(d ? `/ledger?date=${d}` : "/ledger"), {
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => undefined);
     if (!res) return setError(t("bo.offline"));

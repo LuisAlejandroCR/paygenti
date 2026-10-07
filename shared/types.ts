@@ -102,6 +102,8 @@ export interface Supplier {
   receiver: string;
   currency: Currency;
   createdAt: string;
+  /** The stall whose allowlist this is; absent on rows from before multi-stall (= "rosa"). */
+  vendorId?: string;
 }
 
 /**
@@ -141,4 +143,46 @@ export interface Payout {
   error?: string;
   createdAt: string;
   updatedAt: string;
+  /** The stall that paid; absent on rows from before multi-stall (= "rosa"). */
+  vendorId?: string;
+}
+
+/** A stall as the owner's switcher sees it (no PIN, no allowlist). */
+export interface StallSummary {
+  id: string;
+  displayName: string;
+  currency: Currency;
+  terminals: string[];
+}
+
+/** A refund or payout Claude proposed over MCP; only the owner, with the stall PIN, can approve it. */
+export interface Approval {
+  id: string;
+  vendorId: string;
+  kind: "refund" | "payout";
+  status: "pending" | "executing" | "approved" | "rejected" | "failed";
+  /** Refund: the sale; payout: a supplier on that stall's allowlist. */
+  saleId?: string;
+  supplierId?: string;
+  amount: Money;
+  /** Free text from Claude: untrusted, shown as plain data only. */
+  note: string;
+  /** What the policy would say if the owner confirmed it now (no budget reserved). */
+  preview: { allow: boolean; code: string; reason: string };
+  createdAt: string;
+  decidedAt?: string;
+  result?: { code: string; reason: string };
+  /** The MCP token that proposed it. */
+  tokenId: string;
+}
+
+/** An owner-issued MCP token. Only the SHA-256 of the secret is ever stored. */
+export interface McpToken {
+  id: string;
+  label: string;
+  tokenHash: string;
+  /** Stalls this token can see and act on. */
+  stalls: string[];
+  createdAt: string;
+  revokedAt?: string;
 }

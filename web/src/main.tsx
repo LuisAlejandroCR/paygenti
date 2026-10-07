@@ -1,6 +1,6 @@
 // web/src/main.tsx: web app entry — routes by location.pathname and mounts into #app.
 // "/" is the vendor app (?terminal=rosa-01 by default); "/pay/:saleId" is the customer checkout;
-// "/backoffice" is the vendor's back office ("/backoffice/ledger" lazy-loads the AG Grid ledger); "/verify" checks a signed sales passport; "/judge" puts vendor and customer side by side;
+// "/backoffice" is the vendor's back office (?stall= picks the paygent; "/backoffice/all" sums them; "/backoffice/ledger" lazy-loads the AG Grid ledger); "/verify" checks a signed sales passport; "/judge" puts vendor and customer side by side;
 // "/setup" is stall settings (name, country, currency); "/soundbox" (lazy) is the counter kiosk that announces paid sales. Registers the app-shell service worker in production.
 import { type ComponentType, render } from "preact";
 import { useEffect, useState } from "preact/hooks";
@@ -9,6 +9,7 @@ import { BackOfficeApp } from "./backoffice";
 import { Checkout } from "./checkout";
 import { JudgeApp } from "./judge";
 import { Onboarding } from "./onboarding";
+import { OwnerOverviewApp } from "./owner";
 import "./styles.css";
 import { VendorApp } from "./vendor";
 import { VerifyApp } from "./verify";
@@ -34,6 +35,7 @@ function LazySoundbox({ terminal }: { terminal: string }) {
 function App() {
   if (/^\/backoffice\/ledger\/?$/.test(location.pathname)) return <LazyLedger />;
   if (/^\/backoffice\/?$/.test(location.pathname)) return <BackOfficeApp />;
+  if (/^\/backoffice\/all\/?$/.test(location.pathname)) return <OwnerOverviewApp />;
   if (/^\/verify\/?$/.test(location.pathname)) return <VerifyApp />;
   const pay = /^\/pay\/([0-9a-f-]{36})\/?$/i.exec(location.pathname);
   if (pay?.[1]) return <Checkout saleId={pay[1]} />;

@@ -9,11 +9,13 @@ import { FootprintPanel } from "./footprint";
 import { type Key, reasonText, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 import { MenuEditor } from "./menu-editor";
+import { ApprovalsPanel, ClaudeAccessPanel, StallSwitcher } from "./owner";
 import { PassportPanel } from "./passport-panel";
 import { type PayoutProposal, PayoutsPanel } from "./payouts-panel";
+import { boUrl, tokenKey } from "./stall";
 
 /** Session token shared with /backoffice/ledger (same key as ledger.tsx; not imported to keep AG Grid lazy). */
-const LEDGER_TOKEN_KEY = "paygent.bo.token";
+const LEDGER_TOKEN_KEY = tokenKey();
 
 /** One tool the agent ran, as the server reports it. */
 interface AgentToolRun {
@@ -91,7 +93,7 @@ export function BackOfficeApp() {
 
   async function call<T>(path: string, body?: unknown): Promise<T | undefined> {
     setError("");
-    const res = await fetch(`/api/backoffice${path}`, {
+    const res = await fetch(boUrl(path), {
       method: body === undefined ? "GET" : "POST",
       headers: {
         ...(body !== undefined && { "Content-Type": "application/json" }),
@@ -121,7 +123,7 @@ export function BackOfficeApp() {
   }
 
   useEffect(() => {
-    fetch("/api/backoffice/config")
+    fetch(boUrl("/config"))
       .then((r) => r.json())
       .then((c: { agent: boolean; limits?: { currency?: Currency } }) => {
         setAgent(c.agent);
@@ -217,6 +219,7 @@ export function BackOfficeApp() {
         <h1>
           {t("bo.title")} <LangToggle />
         </h1>
+        <StallSwitcher />
         <form onSubmit={login} class="panel">
           <label>
             {t("bo.pin")}
@@ -241,6 +244,7 @@ export function BackOfficeApp() {
       <header class="bar">
         <h1 class="stall">{t("bo.title")}</h1>
         <nav class="bar-actions">
+          <StallSwitcher />
           <LangToggle />
           <a class="bar-btn" href="/setup">
             {t("onb.settings")}
@@ -304,6 +308,8 @@ export function BackOfficeApp() {
           )}
         </form>
       )}
+
+      <ApprovalsPanel token={token} onDone={() => void loadToday()} />
 
       <section class="panel">
         <h2>{t("bo.today")}</h2>
@@ -456,6 +462,8 @@ export function BackOfficeApp() {
       <FootprintPanel currency={currency} token={token} onAuthLost={() => setToken(null)} />
 
       <MenuEditor token={token} onAuthLost={() => setToken(null)} />
+
+      <ClaudeAccessPanel />
     </main>
   );
 }

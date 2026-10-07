@@ -5,6 +5,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { type Currency, money, parseAmount, toPayPalValue } from "../../shared/money";
 import { useT } from "./i18n";
+import { boUrl } from "./stall";
 
 interface Row {
   en: string;
@@ -52,7 +53,7 @@ export function MenuEditor({ token, onAuthLost }: { token: string; onAuthLost: (
   const auth = { Authorization: `Bearer ${token}` };
 
   useEffect(() => {
-    fetch("/api/backoffice/catalog", { headers: auth })
+    fetch(boUrl("/catalog"), { headers: auth })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d: { items: ServerItem[]; currency?: Currency }) => {
         const c = d.currency ?? "MXN";
@@ -82,7 +83,7 @@ export function MenuEditor({ token, onAuthLost }: { token: string; onAuthLost: (
     try {
       const form = new FormData();
       form.append("image", await downscale(file), "menu.jpg");
-      const res = await fetch("/api/backoffice/catalog/extract", {
+      const res = await fetch(boUrl("/catalog/extract"), {
         method: "POST",
         headers: auth,
         body: form,
@@ -120,7 +121,7 @@ export function MenuEditor({ token, onAuthLost }: { token: string; onAuthLost: (
     }));
     if (items.length === 0 || items.some((i) => !i.names.en || i.price <= 0))
       return setMsg({ text: t("menu.invalid"), error: true });
-    const res = await fetch("/api/backoffice/catalog", {
+    const res = await fetch(boUrl("/catalog"), {
       method: "PUT",
       headers: { ...auth, "Content-Type": "application/json" },
       body: JSON.stringify({ items }),
