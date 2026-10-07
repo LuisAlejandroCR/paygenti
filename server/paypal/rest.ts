@@ -1,6 +1,16 @@
 // server/paypal/rest.ts: PayPalGateway against the real REST API (sandbox by default).
-// OAuth2 client_credentials with a cached token, Orders v2, refunds, Payouts v1 and webhook checks.
-// Every write carries PayPal-Request-Id; every call has a timeout; secrets are never logged.
+// OAuth token, Orders v2 and refunds go through the official @paypal/paypal-server-sdk; Invoicing,
+// Payouts and webhook verification (not in the SDK) keep plain fetch. Every write carries
+// PayPal-Request-Id; every call has a timeout; secrets are never logged.
+import {
+  ApiError,
+  CheckoutPaymentIntent,
+  Client,
+  Environment,
+  OAuthAuthorizationController,
+  OrdersController,
+  PaymentsController,
+} from "@paypal/paypal-server-sdk";
 import { isPayPalCurrency } from "../../shared/currency";
 import { fromPayPalValue, type Money, toPayPalValue } from "../../shared/money";
 import {
@@ -73,24 +83,24 @@ export interface RestPayPalOptions {
   now?: () => number;
 }
 
-interface PayPalAmount {
-  currency_code: string;
+/** SDK models are camelCase (currencyCode), unlike the raw wire JSON. */
+interface SdkAmount {
+  currencyCode: string;
   value: string;
 }
 
-interface PayPalCapture {
-  id: string;
-  status: GatewayCapture["status"];
-  amount?: PayPalAmount;
+interface SdkOrder {
+  id?: string;
+  status?: string;
+  purchaseUnits?: { amount?: SdkAmount }[];
 }
 
-interface PayPalOrder {
-  id: string;
-  status: OrderStatus;
-  purchase_units?: {
-    amount?: PayPalAmount;
-    payments?: { captures?: PayPalCapture[] };
-  }[];
+/** The slice of the axios request config the SDK hands its transport adapter. */
+interface AxiosLikeConfig {
+  url?: string;
+  method?: string;
+  headers?: unknown;
+  data?: unknown;
 }
 
 export class RestPayPal implements PayPalGateway {
@@ -104,6 +114,8 @@ export class RestPayPal implements PayPalGateway {
   private readonly now: () => number;
   private token: { value: string; expiresAt: number } | undefined;
   private tokenPending: Promise<string> | undefined;
+  /** SDK client with no credentials: our token cache (with the injected clock) feeds each call. */
+  private readonly sdk: Client;
 
   constructor(opts: RestPayPalOptions) {
     this.clientId = opts.clientId;
@@ -113,58 +125,74 @@ export class RestPayPal implements PayPalGateway {
     this.fetchFn = opts.fetch ?? fetch;
     this.timeoutMs = opts.timeoutMs ?? 10_000;
     this.now = opts.now ?? Date.now;
+    this.sdk = new Client({
+      environment: Environment.Sandbox,
+      // Our fetch bridge applies the timeout; SDK default (0) would mean "no timeout".
+      timeout: 0,
+      // Writes are not retried by the SDK (POST is not in httpMethodsToRetry); keep it explicit.
+      httpClientOptions: { retryConfig: { maxNumberOfRetries: 0 } },
+      unstable_httpClientOptions: {
+        adapter: (config: AxiosLikeConfig) => this.bridge(config),
+      },
+    });
   }
 
   async createOrder(input: CreateOrderInput): Promise<GatewayOrder> {
-    const currency_code = input.amount.currency;
-    const unit = {
-      reference_id: input.referenceId,
-      description: input.description?.slice(0, 127),
-      amount: {
-        currency_code,
-        value: toPayPalValue(input.amount),
-        ...(input.lines.length > 0 && {
-          breakdown: { item_total: { currency_code, value: toPayPalValue(input.amount) } },
-        }),
-      },
-      ...(input.lines.length > 0 && {
-        items: input.lines.map((l) => ({
-          name: l.name.slice(0, 127),
-          sku: l.sku,
-          quantity: String(l.qty),
-          unit_amount: { currency_code, value: toPayPalValue(l.unitPrice) },
-        })),
+    const currencyCode = input.amount.currency;
+    const value = toPayPalValue(input.amount);
+    const hasLines = input.lines.length > 0;
+    const order = await this.sdkCall((c) =>
+      new OrdersController(c).createOrder({
+        body: {
+          intent: CheckoutPaymentIntent.Capture,
+          purchaseUnits: [
+            {
+              referenceId: input.referenceId,
+              description: input.description?.slice(0, 127),
+              amount: {
+                currencyCode,
+                value,
+                ...(hasLines && { breakdown: { itemTotal: { currencyCode, value } } }),
+              },
+              ...(hasLines && {
+                items: input.lines.map((l) => ({
+                  name: l.name.slice(0, 127),
+                  sku: l.sku,
+                  quantity: String(l.qty),
+                  unitAmount: { currencyCode, value: toPayPalValue(l.unitPrice) },
+                })),
+              }),
+            },
+          ],
+        },
+        paypalRequestId: input.idempotencyKey,
+        prefer: "return=representation",
       }),
-    };
-    const order = await this.call<PayPalOrder>("POST", "/v2/checkout/orders", {
-      body: { intent: "CAPTURE", purchase_units: [unit] },
-      requestId: input.idempotencyKey,
-    });
+    );
     return toOrder(order, input.amount);
   }
 
   async getOrder(orderId: string): Promise<GatewayOrder> {
-    const order = await this.call<PayPalOrder>(
-      "GET",
-      `/v2/checkout/orders/${encodeURIComponent(orderId)}`,
-    );
-    return toOrder(order);
+    return toOrder(await this.sdkCall((c) => new OrdersController(c).getOrder({ id: orderId })));
   }
 
   async captureOrder(orderId: string, idempotencyKey: string): Promise<GatewayCapture> {
-    const order = await this.call<PayPalOrder>(
-      "POST",
-      `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`,
-      { body: {}, requestId: idempotencyKey },
+    const order = await this.sdkCall((c) =>
+      new OrdersController(c).captureOrder({
+        id: orderId,
+        paypalRequestId: idempotencyKey,
+        prefer: "return=representation",
+        body: {},
+      }),
     );
-    const capture = order.purchase_units?.[0]?.payments?.captures?.[0];
-    if (!capture?.amount) {
+    const capture = order.purchaseUnits?.[0]?.payments?.captures?.[0];
+    if (!capture?.amount || !capture.id || !order.id) {
       throw new PayPalError("capture response without a capture", 502, "MALFORMED_RESPONSE");
     }
     return {
       id: capture.id,
       orderId: order.id,
-      status: capture.status,
+      status: capture.status as GatewayCapture["status"],
       amount: parseAmount(capture.amount),
     };
   }
@@ -174,17 +202,20 @@ export class RestPayPal implements PayPalGateway {
     amount: Money,
     idempotencyKey: string,
   ): Promise<GatewayRefund> {
-    const refund = await this.call<{ id: string; status: GatewayRefund["status"] }>(
-      "POST",
-      `/v2/payments/captures/${encodeURIComponent(captureId)}/refund`,
-      {
-        body: { amount: { currency_code: amount.currency, value: toPayPalValue(amount) } },
-        requestId: idempotencyKey,
-      },
+    const refund = await this.sdkCall((c) =>
+      new PaymentsController(c).refundCapturedPayment({
+        captureId,
+        paypalRequestId: idempotencyKey,
+        prefer: "return=representation",
+        body: { amount: { currencyCode: amount.currency, value: toPayPalValue(amount) } },
+      }),
     );
-    return { id: refund.id, captureId, status: refund.status, amount };
+    if (!refund.id)
+      throw new PayPalError("refund response without an id", 502, "MALFORMED_RESPONSE");
+    return { id: refund.id, captureId, status: refund.status as GatewayRefund["status"], amount };
   }
 
+  // Invoicing v2 is not in @paypal/paypal-server-sdk 2.5.0: plain fetch.
   async createInvoice(input: CreateInvoiceInput): Promise<GatewayInvoice> {
     const currency_code = input.amount.currency;
     const created = await this.call<{ id?: string; href?: string; status?: string }>(
@@ -224,6 +255,7 @@ export class RestPayPal implements PayPalGateway {
     };
   }
 
+  // Payouts v1 is not in @paypal/paypal-server-sdk 2.5.0: plain fetch.
   async createPayout(input: CreatePayoutInput): Promise<GatewayPayout> {
     const body = {
       sender_batch_header: {
@@ -266,6 +298,7 @@ export class RestPayPal implements PayPalGateway {
     }
   }
 
+  // Webhook signature verification is not in @paypal/paypal-server-sdk 2.5.0: plain fetch.
   async verifyWebhook(headers: WebhookHeaders, rawBody: string): Promise<boolean> {
     if (!this.webhookId) return false;
     try {
@@ -287,6 +320,55 @@ export class RestPayPal implements PayPalGateway {
       { rawBody: body },
     );
     return res.verification_status === "SUCCESS";
+  }
+
+  /**
+   * Runs an SDK operation on a client carrying our cached token (no expiry, so our cache decides
+   * when to refresh) and maps the SDK's ApiError to PayPalError.
+   */
+  private async sdkCall<T>(op: (client: Client) => Promise<{ result: T }>): Promise<T> {
+    const accessToken = await this.accessToken();
+    const client = this.sdk.withConfiguration({
+      clientCredentialsAuthCredentials: {
+        oAuthClientId: this.clientId,
+        oAuthClientSecret: this.secret,
+        oAuthToken: { accessToken, tokenType: "Bearer" },
+      },
+    });
+    try {
+      return (await op(client)).result;
+    } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 401) this.token = undefined;
+      throw fromSdkError(err);
+    }
+  }
+
+  /** axios adapter for the SDK: sends through our fetch (timeout, test stubs, PAYPAL_API_URL). */
+  private async bridge(config: AxiosLikeConfig): Promise<unknown> {
+    const sdkUrl = new URL(config.url ?? "");
+    const url = `${this.baseUrl}${sdkUrl.pathname}${sdkUrl.search}`;
+    const raw = config.headers as { toJSON?: () => Record<string, unknown> } | undefined;
+    const flat =
+      typeof raw?.toJSON === "function" ? raw.toJSON() : ((raw ?? {}) as Record<string, unknown>);
+    const headers: Record<string, string> = {};
+    for (const [k, v] of Object.entries(flat))
+      if (v != null) headers[canonicalHeader(k)] = String(v);
+    const res = await this.send(url, {
+      method: (config.method ?? "get").toUpperCase(),
+      headers,
+      body: config.data == null ? undefined : String(config.data),
+    });
+    const respHeaders: Record<string, string> = {};
+    res.headers.forEach((v, k) => {
+      respHeaders[k] = v;
+    });
+    return {
+      data: await res.text(),
+      status: res.status,
+      statusText: res.statusText,
+      headers: respHeaders,
+      config,
+    };
   }
 
   private async call<T>(
@@ -334,22 +416,21 @@ export class RestPayPal implements PayPalGateway {
     return this.tokenPending;
   }
 
+  /** client_credentials through the SDK's OAuthAuthorizationController (no auth on that call). */
   private async fetchToken(): Promise<string> {
     const basic = Buffer.from(`${this.clientId}:${this.secret}`).toString("base64");
-    const res = await this.send(`${this.baseUrl}/v1/oauth2/token`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${basic}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-      },
-      body: "grant_type=client_credentials",
-    });
-    const data = await this.parse<{ access_token: string; expires_in: number }>(res);
+    let result: { accessToken: string; expiresIn?: bigint };
+    try {
+      ({ result } = await new OAuthAuthorizationController(this.sdk).requestToken({
+        authorization: `Basic ${basic}`,
+      }));
+    } catch (err) {
+      throw fromSdkError(err);
+    }
     // Refresh a minute early so a request never goes out with a token about to expire.
-    const ttlMs = Math.max(0, (data.expires_in - 60) * 1000);
-    this.token = { value: data.access_token, expiresAt: this.now() + ttlMs };
-    return data.access_token;
+    const ttlMs = Math.max(0, (Number(result.expiresIn ?? 0) - 60) * 1000);
+    this.token = { value: result.accessToken, expiresAt: this.now() + ttlMs };
+    return result.accessToken;
   }
 
   private async send(url: string, init: RequestInit): Promise<Response> {
@@ -367,30 +448,23 @@ export class RestPayPal implements PayPalGateway {
 
   private async parse<T>(res: Response): Promise<T> {
     const text = await res.text();
-    let data: unknown;
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = {};
-    }
-    if (!res.ok) {
-      const err = data as {
-        name?: string;
-        message?: string;
-        error?: string;
-        error_description?: string;
-        debug_id?: string;
-        details?: { issue?: string }[];
-      };
-      throw new PayPalError(
-        err.message ?? err.error_description ?? `PayPal HTTP ${res.status}`,
-        res.status,
-        err.details?.[0]?.issue ?? err.name ?? err.error,
-        err.debug_id ?? res.headers.get("paypal-debug-id") ?? undefined,
-      );
-    }
-    return data as T;
+    if (!res.ok) throw toPayPalError(res.status, text, (n) => res.headers.get(n) ?? undefined);
+    return parseJson(text) as T;
   }
+}
+
+/** SDK ApiError (or a PayPalError raised inside our fetch bridge) to PayPalError. */
+function fromSdkError(err: unknown): unknown {
+  if (err instanceof PayPalError) return err;
+  if (err instanceof ApiError) {
+    const body = typeof err.body === "string" ? err.body : "";
+    const headers = err.headers ?? {};
+    return toPayPalError(err.statusCode, body, (n) => headers[n]);
+  }
+  // axios may wrap what the adapter threw; unwrap our own error when it does.
+  const cause = (err as { cause?: unknown } | undefined)?.cause;
+  if (cause instanceof PayPalError) return cause;
+  return err;
 }
 
 /** The QR endpoint may wrap the base64 PNG in a multipart envelope; keep the longest base64 run. */
@@ -419,16 +493,55 @@ function toPayout(res: PayPalPayoutBatch, senderBatchId?: string): GatewayPayout
   };
 }
 
-function toOrder(order: PayPalOrder, fallback?: Money): GatewayOrder {
-  const amount = order.purchase_units?.[0]?.amount;
+function toOrder(order: SdkOrder, fallback?: Money): GatewayOrder {
+  const amount = order.purchaseUnits?.[0]?.amount;
   const parsed = amount ? parseAmount(amount) : fallback;
-  if (!parsed) throw new PayPalError("order response without an amount", 502, "MALFORMED_RESPONSE");
-  return { id: order.id, status: order.status, amount: parsed };
+  if (!parsed || !order.id)
+    throw new PayPalError("order response without an amount", 502, "MALFORMED_RESPONSE");
+  return { id: order.id, status: order.status as OrderStatus, amount: parsed };
 }
 
-function parseAmount(a: PayPalAmount): Money {
-  if (!isPayPalCurrency(a.currency_code)) {
-    throw new PayPalError(`unsupported currency ${a.currency_code}`, 502, "UNSUPPORTED_CURRENCY");
+function parseAmount(a: SdkAmount): Money {
+  if (!isPayPalCurrency(a.currencyCode)) {
+    throw new PayPalError(`unsupported currency ${a.currencyCode}`, 502, "UNSUPPORTED_CURRENCY");
   }
-  return fromPayPalValue(a.value, a.currency_code);
+  return fromPayPalValue(a.value, a.currencyCode);
+}
+
+/** The SDK lower-cases some header names; send them as PayPal documents them (HTTP ignores case). */
+function canonicalHeader(name: string): string {
+  return name
+    .split("-")
+    .map((p) => (p.toLowerCase() === "paypal" ? "PayPal" : p.charAt(0).toUpperCase() + p.slice(1)))
+    .join("-");
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** PayPal error JSON (REST or OAuth shape) to PayPalError with issue and debug id. */
+function toPayPalError(
+  status: number,
+  text: string,
+  header: (name: string) => string | undefined,
+): PayPalError {
+  const err = parseJson(text) as {
+    name?: string;
+    message?: string;
+    error?: string;
+    error_description?: string;
+    debug_id?: string;
+    details?: { issue?: string }[];
+  };
+  return new PayPalError(
+    err.message ?? err.error_description ?? `PayPal HTTP ${status}`,
+    status,
+    err.details?.[0]?.issue ?? err.name ?? err.error,
+    err.debug_id ?? header("paypal-debug-id") ?? undefined,
+  );
 }

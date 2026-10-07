@@ -26,7 +26,7 @@ function stub(routes: Record<string, (call: Call) => Response>) {
 
 const ok = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-const token = () => ok({ access_token: "TOKEN", expires_in: 32400 });
+const token = () => ok({ access_token: "TOKEN", token_type: "Bearer", expires_in: 32400 });
 const header = (c: Call, name: string) => (c.init.headers as Record<string, string>)[name];
 
 describe("RestPayPal", () => {
@@ -84,7 +84,7 @@ describe("RestPayPal", () => {
   it("refreshes the token after it expires", async () => {
     let now = 0;
     const { calls, fetch } = stub({
-      "/v1/oauth2/token": () => ok({ access_token: "T", expires_in: 120 }),
+      "/v1/oauth2/token": () => ok({ access_token: "T", token_type: "Bearer", expires_in: 120 }),
       "/v2/checkout/orders/O": () =>
         ok({
           id: "O",

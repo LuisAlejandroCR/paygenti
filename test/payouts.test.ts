@@ -274,7 +274,7 @@ describe("PayPal error mapping", () => {
     const fetchFn = (async (url: string, init: RequestInit) => {
       calls.push({ url, init });
       if (url.endsWith("/v1/oauth2/token"))
-        return Response.json({ access_token: "T", expires_in: 3600 });
+        return Response.json({ access_token: "T", token_type: "Bearer", expires_in: 3600 });
       if (url.endsWith("/v1/payments/payouts") && init.method === "POST")
         return Response.json(
           {
