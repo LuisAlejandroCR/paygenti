@@ -1,8 +1,10 @@
 // server/store.ts: persistence behind a small synchronous Store interface. MemoryStore keeps
 // everything in process (tests, zero-setup judge mode); server/db/postgres.ts persists the same state.
 // Seeds the demo vendor (Rosa, tamales y atole, MXN) and her terminal "rosa-01". Also keeps the
-// payout allowlist (suppliers) and the payout history.
+// payout allowlist (suppliers) and the payout history, plus the financial footprint inputs: imported
+// statement aggregates (month, currency, inflow, count only) and the vendor's savings goal.
 import { type Currency, money } from "../shared/money";
+import type { SavingsGoal, StatementMonth } from "../shared/passport";
 import type { CatalogItem, Payout, Sale, Supplier, Terminal, Vendor } from "../shared/types";
 import type { AuditEntry } from "./policy/audit";
 import type { PinGuardState } from "./policy/pin";
@@ -55,6 +57,15 @@ export interface Store extends PolicyStore {
   getPayout(id: string): Payout | undefined;
   findPayoutByBatchId(batchId: string): Payout | undefined;
   savePayout(payout: Payout): void;
+  /** Imported bank-statement aggregates for a vendor (self-reported, never verified). */
+  statementMonths(vendorId: string): StatementMonth[];
+  /** Upserts by (month, currency): a re-import of the same month replaces it, others are kept. */
+  saveStatementMonths(vendorId: string, months: StatementMonth[]): void;
+  /** Deletes every imported aggregate; returns how many months were removed. */
+  deleteStatementMonths(vendorId: string): number;
+  savingsGoal(vendorId: string): SavingsGoal | undefined;
+  /** `undefined` clears the goal. */
+  saveSavingsGoal(vendorId: string, goal: SavingsGoal | undefined): void;
 }
 
 export const DEMO_VENDOR: Vendor = {
@@ -147,6 +158,9 @@ export class MemoryStore implements Store {
   protected pin: PinGuardState | undefined;
   protected readonly supplierMap = new Map<string, Supplier>();
   protected readonly payoutMap = new Map<string, Payout>();
+  /** vendorId -> "month|currency" -> aggregate. */
+  protected readonly statementMap = new Map<string, Map<string, StatementMonth>>();
+  protected readonly goalMap = new Map<string, SavingsGoal>();
 
   getVendor(id: string): Vendor | undefined {
     return this.vendors.get(id);
@@ -244,6 +258,32 @@ export class MemoryStore implements Store {
 
   savePayout(payout: Payout): void {
     this.payoutMap.set(payout.id, structuredClone(payout));
+  }
+
+  statementMonths(vendorId: string): StatementMonth[] {
+    return [...(this.statementMap.get(vendorId)?.values() ?? [])].map((m) => ({ ...m }));
+  }
+
+  saveStatementMonths(vendorId: string, months: StatementMonth[]): void {
+    const map = this.statementMap.get(vendorId) ?? new Map<string, StatementMonth>();
+    for (const m of months) map.set(`${m.month}|${m.currency}`, { ...m });
+    this.statementMap.set(vendorId, map);
+  }
+
+  deleteStatementMonths(vendorId: string): number {
+    const n = this.statementMap.get(vendorId)?.size ?? 0;
+    this.statementMap.delete(vendorId);
+    return n;
+  }
+
+  savingsGoal(vendorId: string): SavingsGoal | undefined {
+    const g = this.goalMap.get(vendorId);
+    return g && { ...g };
+  }
+
+  saveSavingsGoal(vendorId: string, goal: SavingsGoal | undefined): void {
+    if (goal) this.goalMap.set(vendorId, { ...goal });
+    else this.goalMap.delete(vendorId);
   }
 
   usageForDay(day: string): DailyUsage[] {
