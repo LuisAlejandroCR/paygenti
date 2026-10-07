@@ -4,6 +4,19 @@
 
 # Memoria — paygent
 
+## 2026-10-07 — Rieles de pago (`feat/payment-rails-v2`)
+
+- Investigación y fuentes en `docs/payment-rails.md`. Registro en `shared/rails.ts`: cada riel se
+  activa por env (`PIX_KEY`, `SPEI_CLABE`, `BREB_KEY`, `RAIL_APPLE_PAY`, `RAIL_GOOGLE_PAY`,
+  `RAIL_OXXO`); sin config, no aparece. CLABE inválida = riel oculto.
+- Invariante: solo `markPaid` (captura PayPal o webhook verificado) pone `paid`. Pix/SPEI/Bre-B
+  pasan a `pending_bank` (ventana de 30 min) y, con el PIN de la vendedora, a `vendor_confirmed`:
+  fuera de `paid`/`net` del ledger (`totals.unverified`) y en `selfReported.vendorConfirmed` del
+  pasaporte. `method` guarda el riel; columnas text en Postgres, sin migración.
+- ⏳ Apple Pay / Google Pay / OXXO solo se anuncian y van por el pedido PayPal; no se montan sus
+  botones nativos del SDK v6 (requiere registro de dominio). ⏳ Bre-B no se ofrece nunca hoy: COP no
+  es moneda PayPal, así que no existen ventas en COP.
+
 ## 2026-10-07 — Pagos a proveedores (`feat/payouts`)
 
 - Hechos verificados (leídos 2026-10-07):
