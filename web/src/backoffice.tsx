@@ -1,8 +1,9 @@
 // web/src/backoffice.tsx: the vendor's back office at /backoffice — PIN login, today's sales,
 // cash reconcile, invoice with QR, refunds (PIN asked again each time) and the optional agent.
 // All numbers come from the server; this page only renders them.
+
 import { useEffect, useState } from "preact/hooks";
-import { formatMoney, type Money } from "../../shared/money";
+import { type Currency, formatMoney, type Money, parseAmount } from "../../shared/money";
 import { type Key, reasonText, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 import { MenuEditor } from "./menu-editor";
@@ -47,12 +48,6 @@ const ERRORS: Record<string, Key> = {
   AGENT_FAILED: "bo.agentFailed",
 };
 
-function toMinor(text: string): number | undefined {
-  const m = /^\s*(\d{1,7})(?:[.,](\d{1,2}))?\s*$/.exec(text);
-  if (!m) return undefined;
-  return Number(m[1]) * 100 + Number((m[2] ?? "0").padEnd(2, "0"));
-}
-
 export function BackOfficeApp() {
   const { t, locale } = useT();
   const [token, setToken] = useState<string | null>(() => {
@@ -63,6 +58,8 @@ export function BackOfficeApp() {
     }
   });
   const [agent, setAgent] = useState(false);
+  const [currency, setCurrency] = useState<Currency>("MXN");
+  const toMinor = (text: string) => parseAmount(text, currency, 7);
   const [error, setError] = useState("");
   const [pin, setPin] = useState("");
   const [today, setToday] = useState<SalesToday | null>(null);
@@ -113,7 +110,10 @@ export function BackOfficeApp() {
   useEffect(() => {
     fetch("/api/backoffice/config")
       .then((r) => r.json())
-      .then((c: { agent: boolean }) => setAgent(c.agent))
+      .then((c: { agent: boolean; limits?: { currency?: Currency } }) => {
+        setAgent(c.agent);
+        if (c.limits?.currency) setCurrency(c.limits.currency);
+      })
       .catch(() => setAgent(false));
   }, []);
 
@@ -225,6 +225,9 @@ export function BackOfficeApp() {
         <h1 class="stall">{t("bo.title")}</h1>
         <nav class="bar-actions">
           <LangToggle />
+          <a class="bar-btn" href="/setup">
+            {t("onb.settings")}
+          </a>
           <a class="bar-btn" href="/backoffice/ledger">
             {t("ledger.open")}
           </a>
@@ -405,7 +408,7 @@ export function BackOfficeApp() {
         )}
       </form>
 
-      <PassportPanel token={token} onAuthLost={() => setToken(null)} />
+      <PassportPanel currency={currency} token={token} onAuthLost={() => setToken(null)} />
 
       <MenuEditor token={token} onAuthLost={() => setToken(null)} />
     </main>
