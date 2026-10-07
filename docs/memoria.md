@@ -4,6 +4,18 @@
 
 # Memoria — paygent
 
+## 2026-10-07 — Ola de PRs #28–#33 y traspaso
+
+- Terceros plug-and-play (#28): un `DATABASE_URL` inalcanzable o un `PASSPORT_SIGNING_KEY` inválido
+  tumbaban el arranque; ahora caen a su respaldo. `/api/health` muestra solo modos, no el error
+  (ruta pública). Costo aceptado: si Postgres cae al arrancar, los topes diarios viven en memoria.
+- Huella financiera (#32): indicadores, nunca un puntaje; el import bancario es "autodeclarado".
+- Al rebasear #31 sobre #30 apareció un hueco: el PIN de cualquier puesto confirmaba ventas SPEI/Pix
+  de otro. Ahora `vendor-confirm` usa el PIN del puesto dueño de la venta (test en `rails.test.ts`).
+- #31 y #32 traían ambos la migración v3: la de puestos pasó a v4.
+- GitHub devolvió 500 en push y en crear PR ~15:06–15:20; se resolvió solo.
+- Estado y pendientes para un chat nuevo: `docs/handoff.md`.
+
 ## 2026-10-07 — Rieles de pago (`feat/payment-rails-v2`)
 
 - Investigación y fuentes en `docs/payment-rails.md`. Registro en `shared/rails.ts`: cada riel se
