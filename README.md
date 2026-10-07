@@ -105,6 +105,20 @@ suppliers (name, PayPal email or phone, currency) and pays them from the PayPal 
   the app needs **Payouts** enabled (developer.paypal.com → your app → Features); otherwise the panel
   shows `PAYOUTS_NOT_ENABLED`. The sandbox does not support phone payouts: use an email.
 
+## Several paygents, one owner (and Claude over MCP)
+
+- One owner can run several stalls. The demo seeds a second one, **Don Beto — Tacos** (PIN `5678`,
+  terminal `beto-01`). Each stall has its own PIN, caps, catalog, suppliers and records: one stall's
+  refund or payout budget can never be spent from another.
+- With 2+ stalls the back office (web and phone) shows a stall switcher and **All my paygents**
+  (`/backoffice/all`): today's totals per currency, never converted or mixed.
+- **Claude:** create a token in `/backoffice` → *Claude access (MCP)* (only its SHA-256 is stored; it
+  reaches the stalls you are signed in to; revoke any time) and connect Claude to `<your-url>/mcp`
+  (streamable HTTP, `Authorization: Bearer pgt_…`). Tools: `list_stalls`, `get_ledger`,
+  `list_suppliers`, `create_charge`, `cancel_open_sale`, `propose_refund`, `propose_payout`.
+  Refunds and payouts are only **proposed**: they wait in the stall's approvals inbox until you approve
+  them on the web or phone with that stall's PIN. Claude never receives the PIN.
+
 ## Run locally
 
 Requires Node 22+.
@@ -136,6 +150,7 @@ Copy `.env.example` to `.env.local`. Every value is optional.
 | `PAYPAL_WEBHOOK_ID` | Verifies `/webhooks/paypal` signatures |
 | `ANTHROPIC_API_KEY` | Claude for voice-to-cart and the back-office agent; otherwise a rule parser runs |
 | `VENDOR_PIN` | PIN that unlocks the back office and refunds (demo default `1234`) |
+| `STALL_PINS` | PIN per extra stall, e.g. `beto:5678` (demo stall "Don Beto — Tacos" defaults to `5678`) |
 | `DATABASE_URL` | Postgres connection string; sales, catalog, suppliers, payouts, audit log, PIN lockouts and daily refund/payout caps then survive restarts. Unset: everything lives in memory |
 | `PASSPORT_SIGNING_KEY` | Ed25519 private key (PKCS8 PEM or base64 DER) that signs sales passports; otherwise an ephemeral demo key |
 
