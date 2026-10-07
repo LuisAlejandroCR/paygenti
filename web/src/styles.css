@@ -1540,6 +1540,7 @@ button.link {
 :root[data-contrast="high"] textarea,
 :root[data-contrast="high"] .card {
   border: 2px solid currentColor;
+}
 /* Multi-paygent: stall switcher, approvals inbox, Claude access. */
 .stall-switcher select {
   font: inherit;
