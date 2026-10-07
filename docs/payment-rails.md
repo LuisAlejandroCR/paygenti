@@ -41,6 +41,10 @@ from a party other than the vendor, that the money arrived.
 - **Not implemented** (research only): Yape/Plin, SINPE Móvil, Transferencias 3.0, FedNow/RTP,
   Zelle, Cash App. Each would be a push rail with the same "not verified" treatment until a
   provider integration exists.
+- Known gaps: Apple Pay / Google Pay / OXXO are listed on the checkout as "through PayPal" and use
+  the same PayPal order, but their native SDK v6 buttons are not mounted yet (Apple Pay needs domain
+  registration). Bre-B is wired but never offered today: sales are in PayPal currencies and COP is
+  not one, so a COP sale cannot exist yet.
 - Rails are a registry (`shared/rails.ts`): each one is enabled by config; missing config hides it.
 
 | Env var | Enables |
