@@ -43,13 +43,12 @@ export function findToken(store: Store, secret: string): McpToken | undefined {
   return store.mcpTokens().find((t) => t.tokenHash === h && !t.revokedAt);
 }
 
+/** Control characters plus bidi overrides/isolates (kept as escapes in a string on purpose). */
+const UNSAFE_CHARS = new RegExp("[\\u0000-\\u001f\\u007f\\u202a-\\u202e\\u2066-\\u2069]", "g");
+
 /** Strips control characters and caps length: Claude's free text is stored and shown as data. */
 export function clean(text: string, max: number): string {
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: removing them is the point
-  return text
-    .replace(/[\u0000-\u001f\u007f‪-‮⁦-⁩]/g, " ")
-    .trim()
-    .slice(0, max);
+  return text.replace(UNSAFE_CHARS, " ").trim().slice(0, max);
 }
 
 const stallArg = z.string().regex(/^[a-z0-9-]{1,40}$/);
