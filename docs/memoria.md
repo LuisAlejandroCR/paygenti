@@ -17,6 +17,18 @@
 - e2e corre en Chromium ocultando `SpeechRecognition` y con micrófono falso (WebAudio): no hay
   navegador Firefox de Playwright instalado. ⏳ Probar en Firefox real con micrófono.
 
+## 2026-10-07 — Transferencias entre cuentas propias (`fix/statement-internal-transfers`)
+
+- El import sumaba todo abono como ingreso; mover dinero de ahorro a cheques inflaba la huella.
+- Detector conservador en `server/statement.ts`: (1) concepto/NAME/MEMO con frases de cuenta propia
+  (traspaso, entre cuentas, cuenta propia, entre contas, mesma titularidade, own account, internal
+  transfer…), sin acentos; (2) abono compensado por un cargo del mismo monto y moneda en **otra**
+  cuenta del mismo archivo (bloques STMTRS del OFX) a ≤ 3 días. En una sola cuenta no se emparejan
+  cargo y abono iguales: es común vender y pagar al proveedor el mismo monto.
+- `TRNTYPE XFER` solo no excluye: Pix/SPEI de clientes llegan así. Mejor contar de más un traspaso
+  sin concepto que borrar una venta real. Se reporta `ownAccountMoves {count, totals}`; el concepto
+  se lee y se descarta, nunca se guarda.
+
 ## 2026-10-07 — Rieles de pago (`feat/payment-rails-v2`)
 
 - Investigación y fuentes en `docs/payment-rails.md`. Registro en `shared/rails.ts`: cada riel se
