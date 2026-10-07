@@ -10,6 +10,7 @@ import {
   type SignedPassport,
   verifyPassport,
 } from "../../shared/passport";
+import { FootprintFigures } from "./footprint";
 import { useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 
@@ -193,6 +194,7 @@ export function PassportFigures({
           </tr>
         </tbody>
       </table>
+      {r.footprint && <FootprintFigures footprint={r.footprint} />}
       <p class="hint">{t("passport.issued", { at: r.issuedAt, key: passport.keyId })}</p>
     </>
   );

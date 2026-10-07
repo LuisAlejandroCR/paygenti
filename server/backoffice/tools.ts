@@ -248,6 +248,7 @@ export class BackOffice {
           vendorConfirmed: s.status === "vendor_confirmed",
           total: s.total.minor,
           refunded: r.refunded.minor,
+          currency: s.total.currency,
         };
       });
   }

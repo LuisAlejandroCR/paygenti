@@ -6,6 +6,7 @@
 // keeps one capture id per sale. close() flushes the queue (SIGTERM on Render) before exiting.
 // Suppliers (payout allowlist) and payouts are loaded and written the same way.
 import type { Currency } from "../../shared/money";
+import type { SavingsGoal, StatementMonth } from "../../shared/passport";
 import type { CatalogItem, Payout, Sale, Supplier, Terminal, Vendor } from "../../shared/types";
 import type { AuditEntry } from "../policy/audit";
 import type { PinGuardState } from "../policy/pin";
@@ -106,6 +107,24 @@ export class PostgresStore extends MemoryStore {
       const p = rowToPayout(r);
       this.payoutMap.set(p.id, p);
     }
+    this.statementMap.clear();
+    const months = await db.query("SELECT * FROM statement_months ORDER BY vendor_id, month");
+    for (const r of months.rows)
+      super.saveStatementMonths(String(r.vendor_id), [
+        {
+          month: String(r.month),
+          currency: String(r.currency),
+          inflow: Number(r.inflow_minor),
+          count: Number(r.inflow_count),
+        },
+      ]);
+    this.goalMap.clear();
+    for (const r of (await db.query("SELECT * FROM savings_goals")).rows)
+      this.goalMap.set(String(r.vendor_id), {
+        currency: String(r.currency),
+        target: Number(r.target_minor),
+        saved: Number(r.saved_minor),
+      });
   }
 
   #enqueue(what: string, job: Job): void {
@@ -253,6 +272,48 @@ export class PostgresStore extends MemoryStore {
         tx.query("DELETE FROM suppliers WHERE id = $1", [id]).then(() => undefined),
       );
     return existed;
+  }
+
+  override saveStatementMonths(vendorId: string, months: StatementMonth[]): void {
+    super.saveStatementMonths(vendorId, months);
+    const rows = months.map((m) => ({ ...m }));
+    this.#enqueue("statement", async (tx) => {
+      for (const m of rows)
+        await tx.query(
+          `INSERT INTO statement_months (vendor_id, month, currency, inflow_minor, inflow_count)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (vendor_id, month, currency) DO UPDATE SET
+             inflow_minor = EXCLUDED.inflow_minor, inflow_count = EXCLUDED.inflow_count`,
+          [vendorId, m.month, m.currency, m.inflow, m.count],
+        );
+    });
+  }
+
+  override deleteStatementMonths(vendorId: string): number {
+    const n = super.deleteStatementMonths(vendorId);
+    this.#enqueue("statement", (tx) =>
+      tx
+        .query("DELETE FROM statement_months WHERE vendor_id = $1", [vendorId])
+        .then(() => undefined),
+    );
+    return n;
+  }
+
+  override saveSavingsGoal(vendorId: string, goal: SavingsGoal | undefined): void {
+    super.saveSavingsGoal(vendorId, goal);
+    const g = goal && { ...goal };
+    this.#enqueue("goal", (tx) =>
+      (g
+        ? tx.query(
+            `INSERT INTO savings_goals (vendor_id, currency, target_minor, saved_minor)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (vendor_id) DO UPDATE SET currency = EXCLUDED.currency,
+               target_minor = EXCLUDED.target_minor, saved_minor = EXCLUDED.saved_minor`,
+            [vendorId, g.currency, g.target, g.saved],
+          )
+        : tx.query("DELETE FROM savings_goals WHERE vendor_id = $1", [vendorId])
+      ).then(() => undefined),
+    );
   }
 
   override savePayout(payout: Payout): void {

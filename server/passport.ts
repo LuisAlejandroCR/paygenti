@@ -1,6 +1,7 @@
 // server/passport.ts: the signed sales passport — builds the report from the vendor's settled
 // sales (only PayPal captures count as verified; cash is a separate self-reported line) and signs
 // its canonical JSON with Ed25519. The key comes from PASSPORT_SIGNING_KEY or is ephemeral (demo).
+// The financial footprint (server/footprint.ts) rides inside the same signed report.
 import {
   createHash,
   createPrivateKey,
@@ -14,11 +15,14 @@ import {
   PASSPORT_KIND,
   type PassportDay,
   type PassportReport,
+  type SavingsGoal,
   type SignedPassport,
+  type StatementMonth,
   toBase64Url,
 } from "../shared/passport";
 import { VENDOR_CONFIRMED_LABEL } from "../shared/rails";
 import type { Sale } from "../shared/types";
+import { computeFootprint } from "./footprint";
 
 export const SELF_REPORTED_LABEL = "self-reported — not verified by PayPal";
 export const DEFAULT_RANGE_DAYS = 30;
@@ -73,6 +77,8 @@ export interface PassportSale {
   vendorConfirmed?: boolean;
   total: number;
   refunded: number;
+  /** Sale currency; defaults to the passport currency. */
+  currency?: string;
 }
 
 export interface PassportInput {
@@ -86,6 +92,9 @@ export interface PassportInput {
   sales: PassportSale[];
   /** Cash the vendor dictates on top of cash sales recorded in the app. */
   cashDictated?: number;
+  /** Imported statement aggregates (self-reported) and the vendor's savings goal. */
+  statement?: StatementMonth[];
+  goal?: SavingsGoal;
 }
 
 export function buildPassport(input: PassportInput): PassportReport {
@@ -121,7 +130,7 @@ export function buildPassport(input: PassportInput): PassportReport {
   const refunds = sum((d) => d.refunds);
   return {
     kind: PASSPORT_KIND,
-    version: 1,
+    version: 2,
     issuer: "paygent",
     issuedAt: input.issuedAt,
     demoKey: input.demoKey,
@@ -150,6 +159,12 @@ export function buildPassport(input: PassportInput): PassportReport {
         },
       }),
     },
+    footprint: computeFootprint({
+      to: input.to,
+      sales: input.sales.map((s) => ({ ...s, currency: s.currency ?? input.currency })),
+      statement: input.statement ?? [],
+      goal: input.goal,
+    }),
   };
 }
 

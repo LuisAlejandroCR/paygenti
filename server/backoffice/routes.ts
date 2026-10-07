@@ -1,5 +1,6 @@
 // server/backoffice/routes.ts: /api/backoffice/* — PIN login to a vendor session, fixed tool
-// endpoints (sales, reconcile, invoice, refund, suppliers and payouts) and the optional Claude agent.
+// endpoints (sales, reconcile, invoice, refund, suppliers and payouts), the financial footprint
+// (PIN-gated statement import, savings goal) and the optional Claude agent.
 // Without a session the caller is treated as a customer, so the policy denies any money movement.
 import { createHash, randomBytes } from "node:crypto";
 import { getConnInfo } from "@hono/node-server/conninfo";
@@ -22,6 +23,7 @@ import {
 } from "../passport";
 import { PayPalError } from "../paypal/gateway";
 import { localDay, type PolicyConfig } from "../policy";
+import { MAX_STATEMENT_BYTES, parseStatement, StatementError } from "../statement";
 import type { Store } from "../store";
 import { type ModelClient, runAgent } from "./agent";
 import { type DeskResult, supplierInput } from "./payouts";
@@ -72,6 +74,10 @@ const payoutBody = z.strictObject({
   note: z.string().max(200).optional(),
   pin: pinField,
   requestId: z.uuid().optional(),
+});
+const goalBody = z.strictObject({
+  targetMinor: z.number().int().positive().max(10_000_000_000),
+  savedMinor: z.number().int().min(0).max(10_000_000_000),
 });
 const idParam = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
 /** HTTP status for a refused desk result: validation 400, conflicts 409, PayPal 502, policy 403. */
@@ -354,6 +360,8 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
       demoKey: deps.passport.demo,
       sales: office.passportSales(),
       cashDictated: body.data.cashMinor,
+      statement: deps.store.statementMonths(deps.vendorId),
+      goal: deps.store.savingsGoal(deps.vendorId),
     });
     const signed = deps.passport.sign(report);
     const origin = (deps.publicUrl ?? new URL(c.req.url).origin).replace(/\/+$/, "");
@@ -365,6 +373,94 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
       // Too long for a QR code (very busy period): the link still works.
     }
     return c.json({ ...signed, verifyUrl, qr });
+  });
+
+  // Financial footprint inputs. Statement import and deletion need the PIN, like money movements.
+  const pinDenied = (c: Context, pin: unknown) => {
+    if (typeof pin !== "string" || pin === "") return c.json({ error: "PIN_REQUIRED" }, 403);
+    const r = office.policy.verifyPin("vendor", pin, authority(c).client);
+    if (r.ok) return undefined;
+    return c.json({ error: r.code }, r.code === "PIN_LOCKED" ? 429 : 403);
+  };
+
+  app.get("/footprint", (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    return c.json({
+      statement: deps.store.statementMonths(deps.vendorId),
+      goal: deps.store.savingsGoal(deps.vendorId) ?? null,
+    });
+  });
+
+  // Multipart: file (CSV/OFX/QFX), pin, optional currency. The file lives only in this request:
+  // it is reduced to monthly aggregates and dropped; nothing from it is logged.
+  app.post("/statement", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    if (!(c.req.header("content-type") ?? "").startsWith("multipart/form-data"))
+      return c.json({ error: "INVALID_BODY" }, 400);
+    let form: Record<string, string | File>;
+    try {
+      form = (await c.req.parseBody()) as Record<string, string | File>;
+    } catch {
+      return c.json({ error: "INVALID_BODY" }, 400);
+    }
+    const pinRefused = pinDenied(c, form.pin);
+    if (pinRefused) return pinRefused;
+    const file = form.file;
+    if (!(file instanceof File)) return c.json({ error: "STATEMENT_EMPTY" }, 400);
+    if (file.size > MAX_STATEMENT_BYTES) return c.json({ error: "STATEMENT_TOO_LARGE" }, 413);
+    const fallback =
+      typeof form.currency === "string" && isPayPalCurrency(form.currency.toUpperCase())
+        ? form.currency.toUpperCase()
+        : office.policy.config.currency;
+    try {
+      const summary = parseStatement(new Uint8Array(await file.arrayBuffer()), fallback);
+      deps.store.saveStatementMonths(deps.vendorId, summary.months);
+      return c.json({
+        imported: summary.months,
+        transactions: summary.transactions,
+        skipped: summary.skipped,
+        statement: deps.store.statementMonths(deps.vendorId),
+      });
+    } catch (err) {
+      if (!(err instanceof StatementError)) {
+        console.error("statement import failed");
+        return c.json({ error: "STATEMENT_UNREADABLE" }, 400);
+      }
+      return c.json({ error: err.code }, err.code === "STATEMENT_TOO_LARGE" ? 413 : 400);
+    }
+  });
+
+  app.post("/statement/remove", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const body = pinBody.safeParse((await readJson(c)) ?? {});
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const pinRefused = pinDenied(c, body.data.pin);
+    if (pinRefused) return pinRefused;
+    return c.json({ removed: deps.store.deleteStatementMonths(deps.vendorId) });
+  });
+
+  app.put("/savings-goal", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const body = goalBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_GOAL" }, 400);
+    const goal = {
+      currency: office.policy.config.currency as string,
+      target: body.data.targetMinor,
+      saved: body.data.savedMinor,
+    };
+    deps.store.saveSavingsGoal(deps.vendorId, goal);
+    return c.json({ goal });
+  });
+
+  app.delete("/savings-goal", (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    deps.store.saveSavingsGoal(deps.vendorId, undefined);
+    return c.json({ goal: null });
   });
 
   app.get("/audit", (c) => requireVendor(c) ?? c.json({ entries: office.policy.audit.entries() }));
