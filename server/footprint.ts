@@ -1,6 +1,7 @@
 // server/footprint.ts: the financial footprint — descriptive indicators (days active, months selling,
 // active weeks, monthly income per currency, savings goal progress). Never a score: no figure
 // combines them. Verified PayPal sales and imported statements stay in separate, labelled blocks.
+
 import {
   FOOTPRINT_DISCLAIMER,
   type Footprint,
@@ -11,12 +12,13 @@ import {
   type TrendDirection,
   VERIFIED_LABEL,
 } from "../shared/passport";
+import type { Sale } from "../shared/types";
 
 /** A settled sale as the footprint sees it: day, currency and money only. */
 export interface FootprintSale {
   day: string;
   currency: string;
-  method: "paypal" | "cash";
+  method: Sale["method"];
   captured: boolean;
   total: number;
   refunded: number;
