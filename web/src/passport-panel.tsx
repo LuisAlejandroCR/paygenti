@@ -1,11 +1,13 @@
 // web/src/passport-panel.tsx: back-office "Sales passport" panel — pick a date range (default last
 // 30 days), optionally add self-reported cash, generate the signed passport, then show its summary,
 // a QR of the verify link, copy-link and a print-friendly view.
+
 import { useState } from "preact/hooks";
 import { isPayPalCurrency } from "../../shared/currency";
 import { type Currency, formatMoney, money, parseAmount } from "../../shared/money";
 import type { SignedPassport } from "../../shared/passport";
 import { useT } from "./i18n";
+import { boUrl } from "./stall";
 import { PassportFigures } from "./verify";
 
 interface Generated extends SignedPassport {
@@ -36,7 +38,7 @@ export function PassportPanel({
     setCopied(false);
     const cashMinor = cash.trim() ? parseAmount(cash, currency) : undefined;
     if (cash.trim() && cashMinor === undefined) return setError(t("bo.cashFormat"));
-    const res = await fetch("/api/backoffice/passport", {
+    const res = await fetch(boUrl("/passport"), {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({

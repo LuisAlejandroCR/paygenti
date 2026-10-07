@@ -12,6 +12,7 @@ import { AnthropicVisionClient } from "./catalog/extract";
 import { PostgresStore } from "./db/postgres";
 import { pgClient } from "./db/sql";
 import { Integrations } from "./integrations";
+import { parseStallPins } from "./owner/stalls";
 import { PassportSigner } from "./passport";
 import { createGateway } from "./paypal";
 import { MockPayPal } from "./paypal/mock";
@@ -58,7 +59,12 @@ const menuVision = await integrations.optional("claude-vision", () =>
 const paypalTools = await integrations.optional("paypal-agent-toolkit", () =>
   createPayPalTools(process.env),
 );
+const stallPins = parseStallPins(process.env.STALL_PINS);
+for (const v of store.vendors())
+  if (v.id !== "rosa" && !stallPins[v.id])
+    console.warn(`STALL_PINS has no PIN for stall "${v.id}": using its demo PIN`);
 const app = createApp({
+  stallPins,
   sales: new SalesService({ store, paypal }),
   passportSigner,
   vendorPin: vendorPin || undefined,

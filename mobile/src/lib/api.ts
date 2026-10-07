@@ -2,7 +2,8 @@
 // against a configurable server URL. It only moves JSON and surfaces error codes; every rule
 // (PIN, caps, refunds) stays on the server.
 import type { Money } from "@shared/money";
-import type { CartLine, CatalogItem, Sale, Vendor } from "@shared/types";
+import type { CartLine, CatalogItem, Sale, StallSummary, Vendor } from "@shared/types";
+import { boPath, DEFAULT_STALL, sessionsHeader } from "./stalls";
 
 export class ApiError extends Error {
   constructor(
@@ -61,9 +62,29 @@ export interface Ledger {
   totals: { paid: Money; refunded: Money; net: Money; cash: Money; count: number };
 }
 
-export function createApi(baseUrl: string, token?: string) {
-  async function request<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
-    const headers: Record<string, string> = { Accept: "application/json" };
+/** A refund or payout Claude proposed; approved only with the stall PIN. */
+export interface Approval {
+  id: string;
+  kind: "refund" | "payout";
+  status: string;
+  amount: Money;
+  note: string;
+  preview: { allow: boolean; code: string };
+}
+
+export interface OwnerOverview {
+  stalls: { id: string; displayName: string; net: Money; count: number; pendingApprovals: number }[];
+  /** One entry per currency: amounts are never converted or summed across currencies. */
+  totals: { currency: string; net: Money; count: number; stalls: number }[];
+}
+
+export function createApi(baseUrl: string, token?: string, stall: string = DEFAULT_STALL) {
+  const bo = (path: string) => boPath(stall, path);
+  async function request<T>(
+    path: string,
+    init?: { method?: string; body?: unknown; headers?: Record<string, string> },
+  ): Promise<T> {
+    const headers: Record<string, string> = { Accept: "application/json", ...init?.headers };
     if (init?.body !== undefined) headers["Content-Type"] = "application/json";
     if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(`${baseUrl}${path}`, {
@@ -98,18 +119,34 @@ export function createApi(baseUrl: string, token?: string) {
         { method: "POST", body: { text, vendorId } },
       ),
     login: (pin: string) =>
-      request<{ token: string; expiresInMs: number }>("/api/backoffice/session", {
+      request<{ token: string; expiresInMs: number }>(bo("/session"), {
         method: "POST",
         body: { pin },
       }),
     saveVendor: (body: { displayName: string; country: string; currency: string }) =>
-      request<{ vendor: Vendor }>("/api/backoffice/vendor", { method: "PUT", body }),
-    salesToday: () => request<SalesToday>("/api/backoffice/sales-today"),
-    ledger: () => request<Ledger>("/api/backoffice/ledger"),
+      request<{ vendor: Vendor }>(bo("/vendor"), { method: "PUT", body }),
+    salesToday: () => request<SalesToday>(bo("/sales-today")),
+    ledger: () => request<Ledger>(bo("/ledger")),
     refund: (saleId: string, amountMinor: number, pin: string) =>
-      request<{ ok: true; refundId: string; amount: Money }>("/api/backoffice/refunds", {
+      request<{ ok: true; refundId: string; amount: Money }>(bo("/refunds"), {
         method: "POST",
         body: { saleId, amountMinor, pin },
+      }),
+    stalls: () => request<{ stalls: StallSummary[] }>("/api/stalls"),
+    approvals: () => request<{ approvals: Approval[] }>(bo("/approvals")),
+    approve: (id: string, pin: string) =>
+      request<{ ok: true }>(bo(`/approvals/${encodeURIComponent(id)}/approve`), {
+        method: "POST",
+        body: { pin },
+      }),
+    reject: (id: string) =>
+      request<{ ok: true }>(bo(`/approvals/${encodeURIComponent(id)}/reject`), {
+        method: "POST",
+        body: {},
+      }),
+    overview: (tokens: Record<string, string | undefined>) =>
+      request<OwnerOverview>("/api/owner/overview", {
+        headers: { "X-Paygent-Sessions": sessionsHeader(tokens) },
       }),
   };
 }

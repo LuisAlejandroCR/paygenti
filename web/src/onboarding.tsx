@@ -1,6 +1,7 @@
 // web/src/onboarding.tsx: first-run / settings screen — stall name, country (auto-detected from the
 // browser locale, searchable, LATAM first) and charge currency (pre-selected from the country; an
 // unsupported local currency is explained). Saves with PUT /api/backoffice/vendor (vendor session).
+
 import { useEffect, useMemo, useState } from "preact/hooks";
 import {
   COUNTRIES,
@@ -15,9 +16,10 @@ import type { Currency } from "../../shared/money";
 import type { Vendor } from "../../shared/types";
 import { type Key, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
+import { boUrl, tokenKey } from "./stall";
 
 /** Same key as backoffice.tsx: a back-office session also unlocks this screen. */
-const TOKEN_KEY = "paygent.bo.token";
+const TOKEN_KEY = tokenKey();
 const REGIONS: readonly Region[] = ["latam", "na", "europe", "other"];
 
 function storedToken(): string | null {
@@ -123,7 +125,7 @@ export function Onboarding({
     try {
       let session = token;
       if (!session) {
-        const res = await fetch("/api/backoffice/session", {
+        const res = await fetch(boUrl("/session"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pin }),
@@ -136,7 +138,7 @@ export function Onboarding({
         storeToken(session);
         setPin("");
       }
-      const res = await fetch("/api/backoffice/vendor", {
+      const res = await fetch(boUrl("/vendor"), {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session}` },
         body: JSON.stringify({ displayName: name.trim(), country, currency }),

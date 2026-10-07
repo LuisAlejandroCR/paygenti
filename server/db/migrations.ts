@@ -128,6 +128,44 @@ CREATE TABLE savings_goals (
   saved_minor bigint NOT NULL CHECK (saved_minor >= 0)
 );`,
   },
+  {
+    // Several stalls per owner: policy state, suppliers and payouts per stall (old rows = "rosa"),
+    // owner MCP tokens (SHA-256 only) and Claude's refund/payout proposals awaiting the owner's PIN.
+    version: 4,
+    sql: `
+ALTER TABLE policy_usage ADD COLUMN vendor_id text NOT NULL DEFAULT 'rosa';
+ALTER TABLE policy_usage DROP CONSTRAINT policy_usage_pkey;
+ALTER TABLE policy_usage ADD PRIMARY KEY (vendor_id, day, currency);
+ALTER TABLE audit_log ADD COLUMN vendor_id text NOT NULL DEFAULT 'rosa';
+ALTER TABLE audit_log DROP CONSTRAINT audit_log_pkey;
+ALTER TABLE audit_log ADD PRIMARY KEY (vendor_id, seq);
+CREATE TABLE pin_states (
+  vendor_id text PRIMARY KEY,
+  state jsonb NOT NULL
+);
+INSERT INTO pin_states (vendor_id, state) SELECT 'rosa', state FROM pin_state;
+ALTER TABLE suppliers ADD COLUMN vendor_id text NOT NULL DEFAULT 'rosa';
+DROP INDEX suppliers_receiver;
+CREATE UNIQUE INDEX suppliers_receiver ON suppliers (vendor_id, recipient_type, receiver);
+ALTER TABLE payouts ADD COLUMN vendor_id text NOT NULL DEFAULT 'rosa';
+CREATE TABLE mcp_tokens (
+  id text PRIMARY KEY,
+  token_hash text NOT NULL UNIQUE,
+  label text NOT NULL,
+  stalls jsonb NOT NULL,
+  created_at timestamptz NOT NULL,
+  revoked_at timestamptz
+);
+CREATE TABLE approvals (
+  seq bigserial UNIQUE,
+  id text PRIMARY KEY,
+  vendor_id text NOT NULL,
+  status text NOT NULL,
+  data jsonb NOT NULL,
+  created_at timestamptz NOT NULL
+);
+CREATE INDEX approvals_vendor ON approvals (vendor_id, seq);`,
+  },
 ];
 
 const LOCK_KEY = 4_206_901; // arbitrary, constant advisory-lock id for paygent migrations

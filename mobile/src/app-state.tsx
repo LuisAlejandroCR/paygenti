@@ -14,6 +14,7 @@ import {
 } from "react";
 import { useColorScheme } from "react-native";
 import { type Api, createApi } from "./lib/api";
+import { DEFAULT_STALL, isStallId } from "./lib/stalls";
 import { detectLocale, type Key, type Locale, translate } from "./lib/i18n";
 import { normalizeBaseUrl } from "./lib/nfc-url";
 import { DARK, LIGHT, type Palette } from "./lib/theme";
@@ -22,7 +23,12 @@ export const DEFAULT_SERVER_URL =
   normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL ?? "") ?? "https://paygent-rirl.onrender.com";
 export const DEFAULT_TERMINAL = "rosa-01";
 
-const KEYS = { server: "paygent.server", terminal: "paygent.terminal", locale: "paygent.locale" };
+const KEYS = {
+  server: "paygent.server",
+  terminal: "paygent.terminal",
+  locale: "paygent.locale",
+  stall: "paygent.stall",
+};
 
 interface AppState {
   ready: boolean;
@@ -33,6 +39,11 @@ interface AppState {
   dark: boolean;
   api: Api;
   token?: string;
+  /** The paygent (stall) the back office acts on; sessions are kept per stall. */
+  stall: string;
+  tokens: Readonly<Record<string, string | undefined>>;
+  /** Switches stall (and, when given, the cashier terminal); its own session, if any, is kept. */
+  setStall: (stall: string, terminal?: string) => void;
   t: (key: Key, params?: Record<string, string | number>) => string;
   setServer: (url: string, terminal: string) => Promise<void>;
   toggleLocale: () => void;
@@ -47,10 +58,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
   const [terminal, setTerminal] = useState(DEFAULT_TERMINAL);
   const [locale, setLocale] = useState<Locale>(() => detectLocale(getLocales()[0]?.languageTag));
-  const [token, setToken] = useState<string>();
+  const [stall, setStallState] = useState(DEFAULT_STALL);
+  const [tokens, setTokens] = useState<Record<string, string | undefined>>({});
+  const token = tokens[stall];
+  const setToken = useCallback(
+    (next: string | undefined) => setTokens((m) => ({ ...m, [stall]: next })),
+    [stall],
+  );
+  const setStall = useCallback((id: string, term?: string) => {
+    if (!isStallId(id)) return;
+    setStallState(id);
+    if (term) setTerminal(term);
+    AsyncStorage.multiSet([[KEYS.stall, id], ...(term ? [[KEYS.terminal, term] as [string, string]] : [])]).catch(
+      () => undefined,
+    );
+  }, []);
 
   useEffect(() => {
-    AsyncStorage.multiGet([KEYS.server, KEYS.terminal, KEYS.locale])
+    AsyncStorage.multiGet([KEYS.server, KEYS.terminal, KEYS.locale, KEYS.stall])
       .then((pairs) => {
         const m = new Map(pairs);
         const url = normalizeBaseUrl(m.get(KEYS.server) ?? "");
@@ -59,6 +84,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (term) setTerminal(term);
         const saved = m.get(KEYS.locale);
         if (saved === "en" || saved === "es") setLocale(saved);
+        const st = m.get(KEYS.stall);
+        if (st && isStallId(st)) setStallState(st);
       })
       .catch(() => undefined)
       .finally(() => setReady(true));
@@ -67,7 +94,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setServer = useCallback(async (url: string, term: string) => {
     setServerUrl(url);
     setTerminal(term);
-    setToken(undefined);
+    setTokens({});
     await AsyncStorage.multiSet([
       [KEYS.server, url],
       [KEYS.terminal, term],
@@ -91,14 +118,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       locale,
       dark,
       colors: dark ? DARK : LIGHT,
-      api: createApi(serverUrl, token),
+      api: createApi(serverUrl, token, stall),
       token,
       t: (key, params) => translate(locale, key, params),
       setServer,
       toggleLocale,
       setToken,
+      stall,
+      tokens,
+      setStall,
     };
-  }, [ready, serverUrl, terminal, locale, scheme, token, setServer, toggleLocale]);
+  }, [ready, serverUrl, terminal, locale, scheme, token, tokens, stall, setStall, setToken, setServer, toggleLocale]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

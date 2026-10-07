@@ -142,6 +142,18 @@ describe("push rails over HTTP", () => {
     expect(qr.headers.get("content-type")).toContain("image/svg+xml");
   });
 
+  it("only the owning stall's PIN confirms a push-rail sale", async () => {
+    const { app, sales } = setup();
+    const res = await app.request("/api/terminals/beto-01/sales", json({ amount: 9500 }));
+    const sale = ((await res.json()) as { sale: Sale }).sale;
+    await app.request(`/api/sales/${sale.id}/rail`, json({ rail: "spei" }));
+    const rosa = await app.request(`/api/sales/${sale.id}/vendor-confirm`, json({ pin: "4321" }));
+    expect(rosa.status).toBe(401);
+    expect(sales.getSale(sale.id)?.status).toBe("pending_bank");
+    const beto = await app.request(`/api/sales/${sale.id}/vendor-confirm`, json({ pin: "5678" }));
+    expect(beto.status).toBe(200);
+  });
+
   it("vendor PIN confirm marks vendor_confirmed, never paid", async () => {
     const { app, sales, create } = setup();
     const sale = await create();

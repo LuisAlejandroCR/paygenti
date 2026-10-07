@@ -13,6 +13,7 @@ import { encodePayload } from "../../shared/passport";
 import { buildCatalog, catalogInput } from "../catalog/catalog";
 import { ExtractError, extractMenu, MAX_IMAGE_BYTES, type VisionClient } from "../catalog/extract";
 import { pickLang } from "../lang";
+import type { ApprovalDesk } from "../owner/approvals";
 import {
   addDays,
   buildPassport,
@@ -112,6 +113,10 @@ export interface BackOfficeRouteDeps {
   passport: PassportSigner;
   /** Base URL for verify links; defaults to the request origin. */
   publicUrl?: string;
+  /** This stall's session tokens (token -> expiry); shared with the owner routes. */
+  sessions?: Map<string, number>;
+  /** This stall's inbox of Claude proposals (refunds, payouts) awaiting the PIN. */
+  approvals?: ApprovalDesk;
 }
 
 const imageJson = z.strictObject({
@@ -124,7 +129,7 @@ const imageJson = z.strictObject({
 export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
   const { office, model } = deps;
   const clock = deps.clock ?? Date.now;
-  const sessions = new Map<string, number>();
+  const sessions = deps.sessions ?? new Map<string, number>();
   const app = new Hono();
 
   /** Vendor only with a live session token; everybody else is a customer to the policy. */
@@ -525,7 +530,45 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
     }
   });
 
+  // Claude's proposals: listed with a session; approving runs the real refund/payout and needs
+  // this stall's PIN in the human's request (Claude never sees it); rejecting needs the session.
+  const inbox = deps.approvals;
+  app.get("/approvals", (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    return c.json({ approvals: inbox?.list() ?? [] });
+  });
+
+  app.post("/approvals/:id/approve", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    if (!inbox) return c.json({ error: "APPROVAL_NOT_FOUND" }, 404);
+    const id = idParam.safeParse(c.req.param("id"));
+    const body = z.strictObject({ pin: z.string().max(16) }).safeParse(await readJson(c));
+    if (!id.success || !body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const r = await inbox.approve(id.data, authority(c, body.data.pin));
+    if (r.ok) return c.json(r);
+    const status = r.code === "APPROVAL_NOT_FOUND" ? 404 : r.code === "APPROVAL_DONE" ? 409 : 403;
+    return c.json({ error: r.code, reason: r.reason, approval: r.approval }, status);
+  });
+
+  app.post("/approvals/:id/reject", (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const id = idParam.safeParse(c.req.param("id"));
+    if (!id.success || !inbox) return c.json({ error: "APPROVAL_NOT_FOUND" }, 404);
+    const r = inbox.reject(id.data);
+    if (r.ok) return c.json(r);
+    return c.json({ error: r.code, reason: r.reason }, r.code === "APPROVAL_DONE" ? 409 : 404);
+  });
+
   return app;
+}
+
+/** True when `token` is a live session of this stall's sessions map. */
+export function isLiveSession(sessions: Map<string, number>, token: string, now: number): boolean {
+  const exp = /^[a-f0-9]{64}$/.test(token) ? sessions.get(token) : undefined;
+  return exp !== undefined && exp > now;
 }
 
 /** Caps for the web; the payout allowlist (suppliers' emails and phones) is never public. */
