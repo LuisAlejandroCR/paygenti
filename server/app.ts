@@ -25,12 +25,15 @@ import { BackOffice } from "./backoffice/tools";
 import type { VisionClient } from "./catalog/extract";
 import type { IntegrationStatus } from "./integrations";
 import { type Lang, pickLang } from "./lang";
+import { mcpRoutes } from "./owner/mcp";
+import { ownerRoutes } from "./owner/routes";
+import { createStall, DEMO_STALL_PINS, type Stall } from "./owner/stalls";
 import { PassportSigner } from "./passport";
 import { PayPalError, type PayPalGateway } from "./paypal/gateway";
 import { MockPayPal } from "./paypal/mock";
 import { PolicyEngine } from "./policy";
 import { type Clock, SaleError, SalesService } from "./sales";
-import { MemoryStore } from "./store";
+import { DEFAULT_STALL, MemoryStore } from "./store";
 import { parseVoice, type VoiceEnv } from "./voice";
 
 export { pickLang };
@@ -60,6 +63,8 @@ export interface AppDeps {
   passportSigner?: PassportSigner;
   /** Configured payment rails (Pix, SPEI, Bre-B, wallets); omitted means none beyond PayPal. */
   rails?: RailRegistry;
+  /** PIN per stall (STALL_PINS); Rosa falls back to vendorPin, demo stalls to DEMO_STALL_PINS. */
+  stallPins?: Record<string, string>;
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -118,18 +123,30 @@ export function createApp(deps: AppDeps): Hono {
     deps.sales ?? new SalesService({ store: new MemoryStore(), paypal, clock: deps.clock });
   const app = new Hono();
 
-  const policy =
-    deps.policy ??
-    new PolicyEngine({
-      vendorName: sales.store.getVendor("rosa")?.displayName.split(" ")[0] ?? "la vendedora",
-      pin: deps.vendorPin ?? "1234",
-      now: deps.clock ? () => new Date(deps.clock?.() ?? Date.now()) : undefined,
-      store: sales.store,
-    });
-  // The lock follows the vendor's charge currency (caps per currency; MXN keeps its defaults).
-  const seeded = sales.store.getVendor("rosa");
-  if (seeded && !deps.policy) policy.setCurrency(seeded.currency, seeded.timeZone);
-  const office = new BackOffice({ sales, paypal, policy, clock: deps.clock });
+  // One stall per vendor, each with its own PIN, caps, sessions and inbox. The lock follows each
+  // stall's charge currency (caps per currency; MXN keeps its defaults).
+  const stalls = new Map<string, Stall>();
+  for (const v of sales.store.vendors()) {
+    const pin =
+      deps.stallPins?.[v.id] ??
+      (v.id === DEFAULT_STALL ? deps.vendorPin : DEMO_STALL_PINS[v.id]) ??
+      deps.vendorPin ??
+      "1234";
+    stalls.set(
+      v.id,
+      createStall({
+        base: sales.store,
+        vendorId: v.id,
+        paypal,
+        pin,
+        clock: deps.clock,
+        policy: v.id === DEFAULT_STALL ? deps.policy : undefined,
+      }),
+    );
+  }
+  const main = stalls.get(DEFAULT_STALL) ?? [...stalls.values()][0];
+  if (!main) throw new Error("app: the store has no vendor");
+  const office = main.office;
 
   app.onError((err, c) => {
     if (err instanceof SaleError)
@@ -276,7 +293,10 @@ export function createApp(deps: AppDeps): Hono {
     if (!sale) return c.json({ error: "SALE_NOT_FOUND" }, 404);
     if (sale.status !== "pending_bank" && sale.status !== "vendor_confirmed")
       return c.json({ error: "NOT_PENDING_BANK" }, 409);
-    const result = policy.verifyPin("vendor", body.data.pin, [clientIp(c)]);
+    // The PIN of the stall that owns the sale: one stall's PIN never confirms another's sale.
+    const stall = stalls.get(sale.vendorId);
+    if (!stall) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    const result = stall.policy.verifyPin("vendor", body.data.pin, [clientIp(c)]);
     if (!result.ok) return c.json({ error: result.code }, result.code === "PIN_LOCKED" ? 429 : 401);
     const updated = sales.vendorConfirm(id.data);
     return c.json({ sale: updated, label: saleStatusLabel(updated.status) });
@@ -363,9 +383,9 @@ export function createApp(deps: AppDeps): Hono {
     if (!event.success) return c.json({ error: "INVALID_BODY" }, 400);
     try {
       // Payout batch/item events update payouts to suppliers; everything else is about sales.
-      if (event.data.event_type.startsWith("PAYMENT.PAYOUTS"))
-        office.payouts.handleWebhook(event.data);
-      else await sales.handleWebhook(event.data);
+      if (event.data.event_type.startsWith("PAYMENT.PAYOUTS")) {
+        for (const s of stalls.values()) if (s.office.payouts.handleWebhook(event.data)) break;
+      } else await sales.handleWebhook(event.data);
     } catch (err) {
       console.error(`webhook ${event.data.event_type} failed: ${(err as Error).message}`);
     }
@@ -414,19 +434,31 @@ export function createApp(deps: AppDeps): Hono {
     return c.json({ valid });
   });
 
-  app.route(
-    "/api/backoffice",
-    backofficeRoutes({
-      office,
+  // Every stall's back office at /api/stalls/:id/backoffice; /api/backoffice stays the main stall.
+  for (const s of stalls.values()) {
+    const routes = backofficeRoutes({
+      office: s.office,
       model: deps.agentModel,
       paypalTools: deps.paypalTools,
       clock: deps.clock,
-      store: sales.store,
-      vendorId: "rosa",
+      store: s.store,
+      vendorId: s.id,
       vision: deps.menuVision,
       passport: signer,
       publicUrl: deps.publicUrl,
-    }),
+      sessions: s.sessions,
+      approvals: s.approvals,
+    });
+    app.route(`/api/stalls/${s.id}/backoffice`, routes);
+    if (s === main) app.route("/api/backoffice", routes);
+  }
+  const owner = ownerRoutes({ store: sales.store, stalls, clock: deps.clock });
+  app.route("/api/stalls", owner.stalls);
+  app.route("/api/owner", owner.owner);
+  app.use("/mcp", limit);
+  app.route(
+    "/mcp",
+    mcpRoutes({ store: sales.store, stalls, sales, publicUrl: deps.publicUrl, clock: deps.clock }),
   );
 
   app.all("/api/*", (c) => c.json({ error: "NOT_FOUND" }, 404));

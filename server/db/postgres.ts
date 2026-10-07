@@ -4,13 +4,23 @@
 // ordered queue, every job in its own transaction. Counters (daily cap usage, refunds per capture)
 // are atomic SQL increments, so even two processes on one DB never lose an update; a unique index
 // keeps one capture id per sale. close() flushes the queue (SIGTERM on Render) before exiting.
-// Suppliers (payout allowlist) and payouts are loaded and written the same way.
+// Suppliers, payouts, MCP tokens (hash only) and Claude's approvals are loaded and written the same
+// way; policy state, suppliers and payouts carry the stall's vendor_id (migration 3).
 import type { Currency } from "../../shared/money";
 import type { SavingsGoal, StatementMonth } from "../../shared/passport";
-import type { CatalogItem, Payout, Sale, Supplier, Terminal, Vendor } from "../../shared/types";
+import type {
+  Approval,
+  CatalogItem,
+  McpToken,
+  Payout,
+  Sale,
+  Supplier,
+  Terminal,
+  Vendor,
+} from "../../shared/types";
 import type { AuditEntry } from "../policy/audit";
 import type { PinGuardState } from "../policy/pin";
-import { DEMO_TERMINAL, DEMO_VENDOR, MemoryStore } from "../store";
+import { DEFAULT_STALL, DEMO_STALLS, MemoryStore } from "../store";
 import { migrate } from "./migrations";
 import type { Row, SqlClient, SqlQuery } from "./sql";
 
@@ -28,18 +38,19 @@ export class PostgresStore extends MemoryStore {
     this.#db = db;
   }
 
-  /** Migrates, seeds the demo vendor if the DB is empty, and loads every row into memory. */
+  /** Migrates, seeds any missing demo stall, and loads every row into memory. */
   static async open(db: SqlClient): Promise<PostgresStore> {
     await migrate(db);
     const store = new PostgresStore(db);
     await db.transaction(async (tx) => {
-      const { rows } = await tx.query("SELECT 1 FROM vendors WHERE id = $1", [DEMO_VENDOR.id]);
-      if (rows.length === 0) {
-        await writeVendor(tx, DEMO_VENDOR);
-        await writeCatalog(tx, DEMO_VENDOR.id, DEMO_VENDOR.catalog);
+      for (const { vendor, terminal } of DEMO_STALLS) {
+        const { rows } = await tx.query("SELECT 1 FROM vendors WHERE id = $1", [vendor.id]);
+        if (rows.length > 0) continue;
+        await writeVendor(tx, vendor);
+        await writeCatalog(tx, vendor.id, vendor.catalog);
         await tx.query(
           "INSERT INTO terminals (id, vendor_id, label) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING",
-          [DEMO_TERMINAL.id, DEMO_TERMINAL.vendorId, DEMO_TERMINAL.label],
+          [terminal.id, terminal.vendorId, terminal.label],
         );
       }
     });
@@ -56,10 +67,10 @@ export class PostgresStore extends MemoryStore {
       list.push(rowToItem(r));
       byVendor.set(String(r.vendor_id), list);
     }
-    this.vendors.clear();
-    for (const r of (await db.query("SELECT * FROM vendors")).rows) {
+    this.vendorMap.clear();
+    for (const r of (await db.query("SELECT * FROM vendors ORDER BY id = 'rosa' DESC, id")).rows) {
       const v = rowToVendor(r, byVendor.get(String(r.id)) ?? []);
-      this.vendors.set(v.id, v);
+      this.vendorMap.set(v.id, v);
     }
     this.terminals.clear();
     for (const r of (await db.query("SELECT * FROM terminals")).rows) {
@@ -79,24 +90,45 @@ export class PostgresStore extends MemoryStore {
       this.refunds.set(String(r.capture_id), Number(r.refunded_minor));
     for (const r of (await db.query("SELECT * FROM policy_usage")).rows) {
       const currency = String(r.currency) as Currency;
-      this.usage.set(`${r.day}|${currency}`, {
+      this.usage.set(`${r.vendor_id}|${r.day}|${currency}`, {
         currency,
         refunded: Number(r.refunded_minor),
         paidOut: Number(r.paid_out_minor),
       });
     }
-    this.audit.length = 0;
-    for (const r of (await db.query("SELECT * FROM audit_log ORDER BY seq")).rows)
-      this.audit.push({
-        seq: Number(r.seq),
-        at: iso(r.at) as string,
-        event: r.event as AuditEntry["event"],
-        actor: String(r.actor),
-        action: r.action ?? null,
-        decision: r.decision as AuditEntry["decision"],
-      });
-    const pin = (await db.query("SELECT state FROM pin_state WHERE id = 1")).rows[0];
-    this.pin = pin ? (pin.state as PinGuardState) : undefined;
+    this.audit.clear();
+    for (const r of (await db.query("SELECT * FROM audit_log ORDER BY vendor_id, seq")).rows)
+      super.appendAudit(
+        {
+          seq: Number(r.seq),
+          at: iso(r.at) as string,
+          event: r.event as AuditEntry["event"],
+          actor: String(r.actor),
+          action: r.action ?? null,
+          decision: r.decision as AuditEntry["decision"],
+        },
+        String(r.vendor_id),
+      );
+    this.pins.clear();
+    for (const r of (await db.query("SELECT vendor_id, state FROM pin_states")).rows)
+      this.pins.set(String(r.vendor_id), r.state as PinGuardState);
+    this.tokenMap.clear();
+    for (const r of (await db.query("SELECT * FROM mcp_tokens ORDER BY created_at")).rows) {
+      const t: McpToken = {
+        id: String(r.id),
+        label: String(r.label),
+        tokenHash: String(r.token_hash),
+        stalls: r.stalls as string[],
+        createdAt: iso(r.created_at) as string,
+      };
+      if (r.revoked_at !== null) t.revokedAt = iso(r.revoked_at);
+      this.tokenMap.set(t.id, t);
+    }
+    this.approvalMap.clear();
+    for (const r of (await db.query("SELECT data FROM approvals ORDER BY seq")).rows) {
+      const a = r.data as Approval;
+      this.approvalMap.set(a.id, a);
+    }
     this.supplierMap.clear();
     for (const r of (await db.query("SELECT * FROM suppliers ORDER BY seq")).rows) {
       const s = rowToSupplier(r);
@@ -222,20 +254,27 @@ export class PostgresStore extends MemoryStore {
     return total;
   }
 
-  override addUsage(day: string, currency: Currency, refunded: number, paidOut: number): void {
-    super.addUsage(day, currency, refunded, paidOut);
-    this.#enqueue("usage", (tx) => addUsageSql(tx, day, currency, refunded, paidOut));
+  override addUsage(
+    day: string,
+    currency: Currency,
+    refunded: number,
+    paidOut: number,
+    vendorId = DEFAULT_STALL,
+  ): void {
+    super.addUsage(day, currency, refunded, paidOut, vendorId);
+    this.#enqueue("usage", (tx) => addUsageSql(tx, day, currency, refunded, paidOut, vendorId));
   }
 
-  override appendAudit(entry: AuditEntry): void {
-    super.appendAudit(entry);
+  override appendAudit(entry: AuditEntry, vendorId = DEFAULT_STALL): void {
+    super.appendAudit(entry, vendorId);
     const e = structuredClone(entry);
     this.#enqueue("audit", (tx) =>
       tx
         .query(
-          `INSERT INTO audit_log (seq, at, event, actor, action, decision)
-           VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb) ON CONFLICT (seq) DO NOTHING`,
+          `INSERT INTO audit_log (vendor_id, seq, at, event, actor, action, decision)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb) ON CONFLICT (vendor_id, seq) DO NOTHING`,
           [
+            vendorId,
             e.seq,
             e.at,
             e.event,
@@ -254,12 +293,20 @@ export class PostgresStore extends MemoryStore {
     this.#enqueue("supplier", (tx) =>
       tx
         .query(
-          `INSERT INTO suppliers (id, name, recipient_type, receiver, currency, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6)
+          `INSERT INTO suppliers (id, name, recipient_type, receiver, currency, created_at, vendor_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name,
              recipient_type = EXCLUDED.recipient_type, receiver = EXCLUDED.receiver,
              currency = EXCLUDED.currency`,
-          [s.id, s.name, s.recipientType, s.receiver, s.currency, s.createdAt],
+          [
+            s.id,
+            s.name,
+            s.recipientType,
+            s.receiver,
+            s.currency,
+            s.createdAt,
+            s.vendorId ?? DEFAULT_STALL,
+          ],
         )
         .then(() => undefined),
     );
@@ -323,8 +370,9 @@ export class PostgresStore extends MemoryStore {
       tx
         .query(
           `INSERT INTO payouts (id, supplier_id, supplier_name, recipient_type, receiver,
-             amount_minor, currency, note, batch_id, item_id, status, error, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+             amount_minor, currency, note, batch_id, item_id, status, error, created_at, updated_at,
+             vendor_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
            ON CONFLICT (id) DO UPDATE SET batch_id = EXCLUDED.batch_id,
              item_id = EXCLUDED.item_id, status = EXCLUDED.status, error = EXCLUDED.error,
              updated_at = EXCLUDED.updated_at`,
@@ -343,21 +391,53 @@ export class PostgresStore extends MemoryStore {
             p.error ?? null,
             p.createdAt,
             p.updatedAt,
+            p.vendorId ?? DEFAULT_STALL,
           ],
         )
         .then(() => undefined),
     );
   }
 
-  override savePinState(state: PinGuardState): void {
-    super.savePinState(state);
+  override savePinState(state: PinGuardState, vendorId = DEFAULT_STALL): void {
+    super.savePinState(state, vendorId);
     const json = JSON.stringify(state);
     this.#enqueue("pin", (tx) =>
       tx
         .query(
-          `INSERT INTO pin_state (id, state) VALUES (1, $1::jsonb)
-           ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state`,
-          [json],
+          `INSERT INTO pin_states (vendor_id, state) VALUES ($1, $2::jsonb)
+           ON CONFLICT (vendor_id) DO UPDATE SET state = EXCLUDED.state`,
+          [vendorId, json],
+        )
+        .then(() => undefined),
+    );
+  }
+
+  override saveMcpToken(token: McpToken): void {
+    super.saveMcpToken(token);
+    const t = structuredClone(token);
+    this.#enqueue("mcp-token", (tx) =>
+      tx
+        .query(
+          `INSERT INTO mcp_tokens (id, token_hash, label, stalls, created_at, revoked_at)
+           VALUES ($1, $2, $3, $4::jsonb, $5, $6)
+           ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label, stalls = EXCLUDED.stalls,
+             revoked_at = EXCLUDED.revoked_at`,
+          [t.id, t.tokenHash, t.label, JSON.stringify(t.stalls), t.createdAt, t.revokedAt ?? null],
+        )
+        .then(() => undefined),
+    );
+  }
+
+  override saveApproval(approval: Approval): void {
+    super.saveApproval(approval);
+    const a = structuredClone(approval);
+    this.#enqueue("approval", (tx) =>
+      tx
+        .query(
+          `INSERT INTO approvals (id, vendor_id, status, data, created_at)
+           VALUES ($1, $2, $3, $4::jsonb, $5)
+           ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, data = EXCLUDED.data`,
+          [a.id, a.vendorId, a.status, JSON.stringify(a), a.createdAt],
         )
         .then(() => undefined),
     );
@@ -371,13 +451,15 @@ export async function addUsageSql(
   currency: Currency,
   refunded: number,
   paidOut: number,
+  vendorId = DEFAULT_STALL,
 ): Promise<void> {
   await tx.query(
-    `INSERT INTO policy_usage (day, currency, refunded_minor, paid_out_minor) VALUES ($1, $2, $3, $4)
-     ON CONFLICT (day, currency) DO UPDATE SET
+    `INSERT INTO policy_usage (vendor_id, day, currency, refunded_minor, paid_out_minor)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (vendor_id, day, currency) DO UPDATE SET
        refunded_minor = policy_usage.refunded_minor + EXCLUDED.refunded_minor,
        paid_out_minor = policy_usage.paid_out_minor + EXCLUDED.paid_out_minor`,
-    [day, currency, refunded, paidOut],
+    [vendorId, day, currency, refunded, paidOut],
   );
 }
 
@@ -457,7 +539,14 @@ function rowToSupplier(r: Row): Supplier {
     receiver: String(r.receiver),
     currency: String(r.currency) as Currency,
     createdAt: iso(r.created_at) as string,
+    ...stallOf(r),
   };
+}
+
+/** Rows of the default stall keep no vendorId (as they were written before multi-stall). */
+function stallOf(r: Row): { vendorId?: string } {
+  const id = r.vendor_id == null ? DEFAULT_STALL : String(r.vendor_id);
+  return id === DEFAULT_STALL ? {} : { vendorId: id };
 }
 
 function rowToPayout(r: Row): Payout {
@@ -471,6 +560,7 @@ function rowToPayout(r: Row): Payout {
     status: String(r.status) as Payout["status"],
     createdAt: iso(r.created_at) as string,
     updatedAt: iso(r.updated_at) as string,
+    ...stallOf(r),
   };
   if (r.note !== null) p.note = String(r.note);
   if (r.batch_id !== null) p.batchId = String(r.batch_id);
