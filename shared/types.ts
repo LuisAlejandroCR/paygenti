@@ -23,6 +23,14 @@ export interface Vendor {
   displayName: string;
   currency: Currency;
   catalog: CatalogItem[];
+  /** ISO 3166 alpha-2, chosen in onboarding. */
+  country?: string;
+  /** IANA zone for "today" (ledger, daily caps). */
+  timeZone?: string;
+  /** False until the vendor completes onboarding (first-run screen). */
+  onboarded?: boolean;
+  /** Set when the currency changed: catalog prices were kept at face value and need a re-check. */
+  pricesNeedReview?: boolean;
 }
 
 /** A physical point of sale: one sticker / QR / soundbox. At most one open order at a time. */

@@ -2,6 +2,7 @@
 // The AI agent only proposes; this function decides whether money may move. No I/O, no clock reads,
 // fail-closed on anything malformed. `code` + `params` are the stable machine contract (the web
 // localizes them); `reason` is the es-MX sentence spoken to the vendor and kept in the audit log.
+import { decimalsOf, isPayPalCurrency } from "../../shared/currency";
 import { type Currency, formatMoney, type Money } from "../../shared/money";
 
 export type Actor = "vendor" | "agent" | "customer";
@@ -61,7 +62,46 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = Object.freeze({
   maxPayoutPerDay: Object.freeze({ minor: 50000, currency: "MXN" }),
 }) as PolicyConfig;
 
-const CURRENCIES: readonly Currency[] = ["MXN", "USD"];
+/**
+ * Default caps per charge currency, in whole units: [max per refund, refunds per day, payouts per day].
+ * MXN keeps the original 200 / 1,000 / 500; the others are set at or below that in value (never looser).
+ */
+const CAPS: Record<Currency, readonly [number, number, number]> = {
+  MXN: [200, 1000, 500],
+  USD: [10, 50, 25],
+  EUR: [10, 50, 25],
+  CAD: [15, 70, 35],
+  GBP: [8, 40, 20],
+  CHF: [10, 45, 22],
+  AUD: [15, 80, 40],
+  NZD: [15, 80, 40],
+  BRL: [50, 250, 125],
+  SEK: [100, 500, 250],
+  NOK: [100, 500, 250],
+  DKK: [70, 350, 175],
+  PLN: [40, 200, 100],
+  CZK: [250, 1200, 600],
+  HUF: [3500, 18000, 9000],
+  JPY: [1500, 7500, 3750],
+  HKD: [80, 400, 200],
+  SGD: [13, 65, 32],
+  TWD: [300, 1500, 750],
+  THB: [350, 1700, 850],
+  PHP: [550, 2800, 1400],
+  MYR: [45, 230, 115],
+  CNY: [70, 350, 175],
+  ILS: [35, 180, 90],
+};
+
+/** Policy caps for a currency (and zone); the payout allowlist is kept by the caller. */
+export function policyCapsFor(
+  currency: Currency,
+): Pick<PolicyConfig, "currency" | "maxRefund" | "maxRefundPerDay" | "maxPayoutPerDay"> {
+  const [refund, perDay, payout] = CAPS[currency];
+  const scale = 10 ** decimalsOf(currency);
+  const m = (units: number): Money => Object.freeze({ minor: units * scale, currency });
+  return { currency, maxRefund: m(refund), maxRefundPerDay: m(perDay), maxPayoutPerDay: m(payout) };
+}
 const CLOCK_SKEW_MS = 60_000;
 
 export function decide(action: PolicyAction, context: PolicyContext): Decision {
@@ -262,12 +302,24 @@ export function localDay(d: Date, timeZone: string): string {
   }).format(d);
 }
 
-/** Spoken amount: 20000 MXN -> "200 pesos", 1050 -> "10 pesos con 50 centavos". */
+const SPOKEN_ES: Partial<Record<Currency, string>> = {
+  MXN: "pesos",
+  USD: "dólares",
+  CAD: "dólares canadienses",
+  AUD: "dólares australianos",
+  EUR: "euros",
+  BRL: "reales",
+  GBP: "libras",
+  JPY: "yenes",
+};
+
+/** Spoken amount: 20000 MXN -> "200 pesos", 1050 -> "10 pesos con 50 centavos", 950 JPY -> "950 yenes". */
 export function speak(m: Money): string {
-  const unit = m.currency === "USD" ? "dólares" : "pesos";
+  const unit = SPOKEN_ES[m.currency] ?? m.currency;
   const abs = Math.abs(m.minor);
-  const units = Math.trunc(abs / 100);
-  const cents = abs % 100;
+  const base = 10 ** decimalsOf(m.currency);
+  const units = Math.trunc(abs / base);
+  const cents = abs % base;
   const sign = m.minor < 0 ? "menos " : "";
   return cents === 0 ? `${sign}${units} ${unit}` : `${sign}${units} ${unit} con ${cents} centavos`;
 }
@@ -279,7 +331,7 @@ function isActor(x: unknown): x is Actor {
 function isMoney(x: unknown): x is Money {
   if (!x || typeof x !== "object") return false;
   const m = x as Money;
-  return Number.isSafeInteger(m.minor) && CURRENCIES.includes(m.currency);
+  return Number.isSafeInteger(m.minor) && isPayPalCurrency(m.currency);
 }
 
 function isPositiveMoney(x: unknown): x is Money {

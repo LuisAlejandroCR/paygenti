@@ -2,7 +2,7 @@
 // The model only proposes tool calls; every call runs through BackOffice and the policy lock.
 // A refund uses the PIN typed by the human in the HTTP request, never anything the model writes.
 import { z } from "zod";
-import { formatMoney, money } from "../../shared/money";
+import { type Currency, formatMoney, money } from "../../shared/money";
 import type { Lang } from "../lang";
 import type { Authority, BackOffice } from "./tools";
 
@@ -220,7 +220,7 @@ export function summarize(
     code?: string;
     reason?: string;
     params?: Record<string, string | number>;
-    amount?: { minor: number; currency: "MXN" };
+    amount?: { minor: number; currency: Currency };
   };
   // Policy reasons are es-MX; the code + params let the web show them in the viewer's language.
   if (r?.reason) return { text: r.reason, code: r.code, params: r.params };

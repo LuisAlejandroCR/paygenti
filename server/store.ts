@@ -16,12 +16,17 @@ export interface Store {
   saveSale(sale: Sale): void;
   /** Replaces a vendor's catalog; later reads (voice parser, vendor app) see it immediately. */
   setCatalog(vendorId: string, catalog: CatalogItem[]): void;
+  /** Replaces a vendor's profile fields (name, country, currency...). */
+  updateVendor(vendorId: string, patch: Partial<Omit<Vendor, "id">>): Vendor;
 }
 
 export const DEMO_VENDOR: Vendor = {
   id: "rosa",
   displayName: "Rosa — Tamales y atole",
   currency: "MXN",
+  country: "MX",
+  timeZone: "America/Mexico_City",
+  onboarded: true,
   catalog: [
     {
       sku: "tamal-rajas",
@@ -138,6 +143,18 @@ export class MemoryStore implements Store {
     const vendor = this.vendors.get(vendorId);
     if (!vendor) throw new Error(`store: unknown vendor ${vendorId}`);
     // A new object: DEMO_VENDOR (shared by every MemoryStore) is never mutated.
-    this.vendors.set(vendorId, { ...vendor, catalog: structuredClone(catalog) });
+    this.vendors.set(vendorId, {
+      ...vendor,
+      catalog: structuredClone(catalog),
+      pricesNeedReview: false,
+    });
+  }
+
+  updateVendor(vendorId: string, patch: Partial<Omit<Vendor, "id">>): Vendor {
+    const vendor = this.vendors.get(vendorId);
+    if (!vendor) throw new Error(`store: unknown vendor ${vendorId}`);
+    const next = { ...vendor, ...structuredClone(patch), id: vendor.id };
+    this.vendors.set(vendorId, next);
+    return next;
   }
 }

@@ -6,7 +6,8 @@ import { getConnInfo } from "@hono/node-server/conninfo";
 import { type Context, Hono } from "hono";
 import QRCode from "qrcode";
 import { z } from "zod";
-import { money } from "../../shared/money";
+import { chargeableCurrencies, findCountry, isPayPalCurrency } from "../../shared/currency";
+import { money, retag } from "../../shared/money";
 import { encodePayload } from "../../shared/passport";
 import { buildCatalog, catalogInput } from "../catalog/catalog";
 import { ExtractError, extractMenu, MAX_IMAGE_BYTES, type VisionClient } from "../catalog/extract";
@@ -48,6 +49,19 @@ const passportBody = z.strictObject({
   to: dayField,
   cashMinor: z.number().int().min(0).max(1_000_000_000).optional(),
 });
+export const vendorBody = z
+  .strictObject({
+    displayName: z.string().trim().min(1).max(60),
+    country: z
+      .string()
+      .length(2)
+      .refine((c) => findCountry(c) !== undefined),
+    currency: z.string().refine(isPayPalCurrency),
+  })
+  .refine((b) => chargeableCurrencies(b.country).includes(b.currency as never), {
+    path: ["currency"],
+    message: "currency not chargeable from this country",
+  });
 const agentBody = z.strictObject({
   message: z.string().min(1).max(1000),
   pin: pinField,
@@ -169,6 +183,62 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
     }
   });
 
+  app.get("/vendor", (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const vendor = deps.store.getVendor(deps.vendorId);
+    return vendor ? c.json({ vendor }) : c.json({ error: "VENDOR_NOT_FOUND" }, 404);
+  });
+
+  // Onboarding / settings: stall name, country, charge currency. Prices are never converted (no FX
+  // source): on a currency change they keep their face value and the vendor is asked to re-check.
+  app.put("/vendor", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const vendor = deps.store.getVendor(deps.vendorId);
+    if (!vendor) return c.json({ error: "VENDOR_NOT_FOUND" }, 404);
+    const body = vendorBody.safeParse(await readJson(c));
+    if (!body.success)
+      return c.json(
+        { error: "INVALID_VENDOR", issues: body.error.issues.map((i) => i.path.join(".")) },
+        400,
+      );
+    const country = findCountry(body.data.country);
+    const currency = body.data.currency;
+    if (!country || !isPayPalCurrency(currency)) return c.json({ error: "INVALID_VENDOR" }, 400);
+    const changed = currency !== vendor.currency;
+    const updated = deps.store.updateVendor(vendor.id, {
+      displayName: body.data.displayName,
+      country: country.code,
+      timeZone: country.timeZone,
+      currency,
+      onboarded: true,
+      ...(changed && {
+        catalog: vendor.catalog.map((i) => ({ ...i, price: retag(i.price, currency) })),
+        pricesNeedReview: vendor.catalog.length > 0,
+      }),
+    });
+    office.policy.setCurrency(currency, country.timeZone);
+    office.policy.audit.append({
+      at: new Date(clock()).toISOString(),
+      event: "vendor",
+      actor: "vendor",
+      action: {
+        type: "vendor.update",
+        vendorId: vendor.id,
+        country: country.code,
+        from: vendor.currency,
+        currency,
+      },
+      decision: {
+        allow: true,
+        code: "VENDOR_SAVED",
+        reason: changed ? `Moneda: ${vendor.currency} -> ${currency}` : "Perfil guardado",
+      },
+    });
+    return c.json({ vendor: updated, limits: office.policy.config });
+  });
+
   app.get("/catalog", (c) => {
     const denied = requireVendor(c);
     if (denied) return denied;
@@ -211,7 +281,8 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
     const bytes = await readImage(c);
     if (!bytes) return c.json({ error: "INVALID_BODY" }, 400);
     try {
-      const currency = deps.store.getVendor(deps.vendorId)?.currency ?? "MXN";
+      const currency =
+        deps.store.getVendor(deps.vendorId)?.currency ?? office.policy.config.currency;
       return c.json({ items: await extractMenu(bytes, currency, deps.vision) });
     } catch (err) {
       if (!(err instanceof ExtractError)) throw err;

@@ -2,7 +2,7 @@
 // decide() checks PIN + rules and reserves budget with a ticket; commit(ticket) consumes it only once
 // PayPal confirms, release(ticket) frees it on failure. Daily counters roll over at local midnight.
 import { randomUUID } from "node:crypto";
-import type { Money } from "../../shared/money";
+import type { Currency, Money } from "../../shared/money";
 import { AuditLog } from "./audit";
 import { PinGuard, type PinResult } from "./pin";
 import {
@@ -13,6 +13,7 @@ import {
   localDay,
   type PolicyAction,
   type PolicyConfig,
+  policyCapsFor,
 } from "./rules";
 
 export { type AuditEntry, AuditLog } from "./audit";
@@ -43,12 +44,13 @@ interface Ticket {
   kind: "refund" | "payout" | "other";
   amount: number;
   captureId?: string;
+  currency: Currency;
   day: string;
   expiresAt: number;
 }
 
 export class PolicyEngine {
-  readonly config: PolicyConfig;
+  #config: PolicyConfig;
   readonly audit: AuditLog;
   readonly #vendorName: string;
   readonly #pin: PinGuard;
@@ -56,11 +58,31 @@ export class PolicyEngine {
   readonly #ttl: number;
   readonly #tickets = new Map<string, Ticket>();
   #day: string;
-  #refunded = 0;
-  #paidOut = 0;
+  /** Real committed refunds/payouts today, per currency (no FX: never summed across currencies). */
+  readonly #used = new Map<Currency, { refunded: number; paidOut: number }>();
+
+  /** True when money moved (or is reserved) today in a currency other than the current one. */
+  get #otherCurrencyUsed(): boolean {
+    const cur = this.#config.currency;
+    for (const [c, u] of this.#used) if (c !== cur && u.refunded + u.paidOut > 0) return true;
+    for (const t of this.#tickets.values())
+      if (t.day === this.#day && t.currency !== cur && t.kind !== "other") return true;
+    return false;
+  }
+
+  /** Today's counters in the current currency; spent in full if another currency moved money today. */
+  get #refunded(): number {
+    if (this.#otherCurrencyUsed) return this.#config.maxRefundPerDay.minor;
+    return this.#used.get(this.#config.currency)?.refunded ?? 0;
+  }
+
+  get #paidOut(): number {
+    if (this.#otherCurrencyUsed) return this.#config.maxPayoutPerDay.minor;
+    return this.#used.get(this.#config.currency)?.paidOut ?? 0;
+  }
 
   constructor(opts: PolicyEngineOptions) {
-    this.config = Object.freeze({
+    this.#config = Object.freeze({
       ...DEFAULT_POLICY_CONFIG,
       ...opts.config,
       payoutAllowlist: [...(opts.config?.payoutAllowlist ?? DEFAULT_POLICY_CONFIG.payoutAllowlist)],
@@ -71,6 +93,27 @@ export class PolicyEngine {
     this.audit = opts.audit ?? new AuditLog();
     this.#ttl = opts.ticketTtlMs ?? 5 * 60_000;
     this.#day = localDay(this.#now(), this.config.timeZone);
+  }
+
+  get config(): PolicyConfig {
+    return this.#config;
+  }
+
+  /**
+   * Switches the vendor's charge currency (and zone): caps become that currency's defaults.
+   * Counters are kept per currency and cannot be converted (no FX), so if money already moved
+   * (or is reserved) today in another currency, the new currency's daily budgets count as spent:
+   * a currency switch never frees refund or payout room.
+   */
+  setCurrency(currency: Currency, timeZone = this.#config.timeZone): void {
+    if (currency === this.#config.currency && timeZone === this.#config.timeZone) return;
+    this.#config = Object.freeze({
+      ...this.#config,
+      ...policyCapsFor(currency),
+      timeZone,
+      payoutAllowlist: [...this.#config.payoutAllowlist],
+    });
+    this.#roll(this.#now());
   }
 
   /** Decide a proposal. An allowed money move returns a ticket that must be committed or released. */
@@ -115,6 +158,7 @@ export class PolicyEngine {
         kind: moves ? kind : "other",
         amount: moves ? action.amount.minor : 0,
         captureId: kind === "refund" ? action.captureId : undefined,
+        currency: this.#config.currency,
         day: this.#day,
         expiresAt: now.getTime() + this.#ttl,
       });
@@ -139,8 +183,10 @@ export class PolicyEngine {
     const ok = t !== undefined && t.expiresAt > now.getTime();
     if (t) this.#tickets.delete(ticket);
     if (ok && t.day === this.#day) {
-      if (t.kind === "refund") this.#refunded += t.amount;
-      if (t.kind === "payout") this.#paidOut += t.amount;
+      const u = this.#used.get(t.currency) ?? { refunded: 0, paidOut: 0 };
+      if (t.kind === "refund") u.refunded += t.amount;
+      if (t.kind === "payout") u.paidOut += t.amount;
+      this.#used.set(t.currency, u);
     }
     this.audit.append({
       at: now.toISOString(),
@@ -191,8 +237,7 @@ export class PolicyEngine {
     const today = localDay(now, this.config.timeZone);
     if (today !== this.#day) {
       this.#day = today;
-      this.#refunded = 0;
-      this.#paidOut = 0;
+      this.#used.clear();
     }
     for (const [id, t] of this.#tickets) if (t.expiresAt <= now.getTime()) this.#tickets.delete(id);
   }
@@ -200,7 +245,7 @@ export class PolicyEngine {
   #pending(captureId: string | undefined): { refund: number; payout: number; capture: number } {
     const sum = { refund: 0, payout: 0, capture: 0 };
     for (const t of this.#tickets.values()) {
-      if (t.day !== this.#day) continue;
+      if (t.day !== this.#day || t.currency !== this.#config.currency) continue;
       if (t.kind === "refund") sum.refund += t.amount;
       if (t.kind === "payout") sum.payout += t.amount;
       if (t.kind === "refund" && captureId !== undefined && t.captureId === captureId)
