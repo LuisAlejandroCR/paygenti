@@ -75,7 +75,13 @@ export function TopBar({ title, online }: { title: string; online?: boolean }) {
           </Text>
         </View>
       )}
-      <Pressable accessibilityRole="button" onPress={toggleLocale} hitSlop={12}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("app.language")}
+        accessibilityHint={t("a11y.langHint")}
+        onPress={toggleLocale}
+        hitSlop={12}
+      >
         <Text style={{ color: colors.actionText, fontFamily: FONTS.bodyBold }}>
           {t("app.language")}
         </Text>
@@ -134,8 +140,11 @@ export function Button({
   style,
   onPressIn,
   onPressOut,
+  hint,
 }: {
   label: string;
+  /** Read by VoiceOver/TalkBack after the label: what pressing does. */
+  hint?: string;
   onPress?: () => void;
   onPressIn?: () => void;
   onPressOut?: () => void;
@@ -162,6 +171,8 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
       accessibilityState={{ disabled: !!disabled, busy: !!busy }}
       disabled={disabled || busy}
       onPress={onPress}
@@ -198,6 +209,7 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="done"
+        accessibilityLabel={label}
         {...props}
         inputAccessoryViewID={doneBar ? accessoryId : undefined}
         style={[
@@ -208,7 +220,12 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
       {doneBar && (
         <InputAccessoryView nativeID={accessoryId}>
           <View style={[styles.doneBar, { backgroundColor: colors.muted }]}>
-            <Pressable accessibilityRole="button" onPress={Keyboard.dismiss} hitSlop={12}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("app.done")}
+              onPress={Keyboard.dismiss}
+              hitSlop={12}
+            >
               <Text style={{ color: colors.actionText, fontFamily: FONTS.bodyBold, fontSize: 17 }}>
                 {t("app.done")}
               </Text>

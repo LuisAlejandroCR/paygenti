@@ -54,6 +54,8 @@ export const api = {
     ),
   cancelSale: (id: string) =>
     request<{ sale: Sale }>(`/api/sales/${id}/cancel`, { method: "POST" }),
+  extendSale: (id: string) =>
+    request<{ sale: Sale }>(`/api/sales/${id}/extend`, { method: "POST" }),
   capture: (id: string) => request<{ sale: Sale }>(`/api/sales/${id}/capture`, { method: "POST" }),
   rails: (id: string) => request<RailsInfo>(`/api/sales/${id}/rails`),
   selectRail: (id: string, rail: string) =>

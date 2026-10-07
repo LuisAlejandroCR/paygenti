@@ -99,6 +99,9 @@ export default function BackOfficeScreen() {
                 {s.refunded.minor < s.total.minor && (
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityLabel={`${t("bo.refund")} ${formatMoney(s.total)}`}
+                    accessibilityHint={t("a11y.refundHint")}
+                    accessibilityState={{ expanded: refundOf === s.id }}
                     onPress={() => setRefundOf(refundOf === s.id ? undefined : s.id)}
                     hitSlop={10}
                   >
