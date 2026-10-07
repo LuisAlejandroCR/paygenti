@@ -91,11 +91,6 @@ function readToken(): string | null {
   }
 }
 
-function localDay(d = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
 const minor = (m: Money | undefined) => (m ? m.minor / 100 : 0);
 
 function pill(text: string, tone: string): HTMLElement {
@@ -126,7 +121,8 @@ const REC_TONE: Record<string, string> = {
 export function LedgerApp() {
   const { t, locale } = useT();
   const [token] = useState(readToken);
-  const [day, setDay] = useState(localDay());
+  // "" = the vendor's today, decided by the server in the policy time zone (not the browser's).
+  const [day, setDay] = useState("");
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [selected, setSelected] = useState<Row | null>(null);
   const [search, setSearch] = useState("");
@@ -139,7 +135,7 @@ export function LedgerApp() {
 
   async function load(d = dayRef.current) {
     if (!token) return;
-    const res = await fetch(`/api/backoffice/ledger?date=${d}`, {
+    const res = await fetch(d ? `/api/backoffice/ledger?date=${d}` : "/api/backoffice/ledger", {
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => undefined);
     if (!res) return setError(t("bo.offline"));
@@ -148,6 +144,7 @@ export function LedgerApp() {
     setError("");
     const data = (await res.json()) as Ledger;
     if (d === dayRef.current) {
+      if (!d) setDay(data.day);
       setLedger(data);
       setUpdated(new Date());
     }
