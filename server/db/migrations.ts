@@ -75,6 +75,39 @@ CREATE TABLE pin_state (
   state jsonb NOT NULL
 );`,
   },
+  {
+    // Payouts to suppliers: the allowlist and the payout history (amount + status per batch).
+    version: 2,
+    sql: `
+CREATE TABLE suppliers (
+  seq bigserial UNIQUE,
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  recipient_type text NOT NULL CHECK (recipient_type IN ('EMAIL', 'PHONE')),
+  receiver text NOT NULL,
+  currency char(3) NOT NULL,
+  created_at timestamptz NOT NULL
+);
+CREATE UNIQUE INDEX suppliers_receiver ON suppliers (recipient_type, receiver);
+CREATE TABLE payouts (
+  seq bigserial UNIQUE,
+  id text PRIMARY KEY,
+  supplier_id text NOT NULL,
+  supplier_name text NOT NULL,
+  recipient_type text NOT NULL,
+  receiver text NOT NULL,
+  amount_minor bigint NOT NULL CHECK (amount_minor > 0),
+  currency char(3) NOT NULL,
+  note text,
+  batch_id text,
+  item_id text,
+  status text NOT NULL,
+  error text,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL
+);
+CREATE INDEX payouts_batch_id ON payouts (batch_id);`,
+  },
 ];
 
 const LOCK_KEY = 4_206_901; // arbitrary, constant advisory-lock id for paygent migrations
