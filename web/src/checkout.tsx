@@ -2,6 +2,7 @@
 // Sandbox: PayPal JS SDK v6 buttons (PayPal, Venmo, Pay Later, card — each only where PayPal offers
 // it for the sale's currency and buyer) approve the server-created order; our server captures.
 // Mock: "Pagar (simulado)" / "Simular rechazo" drive the mock gateway through the same capture.
+// Extra rails (Pix, SPEI, Bre-B, wallets via PayPal) come from RailsPanel when configured.
 // Listens to the terminal's SSE feed so a vendor cancel (or paid/expired) shows up live.
 import { useEffect, useId, useRef, useState } from "preact/hooks";
 import { type FundingSource, fundingCandidates, sandboxBuyerCountry } from "../../shared/funding";
@@ -11,6 +12,7 @@ import { ApiError, type AppConfig, api } from "./api";
 import { type Key, lineName, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 import { mountCheckout, prepareCheckout } from "./paypal-sdk";
+import { RailsPanel } from "./rails-panel";
 
 function prefersDark(): boolean {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
@@ -49,7 +51,14 @@ export function Checkout({ saleId }: { saleId: string }) {
       const ev = JSON.parse((e as MessageEvent<string>).data) as TerminalEvent;
       if (ev.sale.id === saleId) setSale(ev.sale);
     };
-    for (const type of ["sale.paid", "sale.failed", "sale.expired", "sale.cancelled"])
+    for (const type of [
+      "sale.paid",
+      "sale.failed",
+      "sale.expired",
+      "sale.cancelled",
+      "sale.pending_bank",
+      "sale.vendor_confirmed",
+    ])
       es.addEventListener(type, onEvent);
     return () => es.close();
   }, [terminalId, saleId]);
@@ -189,6 +198,14 @@ export function Checkout({ saleId }: { saleId: string }) {
         <p class="result paid" role="alert">
           {t("checkout.paid")}
         </p>
+      )}
+      {sale.status === "vendor_confirmed" && (
+        <p class="result" role="alert">
+          {t("checkout.vendorConfirmed")}
+        </p>
+      )}
+      {(sale.status === "open" || sale.status === "pending_bank") && (
+        <RailsPanel sale={sale} onSale={setSale} />
       )}
       {sale.status === "refunded" && <p class="result">{t("checkout.refunded")}</p>}
       {sale.status === "expired" && (

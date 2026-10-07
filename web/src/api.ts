@@ -1,6 +1,13 @@
 // web/src/api.ts: typed fetch helpers for the paygent API used by the vendor app and checkout.
 // The server is the source of truth; these only move JSON and surface error codes.
+import type { PaymentData, Rail } from "../../shared/rails";
 import type { CartLine, Sale } from "../../shared/types";
+
+export interface RailsInfo {
+  rails: Rail[];
+  payment: PaymentData | null;
+  label: string;
+}
 
 export interface AppConfig {
   paypal: "mock" | "sandbox";
@@ -48,6 +55,17 @@ export const api = {
   cancelSale: (id: string) =>
     request<{ sale: Sale }>(`/api/sales/${id}/cancel`, { method: "POST" }),
   capture: (id: string) => request<{ sale: Sale }>(`/api/sales/${id}/capture`, { method: "POST" }),
+  rails: (id: string) => request<RailsInfo>(`/api/sales/${id}/rails`),
+  selectRail: (id: string, rail: string) =>
+    request<RailsInfo & { sale: Sale }>(`/api/sales/${id}/rail`, {
+      method: "POST",
+      body: JSON.stringify({ rail }),
+    }),
+  vendorConfirm: (id: string, pin: string) =>
+    request<{ sale: Sale; label: string }>(`/api/sales/${id}/vendor-confirm`, {
+      method: "POST",
+      body: JSON.stringify({ pin }),
+    }),
   mockApprove: (orderId: string, decline: boolean) =>
     request<unknown>(`/api/mock/orders/${orderId}/approve`, {
       method: "POST",

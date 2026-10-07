@@ -4,6 +4,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
+import { buildRailRegistry } from "../shared/rails";
 import { createApp } from "./app";
 import { AnthropicClient } from "./backoffice/agent";
 import { createPayPalTools } from "./backoffice/paypal-tools";
@@ -66,6 +67,8 @@ const app = createApp({
   menuVision,
   integrations: integrations.status,
   paypal,
+  // Pix / SPEI / Bre-B / wallets: each shows up only when its env config is present.
+  rails: buildRailRegistry(process.env),
   // Render sets RENDER_EXTERNAL_URL (https); the request origin behind its proxy is http.
   publicUrl: process.env.PUBLIC_URL?.trim() || process.env.RENDER_EXTERNAL_URL?.trim() || undefined,
   voiceEnv: process.env,

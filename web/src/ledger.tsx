@@ -53,7 +53,7 @@ interface Line {
 }
 interface Row {
   id: string;
-  method: "paypal" | "cash";
+  method: "paypal" | "cash" | "pix" | "spei" | "breb";
   status: string;
   terminalId: string;
   captureId: string | null;
@@ -120,6 +120,8 @@ const STATUS_TONE: Record<string, string> = {
   approved: "info",
   failed: "bad",
   expired: "muted",
+  pending_bank: "info",
+  vendor_confirmed: "warn",
 };
 const REC_TONE: Record<string, string> = {
   matched: "ok",
@@ -129,6 +131,7 @@ const REC_TONE: Record<string, string> = {
   pending: "info",
   missing_capture: "bad",
   void: "muted",
+  vendor_confirmed: "warn",
 };
 
 export function LedgerApp() {

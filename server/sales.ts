@@ -13,6 +13,8 @@ export type CreateSaleInput = { lines: { sku: string; qty: number }[] } | { amou
 type Listener = (event: TerminalEvent) => void;
 
 export const SALE_TTL_MS = 5 * 60 * 1000;
+/** A push-rail sale stays pending this long so the vendor can check her bank app. */
+export const BANK_TTL_MS = 30 * 60 * 1000;
 const DECLINE_ISSUES = new Set([
   "INSTRUMENT_DECLINED",
   "TRANSACTION_REFUSED",
@@ -123,6 +125,47 @@ export class SalesService {
       throw new SaleError("CAPTURE_IN_PROGRESS", 409, "a capture is already running");
     const updated = this.save(sale, { status: "cancelled" });
     this.emit({ type: "sale.cancelled", sale: updated });
+    return updated;
+  }
+
+  /**
+   * Customer picks how to pay. A push rail (Pix, SPEI, Bre-B) moves the sale to pending_bank with a
+   * longer window (bank transfers take a moment); "paypal" moves it back to open. Neither marks it
+   * paid: only a PayPal capture does that.
+   */
+  selectRail(saleId: string, rail: "paypal" | "pix" | "spei" | "breb"): Sale {
+    const sale = this.getSale(saleId);
+    if (!sale) throw new SaleError("SALE_NOT_FOUND", 404, "unknown sale");
+    if (!isOpen(sale)) throw new SaleError("SALE_NOT_OPEN", 409, `sale is ${sale.status}`);
+    if (this.inflight.has(saleId) || sale.status === "approved")
+      throw new SaleError("CAPTURE_IN_PROGRESS", 409, "a capture is already running");
+    if (rail === "paypal") {
+      if (sale.status === "open") return sale;
+      return this.save(sale, { status: "open", method: "paypal" });
+    }
+    const expiresAt = new Date(
+      Math.max(Date.parse(sale.expiresAt), this.clock() + BANK_TTL_MS),
+    ).toISOString();
+    const updated = this.save(sale, { status: "pending_bank", method: rail, expiresAt });
+    this.emit({ type: "sale.pending_bank", sale: updated });
+    return updated;
+  }
+
+  /**
+   * Vendor says the push-rail money arrived (checked in her bank app; PIN verified by the caller).
+   * The sale becomes vendor_confirmed — never paid — so ledger and passport keep it unverified.
+   */
+  vendorConfirm(saleId: string): Sale {
+    const sale = this.getSale(saleId);
+    if (!sale) throw new SaleError("SALE_NOT_FOUND", 404, "unknown sale");
+    if (sale.status === "vendor_confirmed") return sale;
+    if (sale.status !== "pending_bank")
+      throw new SaleError("NOT_PENDING_BANK", 409, `sale is ${sale.status}`);
+    const updated = this.save(sale, {
+      status: "vendor_confirmed",
+      paidAt: new Date(this.clock()).toISOString(),
+    });
+    this.emit({ type: "sale.vendor_confirmed", sale: updated });
     return updated;
   }
 
@@ -242,8 +285,10 @@ export class SalesService {
   private markPaid(sale: Sale, captureId: string | undefined): Sale {
     const current = this.store.getSale(sale.id) ?? sale;
     if (current.status === "paid") return current;
+    // Only PayPal's confirmation reaches here, so the money came through PayPal.
     const updated = this.save(current, {
       status: "paid",
+      method: "paypal",
       captureId: captureId ?? current.captureId,
       paidAt: new Date(this.clock()).toISOString(),
     });
@@ -285,7 +330,7 @@ export class SalesService {
 }
 
 function isOpen(sale: Sale): boolean {
-  return sale.status === "open" || sale.status === "approved";
+  return sale.status === "open" || sale.status === "approved" || sale.status === "pending_bank";
 }
 
 function str(v: unknown): string | undefined {
