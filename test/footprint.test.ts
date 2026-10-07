@@ -234,6 +234,59 @@ VERSION:102
   });
 });
 
+describe("parseStatement internal transfers", () => {
+  it("excludes CSV credits described as own-account transfers (es/pt/en)", () => {
+    const csv = [
+      "Fecha;Concepto;Importe",
+      "01/09/2026;Venta mostrador Juan Pérez;100,00",
+      "02/09/2026;TRASPASO A CUENTA PROPIA;500,00",
+      "03/09/2026;Transferencia entre cuentas;200,00",
+      "04/09/2026;Transferência entre contas;50,00",
+      "05/09/2026;Transfer from own account;25,00",
+      "06/09/2026;Transferencia de María;80,00",
+      "07/09/2026;Traspaso a ahorro;-500,00",
+    ].join("\n");
+    const r = parseStatement(enc(csv), "MXN");
+    expect(r.months).toEqual([{ month: "2026-09", currency: "MXN", inflow: 18000, count: 2 }]);
+    expect(r.transactions).toBe(7);
+    expect(r.ownAccountMoves).toEqual({ count: 4, totals: [{ currency: "MXN", amount: 77500 }] });
+    expect(JSON.stringify(r)).not.toMatch(/Juan|María|Pérez|TRASPASO|Concepto/i);
+  });
+
+  it("matches offsetting debit/credit across accounts in one OFX within 3 days", () => {
+    const stmt = (acct: string, trns: string) =>
+      `<STMTRS><CURDEF>USD<BANKACCTFROM><ACCTID>${acct}</BANKACCTFROM><BANKTRANLIST>${trns}</BANKTRANLIST></STMTRS>`;
+    const trn = (type: string, day: string, amt: string, name: string) =>
+      `<STMTTRN><TRNTYPE>${type}<DTPOSTED>${day}<TRNAMT>${amt}<NAME>${name}\n</STMTTRN>`;
+    const ofx = `OFXHEADER:100\n<OFX>${stmt(
+      "111",
+      trn("XFER", "20260910", "-300.00", "ONLINE TRANSFER") +
+        trn("CREDIT", "20260911", "40.00", "CLIENT A"),
+    )}${stmt(
+      "222",
+      trn("XFER", "20260912", "300.00", "ONLINE TRANSFER") +
+        trn("CREDIT", "20260920", "40.00", "CLIENT B") +
+        trn("XFER", "20260925", "70.00", "PIX RECEBIDO"),
+    )}</OFX>`;
+    const r = parseStatement(enc(ofx), "MXN");
+    // 300 offsets a debit in the other account; 40s are sales (same account side has no debit);
+    // a lone XFER credit without a keyword or a matching debit still counts.
+    expect(r.months).toEqual([{ month: "2026-09", currency: "USD", inflow: 15000, count: 3 }]);
+    expect(r.ownAccountMoves).toEqual({ count: 1, totals: [{ currency: "USD", amount: 30000 }] });
+  });
+
+  it("does not pair a debit and credit in the same account, nor beyond 3 days", () => {
+    const csv = [
+      "Date,Description,Amount",
+      "2026-09-01,Customer,300.00",
+      "2026-09-01,Supplier,-300.00",
+    ].join("\n");
+    const r = parseStatement(enc(csv), "USD");
+    expect(r.months[0]?.inflow).toBe(30000);
+    expect(r.ownAccountMoves).toEqual({ count: 0, totals: [] });
+  });
+});
+
 describe("passport provenance", () => {
   it("signs verified and self-reported footprint blocks separately labelled", async () => {
     const signer = PassportSigner.ephemeral();
