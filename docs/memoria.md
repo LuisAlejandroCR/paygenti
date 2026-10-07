@@ -4,6 +4,15 @@
 
 # Memoria — paygent
 
+## 2026-10-07 — Confirmación bancaria: canales elegidos
+
+- Corrige la entrada de abajo: el reenvío no se puede crear por API en cuentas @gmail.com
+  (`forwardingAddresses.create` es solo para Workspace con delegación de dominio).
+- Elegido: Gmail solo lectura para el hackathon (≤ 100 usuarios de prueba), notificación de Nequi en
+  Android y reenvío manual a Resend Inbound en iPhone. Sin Clerk: Paygent no tiene login propio.
+- Muestras reales: solo "Recibiste plata por Bre-B" de Nequi confirma ventas; el comprobante de Banco de
+  Bogotá es de quien envía. Los PDF tienen datos personales: `*.pdf` en `.gitignore`.
+
 ## 2026-10-07 — Confirmación bancaria automática (spec, `docs/bank-confirm.md`)
 
 - El usuario pidió confirmar Bre-B sin PIN usando los avisos del banco: correo de Banco de Bogotá
