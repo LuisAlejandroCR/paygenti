@@ -426,6 +426,7 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
         imported: summary.months,
         transactions: summary.transactions,
         skipped: summary.skipped,
+        ownAccountMoves: summary.ownAccountMoves,
         statement: deps.store.statementMonths(deps.vendorId),
       });
     } catch (err) {
