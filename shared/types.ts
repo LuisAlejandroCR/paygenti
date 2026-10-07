@@ -52,6 +52,10 @@ export interface CartLine {
 export type SaleStatus =
   | "open"
   | "approved"
+  /** Push rail chosen (Pix, SPEI, Bre-B): "pending — check your bank app"; never paid by itself. */
+  | "pending_bank"
+  /** Vendor confirmed a push-rail payment with her PIN: "vendor-confirmed, not verified". */
+  | "vendor_confirmed"
   | "paid"
   | "failed"
   | "expired"
@@ -69,9 +73,11 @@ export interface Sale {
   orderId: string;
   captureId?: string;
   createdAt: string;
+  /** When the sale settled: PayPal capture, or the vendor's confirmation for vendor_confirmed. */
   paidAt?: string;
   expiresAt: string;
-  method: "paypal" | "cash";
+  /** "paypal" covers every PayPal-confirmed rail (Apple Pay, Google Pay, OXXO, Venmo, card). */
+  method: "paypal" | "cash" | "pix" | "spei" | "breb";
 }
 
 export type TerminalEvent =
@@ -80,6 +86,8 @@ export type TerminalEvent =
   | { type: "sale.failed"; sale: Sale; reason: string }
   | { type: "sale.expired"; sale: Sale }
   | { type: "sale.cancelled"; sale: Sale }
+  | { type: "sale.pending_bank"; sale: Sale }
+  | { type: "sale.vendor_confirmed"; sale: Sale }
   | { type: "sale.refunded"; sale: Sale; amount: Money };
 
 /** How PayPal finds a supplier: Payouts v1 `recipient_type` (PAYPAL_ID is not offered in the UI). */

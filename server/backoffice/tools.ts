@@ -34,7 +34,9 @@ export type Reconciliation =
   | "refunded"
   | "pending"
   | "void"
-  | "cash";
+  | "cash"
+  /** Push rail (Pix, SPEI, Bre-B) the vendor confirmed with her PIN: not verified, not in paid. */
+  | "vendor_confirmed";
 
 export interface LedgerRow {
   id: string;
@@ -59,7 +61,15 @@ export interface LedgerReport {
   day: string;
   terminals: string[];
   rows: LedgerRow[];
-  totals: { paid: Money; refunded: Money; net: Money; cash: Money; count: number };
+  totals: {
+    paid: Money;
+    refunded: Money;
+    net: Money;
+    cash: Money;
+    count: number;
+    /** Vendor-confirmed push-rail sales: shown apart, never in paid or net. */
+    unverified: Money;
+  };
   /** Money out to suppliers that day: a separate section, never mixed into the sales totals. */
   payouts: Payout[];
   /** Sum of the day's payouts that left the account (excludes denied, failed, returned...). */
@@ -196,6 +206,7 @@ export class BackOffice {
     const paid = sum((r) => (r.method === "paypal" ? r.paid.minor : 0));
     const cash = sum((r) => (r.method === "cash" ? r.paid.minor : 0));
     const refunded = sum((r) => r.refunded.minor);
+    const unverified = sum((r) => (r.reconciliation === "vendor_confirmed" ? r.total.minor : 0));
     const terminals = [...new Set(all.map((s) => s.terminalId))].sort();
     const payouts = this.payouts.forDay(day);
     const paidOut = payouts
@@ -211,6 +222,7 @@ export class BackOffice {
         net: money(paid + cash - refunded, c),
         cash: money(cash, c),
         count: rows.filter((r) => r.paid.minor > 0).length,
+        unverified: money(unverified, c),
       },
       payouts,
       paidOut: money(paidOut, c),
@@ -222,13 +234,18 @@ export class BackOffice {
     const tz = this.policy.config.timeZone;
     return this.sales.store
       .allSales()
-      .filter((s) => (s.status === "paid" || s.status === "refunded") && s.paidAt !== undefined)
+      .filter(
+        (s) =>
+          (s.status === "paid" || s.status === "refunded" || s.status === "vendor_confirmed") &&
+          s.paidAt !== undefined,
+      )
       .map((s) => {
         const r = this.ledgerRow(s);
         return {
           day: localDay(new Date(s.paidAt ?? s.createdAt), tz),
           method: s.method,
           captured: s.method === "paypal" && !!s.captureId,
+          vendorConfirmed: s.status === "vendor_confirmed",
           total: s.total.minor,
           refunded: r.refunded.minor,
         };
@@ -242,8 +259,12 @@ export class BackOffice {
     let refunded = (s.captureId && this.sales.store.refundedForCapture(s.captureId)) || 0;
     if (s.status === "refunded" && refunded === 0) refunded = s.total.minor;
     let reconciliation: Reconciliation;
-    if (!settled)
-      reconciliation = s.status === "open" || s.status === "approved" ? "pending" : "void";
+    if (s.status === "vendor_confirmed") reconciliation = "vendor_confirmed";
+    else if (!settled)
+      reconciliation =
+        s.status === "open" || s.status === "approved" || s.status === "pending_bank"
+          ? "pending"
+          : "void";
     else if (s.method === "cash") reconciliation = "cash";
     else if (!s.captureId) reconciliation = "missing_capture";
     else if (refunded >= s.total.minor) reconciliation = "refunded";

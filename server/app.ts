@@ -10,9 +10,17 @@ import { streamSSE } from "hono/streaming";
 import QRCode from "qrcode";
 import { z } from "zod";
 import { verifyPassport } from "../shared/passport";
+import {
+  buildRailRegistry,
+  isPushRail,
+  type RailRegistry,
+  railsForSale,
+  saleStatusLabel,
+} from "../shared/rails";
+import type { Sale } from "../shared/types";
 import type { ModelClient } from "./backoffice/agent";
 import type { PayPalTools } from "./backoffice/paypal-tools";
-import { backofficeRoutes } from "./backoffice/routes";
+import { backofficeRoutes, clientIp } from "./backoffice/routes";
 import { BackOffice } from "./backoffice/tools";
 import type { VisionClient } from "./catalog/extract";
 import type { IntegrationStatus } from "./integrations";
@@ -50,6 +58,8 @@ export interface AppDeps {
   integrations?: Record<string, IntegrationStatus>;
   /** Sales passport signer; defaults to an ephemeral demo key. */
   passportSigner?: PassportSigner;
+  /** Configured payment rails (Pix, SPEI, Bre-B, wallets); omitted means none beyond PayPal. */
+  rails?: RailRegistry;
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -75,6 +85,10 @@ const passportVerifyBody = z.object({
   signature: z.string().max(200),
   keyId: z.string().max(64),
 });
+const railBody = z.strictObject({
+  rail: z.enum(["paypal", "applepay", "googlepay", "oxxo", "pix", "spei", "breb"]),
+});
+const pinBody = z.strictObject({ pin: z.string().max(16) });
 const approveBody = z.strictObject({ decline: z.boolean().optional() });
 const webhookBody = z.object({
   event_type: z.string().max(100),
@@ -188,6 +202,72 @@ export function createApp(deps: AppDeps): Hono {
     const id = uuid.safeParse(c.req.param("id"));
     if (!id.success) return c.json({ error: "SALE_NOT_FOUND" }, 404);
     return c.json({ sale: sales.cancel(id.data) });
+  });
+
+  // Payment rails: only configured ones are listed or accepted (registry hides the rest).
+  const rails = deps.rails ?? buildRailRegistry({});
+  const paymentFor = (sale: Sale) =>
+    isPushRail(sale.method) && sale.status === "pending_bank"
+      ? rails.paymentData(sale.method, sale.total, sale.id)
+      : undefined;
+
+  app.get("/api/sales/:id/rails", (c) => {
+    const id = uuid.safeParse(c.req.param("id"));
+    const sale = id.success ? sales.getSale(id.data) : undefined;
+    if (!sale) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    return c.json({
+      rails: railsForSale(rails, sale.total),
+      payment: paymentFor(sale) ?? null,
+      label: saleStatusLabel(sale.status),
+    });
+  });
+
+  app.post("/api/sales/:id/rail", async (c) => {
+    const id = uuid.safeParse(c.req.param("id"));
+    const body = railBody.safeParse(await readJson(c));
+    if (!id.success) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const current = sales.getSale(id.data);
+    if (!current) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    const choice = body.data.rail;
+    let target: "paypal" | "pix" | "spei" | "breb" = "paypal";
+    if (choice !== "paypal") {
+      const offered = railsForSale(rails, current.total).find((r) => r.id === choice);
+      if (!offered) return c.json({ error: "RAIL_NOT_AVAILABLE" }, 400);
+      // PayPal-confirmed rails (Apple Pay, Google Pay, OXXO) use the same PayPal order.
+      if (isPushRail(offered.id)) target = offered.id;
+    }
+    const sale = sales.selectRail(id.data, target);
+    return c.json({ sale, payment: paymentFor(sale) ?? null, label: saleStatusLabel(sale.status) });
+  });
+
+  app.get("/api/sales/:id/rail-qr.svg", async (c) => {
+    const id = uuid.safeParse(c.req.param("id"));
+    const sale = id.success ? sales.getSale(id.data) : undefined;
+    const payment = sale && paymentFor(sale);
+    if (!payment) return c.text("not found", 404);
+    const svg = await QRCode.toString(payment.qr, {
+      type: "svg",
+      margin: 1,
+      errorCorrectionLevel: "M",
+    });
+    return c.body(svg, 200, { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" });
+  });
+
+  // The vendor checked her bank app: PIN-gated, and the sale stays "not verified".
+  app.post("/api/sales/:id/vendor-confirm", async (c) => {
+    const id = uuid.safeParse(c.req.param("id"));
+    const body = pinBody.safeParse(await readJson(c));
+    if (!id.success) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const sale = sales.getSale(id.data);
+    if (!sale) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    if (sale.status !== "pending_bank" && sale.status !== "vendor_confirmed")
+      return c.json({ error: "NOT_PENDING_BANK" }, 409);
+    const result = policy.verifyPin("vendor", body.data.pin, [clientIp(c)]);
+    if (!result.ok) return c.json({ error: result.code }, result.code === "PIN_LOCKED" ? 429 : 401);
+    const updated = sales.vendorConfirm(id.data);
+    return c.json({ sale: updated, label: saleStatusLabel(updated.status) });
   });
 
   app.get("/api/terminals/:id/events", (c) => {

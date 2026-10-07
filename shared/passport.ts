@@ -36,7 +36,13 @@ export interface PassportReport {
     daily: PassportDay[];
   };
   /** What the vendor says she sold in cash: shown, never counted as verified. */
-  selfReported: { label: string; cash: number; cashSalesCount: number };
+  selfReported: {
+    label: string;
+    cash: number;
+    cashSalesCount: number;
+    /** Push-rail sales (Pix, SPEI, Bre-B) only the vendor confirmed: not verified by any provider. */
+    vendorConfirmed?: { label: string; amount: number; count: number };
+  };
 }
 
 export interface SignedPassport {

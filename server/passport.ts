@@ -17,6 +17,8 @@ import {
   type SignedPassport,
   toBase64Url,
 } from "../shared/passport";
+import { VENDOR_CONFIRMED_LABEL } from "../shared/rails";
+import type { Sale } from "../shared/types";
 
 export const SELF_REPORTED_LABEL = "self-reported — not verified by PayPal";
 export const DEFAULT_RANGE_DAYS = 30;
@@ -65,8 +67,10 @@ export class PassportSigner {
 /** One settled sale as the passport sees it: no buyer data, no ids, just money and day. */
 export interface PassportSale {
   day: string;
-  method: "paypal" | "cash";
+  method: Sale["method"];
   captured: boolean;
+  /** Push-rail sale confirmed only by the vendor: self-reported, never verified. */
+  vendorConfirmed?: boolean;
   total: number;
   refunded: number;
 }
@@ -88,11 +92,18 @@ export function buildPassport(input: PassportInput): PassportReport {
   const days = new Map<string, PassportDay>();
   let cash = 0;
   let cashSalesCount = 0;
+  let confirmed = 0;
+  let confirmedCount = 0;
   for (const s of input.sales) {
     if (s.day < input.from || s.day > input.to) continue;
     if (s.method === "cash") {
       cash += s.total - s.refunded;
       cashSalesCount++;
+      continue;
+    }
+    if (s.vendorConfirmed) {
+      confirmed += s.total;
+      confirmedCount++;
       continue;
     }
     if (!s.captured) continue;
@@ -131,6 +142,13 @@ export function buildPassport(input: PassportInput): PassportReport {
       label: SELF_REPORTED_LABEL,
       cash: cash + (input.cashDictated ?? 0),
       cashSalesCount,
+      ...(confirmedCount > 0 && {
+        vendorConfirmed: {
+          label: VENDOR_CONFIRMED_LABEL,
+          amount: confirmed,
+          count: confirmedCount,
+        },
+      }),
     },
   };
 }
