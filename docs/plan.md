@@ -36,43 +36,43 @@ Reglas de arquitectura:
 
 ### Bloque 0 — Scaffold
 
-- [ ] `npm run check` (biome + tsc server/web + vitest) pasa en local y en CI (GitHub Actions).
-- [ ] `GET /api/health` responde `{ ok: true, paypal: "mock" | "sandbox" }`.
-- [ ] Tests de `shared/money.ts` y de `MockPayPal` (crear → aprobar → capturar → reembolsar, idempotencia).
+- [x] `npm run check` (biome + tsc server/web + vitest) pasa en local y en CI (GitHub Actions).
+- [x] `GET /api/health` responde `{ ok: true, paypal: "mock" | "sandbox" }`.
+- [x] Tests de `shared/money.ts` y de `MockPayPal` (crear → aprobar → capturar → reembolsar, idempotencia).
 
 ### Bloque 1 — Cobro: orden → QR → pago → captura → «Recibido» en voz
 
-- [ ] `RestPayPal` (OAuth client credentials con caché del token, Orders v2 create/get/capture,
+- [x] `RestPayPal` (OAuth client credentials con caché del token, Orders v2 create/get/capture,
       Refunds, `verify-webhook-signature`, `PayPal-Request-Id` en cada escritura, timeout).
-- [ ] Selección de gateway por entorno: con `PAYPAL_CLIENT_ID` + `PAYPAL_CLIENT_SECRET` → sandbox; si no → mock.
-- [ ] `POST /api/terminals/:id/sales` crea venta + orden; una sola venta abierta por terminal (la
+- [x] Selección de gateway por entorno: con `PAYPAL_CLIENT_ID` + `PAYPAL_CLIENT_SECRET` → sandbox; si no → mock.
+- [x] `POST /api/terminals/:id/sales` crea venta + orden; una sola venta abierta por terminal (la
       anterior expira); expira a los 5 min.
-- [ ] `GET /t/:terminal` → 302 a `/pay/:saleId` de la venta abierta, o página «sin venta abierta».
-- [ ] `/pay/:saleId`: muestra puesto, productos y total antes de aprobar; botones del JS SDK en
+- [x] `GET /t/:terminal` → 302 a `/pay/:saleId` de la venta abierta, o página «sin venta abierta».
+- [x] `/pay/:saleId`: muestra puesto, productos y total antes de aprobar; botones del JS SDK en
       sandbox; en mock, botón «Pagar (simulado)» y «Simular rechazo».
-- [ ] `POST /api/sales/:id/capture` captura una sola vez (idempotente) y emite `sale.paid` por SSE.
-- [ ] App de la vendedora: teclado numérico grande → QR de `/t/:terminal`; al llegar `sale.paid`
+- [x] `POST /api/sales/:id/capture` captura una sola vez (idempotente) y emite `sale.paid` por SSE.
+- [x] App de la vendedora: teclado numérico grande → QR de `/t/:terminal`; al llegar `sale.paid`
       dice en voz «Recibido: 95 pesos» (`speechSynthesis`, campanita de respaldo).
-- [ ] `POST /webhooks/paypal`: verifica firma; `CHECKOUT.ORDER.APPROVED` dispara captura;
+- [x] `POST /webhooks/paypal`: verifica firma; `CHECKOUT.ORDER.APPROVED` dispara captura;
       `PAYMENT.CAPTURE.DENIED`/`REFUNDED` actualizan la venta. Firma inválida → 400 y no toca nada.
-- [ ] Tests: flujo completo en mock vía `app.request`, captura doble, venta expirada, webhook sin firma.
+- [x] Tests: flujo completo en mock vía `app.request`, captura doble, venta expirada, webhook sin firma.
 
 ### Bloque 2 — Sticker NFC
 
-- [ ] La app de la vendedora graba `PUBLIC_URL/t/:terminal` en un NTAG con Web NFC (Chrome Android);
+- [x] La app de la vendedora graba `PUBLIC_URL/t/:terminal` en un NTAG con Web NFC (Chrome Android);
       si no hay Web NFC, muestra la URL y el QR para imprimir.
-- [ ] Página `/t/:terminal` maneja: venta abierta, sin venta, venta pagada, venta expirada.
-- [ ] Tests de las cuatro ramas de la redirección.
+- [x] Página `/t/:terminal` maneja: venta abierta, sin venta, venta pagada, venta expirada.
+- [x] Tests de las cuatro ramas de la redirección.
 
 ### Bloque 3 — Voz → carrito
 
-- [ ] `POST /api/voice/parse` `{ text, vendorId }` → `CartLine[]` usando el catálogo.
-- [ ] Parser por reglas (números en español «dos», «un», «media docena», alias del catálogo) siempre
+- [x] `POST /api/voice/parse` `{ text, vendorId }` → `CartLine[]` usando el catálogo.
+- [x] Parser por reglas (números en español «dos», «un», «media docena», alias del catálogo) siempre
       disponible; con `ANTHROPIC_API_KEY`, Claude Haiku 4.5 con salida estructurada validada con zod
       y caída al parser por reglas si falla o tarda > 4 s.
-- [ ] La salida nunca inventa SKUs ni precios: todo ítem se valida contra el catálogo.
-- [ ] UI: botón push-to-talk (Web Speech API `es-MX`), carrito editable, teclado de respaldo.
-- [ ] Batería de 10 frases de prueba: ≥ 9 carritos correctos con el parser por reglas.
+- [x] La salida nunca inventa SKUs ni precios: todo ítem se valida contra el catálogo.
+- [x] UI: botón push-to-talk (Web Speech API `es-MX`), carrito editable, teclado de respaldo.
+- [x] Batería de 10 frases de prueba: ≥ 9 carritos correctos con el parser por reglas.
 
 ### Bloque 4 — Agente de back-office con cerrojo
 
@@ -110,3 +110,20 @@ Reglas de arquitectura:
 
 Soundbox (ESP32/Android kiosko), tap teléfono-a-teléfono (HCE), AG Grid, foto del menú → catálogo,
 pasaporte de ventas firmado, Payouts.
+
+## Pendiente (revisado 2026-10-07)
+
+Bloques 0–5 y los stretch Soundbox (T3a), AG Grid, foto del menú y pasaporte están hechos y en `main`.
+Verificado en Render con el sandbox real: pago capturado, webhooks entregados, reembolsos de 1 y 150
+aceptados, 250 rechazado por el tope.
+
+| # | Pendiente | Origen | Criterio de aceptación |
+|---|---|---|---|
+| 1 | UI/UX web: pasada de diseño completa sobre todas las pantallas (jerarquía, estados vacíos, errores, onboarding) | Usuario | Revisión pantalla por pantalla a 375 px y 1280 px, claro/oscuro, en/es; e2e verde |
+| 2 | App móvil: decidir alcance (PWA instalable ya existe) y, si entra, app nativa Android (Expo) para el tap teléfono-a-teléfono (HCE, tier T2) | BRAINSTORM §4, §7 | Un iPhone y un Android leen el tag emulado y abren `/t/:terminal` |
+| 3 | Persistencia: hoy todo vive en memoria y se pierde en cada reinicio o sueño de Render | Riesgo de demo | Ventas, catálogo y auditoría sobreviven a un reinicio |
+| 4 | Pruebas en dispositivos reales: sticker NTAG, voz en el mercado, soundbox en Android viejo | BRAINSTORM §9 | Un tap real en un sticker paga una orden sandbox y el teléfono habla |
+| 5 | Payouts a proveedores (requiere habilitarlo en la app sandbox) | Stretch | Pago a proveedor en allowlist, con PIN y tope, o propuesta firmada sin ejecutar |
+| 6 | Soundbox ESP32 (T3b) | Stretch | Opcional; solo con 1–5 cerrados |
+| 7 | Validación con personas: 3 entrevistas a vendedores; 10 ventas dictadas por otra persona (≥ 9 carritos correctos); alguien externo corre `/judge` desde un navegador limpio | BRAINSTORM §6.1, §9 | Notas en `docs/memoria.md` |
+| 8 | Entrega: video < 3 min en inglés en dispositivos reales, repo público sin secretos ni docs privados, texto de Devpost, deploy vivo hasta el 15-dic | Reglas del hackathon | Envío antes del 12-nov 12:00 PT |
