@@ -16,7 +16,8 @@ Entry for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). The
 - **Vendor screen (`/`)** — hold the mic and say "two mole tamales and an atole" (or type an
   amount), tap **Charge**, and a QR / NFC sticker link opens the sale for the customer.
 - **Customer checkout (`/pay/:saleId`, reached via `/t/:terminal`)** — shows the stall, the items
-  and the total before paying with PayPal.
+  and the total before paying with PayPal, Venmo, Pay Later or a card, whichever PayPal offers
+  for that currency and buyer (see [Payment methods at checkout](#payment-methods-at-checkout)).
 - **Paid announcement** — the vendor's phone turns green and says the amount out loud
   (en-US or es-MX voice).
 - **Back office (`/backoffice`, PIN `1234` in the demo)** — today's sales, cash reconcile, invoice
@@ -118,6 +119,27 @@ Copy `.env.example` to `.env.local`. Every value is optional.
 
 With keys set, the checkout renders the real PayPal buttons and the server captures the order.
 
+## Payment methods at checkout
+
+With PayPal keys, `/pay/:saleId` loads PayPal's JS SDK v6 (`web-sdk/v6/core`). The server still
+creates the order when the vendor charges and captures it after the buyer approves; the browser
+only approves. Buttons appear in this order, each only when it applies:
+
+| Method | Shown when |
+|---|---|
+| PayPal | Always (any PayPal currency) |
+| Venmo | Sale in **USD**, and PayPal says the buyer and merchant are eligible (US only) |
+| Pay Later | Sale in **USD, CAD, GBP, EUR or AUD** (US, CA, GB, DE/FR/IT/ES, AU markets) and PayPal says the buyer and amount qualify. Its "Pay in 4…" message then appears under the total |
+| Debit or credit card | PayPal offers guest card checkout to this buyer |
+
+Two filters decide: a static rule per currency (`shared/funding.ts`, unit-tested), then PayPal's
+own `findEligibleMethods` for this buyer and amount. So an MXN sale (the Oaxaca demo) shows PayPal
+and card; a USD sale can add Venmo and Pay Later. In sandbox the SDK simulates a buyer from the
+sale's country (USD → US, MXN → MX, EUR → ES); override it with `/pay/<id>?buyerCountry=US`.
+Venmo also needs a US merchant account with Venmo enabled: if PayPal does not list it for your
+sandbox app, the button stays hidden. Without keys (mock mode) the checkout keeps the
+**Pay (simulated)** and **Simulate decline** buttons.
+
 ## How the AI uses PayPal
 
 The back-office agent (Claude `claude-sonnet-5-5`, tool use over plain `fetch`) gets PayPal's official
@@ -183,6 +205,9 @@ del navegador; botón EN/ES arriba).
   `npm start`.
 - **Sin llaves** funciona con un PayPal simulado; para sandbox llena `.env.local` según
   `.env.example`.
+- **Métodos de pago:** con llaves, el cliente ve PayPal siempre; Venmo solo en USD; Pay Later solo
+  en USD, CAD, GBP, EUR o AUD (con su mensaje bajo el total); tarjeta si PayPal la ofrece. Una
+  venta en MXN muestra PayPal y tarjeta. PayPal decide al final por comprador y monto.
 - **Bocina:** abre `/soundbox?terminal=rosa-01` en un Android viejo, instálala, toca una vez para
   activar el sonido y déjala en pantalla completa: solo los pagos confirmados por PayPal suenan.
 - **Candado:** la IA solo propone; las devoluciones exigen el PIN cada vez y tienen topes.
