@@ -68,6 +68,8 @@ export interface AppDeps {
   rails?: RailRegistry;
   /** PIN per stall (STALL_PINS); Rosa falls back to vendorPin, demo stalls to DEMO_STALL_PINS. */
   stallPins?: Record<string, string>;
+  /** APPLE_PAY_DOMAIN_ASSOCIATION: Apple's domain-verification file, served under /.well-known. */
+  applePayDomainAssociation?: string;
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -496,6 +498,13 @@ export function createApp(deps: AppDeps): Hono {
   );
 
   app.all("/api/*", (c) => c.json({ error: "NOT_FOUND" }, 404));
+
+  // Apple Pay domain registration (PayPal dashboard) fetches this file; absent -> 404.
+  app.get("/.well-known/apple-developer-merchantid-domain-association", (c) => {
+    const body = deps.applePayDomainAssociation;
+    if (!body) return c.text("not found", 404);
+    return c.text(body, 200, { "Cache-Control": "public, max-age=3600" });
+  });
 
   if (deps.staticRoot) {
     const root = deps.staticRoot;
