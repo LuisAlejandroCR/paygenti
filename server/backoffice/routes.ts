@@ -1,6 +1,6 @@
 // server/backoffice/routes.ts: /api/backoffice/* — PIN login to a vendor session, fixed tool
-// endpoints (sales, reconcile, invoice, refund) and the optional Claude agent. Without a session
-// the caller is treated as a customer, so the policy denies any money movement.
+// endpoints (sales, reconcile, invoice, refund, suppliers and payouts) and the optional Claude agent.
+// Without a session the caller is treated as a customer, so the policy denies any money movement.
 import { createHash, randomBytes } from "node:crypto";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { type Context, Hono } from "hono";
@@ -21,9 +21,10 @@ import {
   type PassportSigner,
 } from "../passport";
 import { PayPalError } from "../paypal/gateway";
-import { localDay } from "../policy";
+import { localDay, type PolicyConfig } from "../policy";
 import type { Store } from "../store";
 import { type ModelClient, runAgent } from "./agent";
+import { type DeskResult, supplierInput } from "./payouts";
 import type { PayPalTools } from "./paypal-tools";
 import { type Authority, type BackOffice, BackOfficeError } from "./tools";
 
@@ -63,6 +64,27 @@ export const vendorBody = z
     path: ["currency"],
     message: "currency not chargeable from this country",
   });
+const supplierBody = supplierInput.extend({ pin: pinField });
+const pinBody = z.strictObject({ pin: pinField });
+const payoutBody = z.strictObject({
+  supplierId: z.string().min(1).max(64),
+  amountMinor: z.number().int().positive().max(10_000_000),
+  note: z.string().max(200).optional(),
+  pin: pinField,
+  requestId: z.uuid().optional(),
+});
+const idParam = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
+/** HTTP status for a refused desk result: validation 400, conflicts 409, PayPal 502, policy 403. */
+const DESK_STATUS: Record<string, 400 | 404 | 409 | 502 | 504> = {
+  INVALID_SUPPLIER: 400,
+  SUPPLIER_NOT_FOUND: 404,
+  SUPPLIER_EXISTS: 409,
+  PAYOUTS_NOT_ENABLED: 502,
+  PAYOUT_INSUFFICIENT_FUNDS: 502,
+  PAYOUT_FAILED: 502,
+  PAYOUT_UNCONFIRMED: 504,
+};
+
 const agentBody = z.strictObject({
   message: z.string().min(1).max(1000),
   pin: pinField,
@@ -116,7 +138,7 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
     c.json({
       agent: model !== undefined,
       paypalTools: model ? (deps.paypalTools?.tools().map((t) => t.name) ?? []) : [],
-      limits: office.policy.config,
+      limits: publicLimits(office.policy.config),
     }),
   );
 
@@ -252,7 +274,7 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
         reason: changed ? `Moneda: ${vendor.currency} -> ${currency}` : "Perfil guardado",
       },
     });
-    return c.json({ vendor: updated, limits: office.policy.config });
+    return c.json({ vendor: updated, limits: publicLimits(office.policy.config) });
   });
 
   app.get("/catalog", (c) => {
@@ -347,7 +369,73 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
 
   app.get("/audit", (c) => requireVendor(c) ?? c.json({ entries: office.policy.audit.entries() }));
 
+  const desk = office.payouts;
+  const deskReply = <T>(c: Context, r: DeskResult<T>, okStatus: 200 | 201 = 200) =>
+    r.ok
+      ? c.json(r, okStatus)
+      : c.json({ error: r.code, reason: r.reason, params: r.params }, DESK_STATUS[r.code] ?? 403);
+
+  app.get("/suppliers", (c) => requireVendor(c) ?? c.json({ suppliers: desk.suppliers() }));
+
+  // Allowlist changes: vendor session to reach them, then the policy wants the PIN (and audits).
+  app.post("/suppliers", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const body = supplierBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_SUPPLIER" }, 400);
+    const { pin, ...input } = body.data;
+    return deskReply(c, desk.addSupplier(input, authority(c, pin)), 201);
+  });
+
+  app.post("/suppliers/:id/remove", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const id = idParam.safeParse(c.req.param("id"));
+    const body = pinBody.safeParse((await readJson(c)) ?? {});
+    if (!id.success || !body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    return deskReply(c, desk.removeSupplier(id.data, authority(c, body.data.pin)));
+  });
+
+  app.get(
+    "/payouts",
+    (c) =>
+      requireVendor(c) ??
+      c.json({ payouts: desk.history(), limits: desk.limits(), paypal: office.paypalMode }),
+  );
+
+  // Like /refunds: no requireVendor on purpose; the policy refuses a customer and audits it.
+  app.post("/payouts", async (c) => {
+    const body = payoutBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const { pin, ...req } = body.data;
+    return deskReply(c, await desk.pay(req, authority(c, pin)), 201);
+  });
+
+  app.post("/payouts/:id/refresh", async (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const id = idParam.safeParse(c.req.param("id"));
+    if (!id.success) return c.json({ error: "PAYOUT_NOT_FOUND" }, 404);
+    try {
+      const payout = await desk.refresh(id.data);
+      return payout ? c.json({ payout }) : c.json({ error: "PAYOUT_NOT_FOUND" }, 404);
+    } catch (err) {
+      if (err instanceof PayPalError)
+        return c.json(
+          { error: err.issue === "PAYOUTS_NOT_ENABLED" ? err.issue : "PAYPAL_ERROR" },
+          502,
+        );
+      throw err;
+    }
+  });
+
   return app;
+}
+
+/** Caps for the web; the payout allowlist (suppliers' emails and phones) is never public. */
+function publicLimits(config: PolicyConfig): Omit<PolicyConfig, "payoutAllowlist"> {
+  const { payoutAllowlist: _private, ...limits } = config;
+  return limits;
 }
 
 /**
