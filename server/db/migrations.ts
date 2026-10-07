@@ -108,6 +108,26 @@ CREATE TABLE payouts (
 );
 CREATE INDEX payouts_batch_id ON payouts (batch_id);`,
   },
+  {
+    // Financial footprint: imported statement aggregates (no file, account, name or description is
+    // ever stored) and the vendor's optional savings goal.
+    version: 3,
+    sql: `
+CREATE TABLE statement_months (
+  vendor_id text NOT NULL,
+  month char(7) NOT NULL,
+  currency char(3) NOT NULL,
+  inflow_minor bigint NOT NULL CHECK (inflow_minor >= 0),
+  inflow_count integer NOT NULL CHECK (inflow_count >= 0),
+  PRIMARY KEY (vendor_id, month, currency)
+);
+CREATE TABLE savings_goals (
+  vendor_id text PRIMARY KEY,
+  currency char(3) NOT NULL,
+  target_minor bigint NOT NULL CHECK (target_minor > 0),
+  saved_minor bigint NOT NULL CHECK (saved_minor >= 0)
+);`,
+  },
 ];
 
 const LOCK_KEY = 4_206_901; // arbitrary, constant advisory-lock id for paygent migrations

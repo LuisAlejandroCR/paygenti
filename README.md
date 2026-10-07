@@ -73,6 +73,19 @@ Changing any number makes it INVALID. Set `PASSPORT_SIGNING_KEY` (Ed25519 PKCS8,
 DER) for a stable key; without it each start uses an ephemeral key and the report says
 "demo key".
 
+### Financial footprint
+
+"No bank history? Your sales are your history." The passport (report version 2) also carries a
+footprint of descriptive indicators — days with sales, months selling, weeks with sales out of
+total weeks, monthly income per currency (never mixed) with its last-month trend, and an optional
+savings goal the vendor sets. It is never a single score, and the page says so: not a credit score,
+not a loan offer. The vendor can import a bank statement (CSV with date/amount or debit/credit
+columns, comma or semicolon, dd/mm/yyyy or yyyy-mm-dd; or OFX/QFX; up to 1 MB and 5000 rows) in
+`/backoffice` with her PIN. The server keeps only month, currency, total inflow and inflow count;
+the file, account numbers, names and descriptions are discarded and never logged. Imported data is
+labelled "self-reported, not verified", shown apart from PayPal-verified figures, signed with the
+rest of the passport, and can be deleted with the PIN.
+
 ## Suppliers & payouts (money out)
 
 "Pay the masa supplier": in `/backoffice` the **Suppliers & payouts** panel keeps an allowlist of

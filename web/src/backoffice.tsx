@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "preact/hooks";
 import { type Currency, formatMoney, type Money, parseAmount } from "../../shared/money";
+import { FootprintPanel } from "./footprint";
 import { type Key, reasonText, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 import { MenuEditor } from "./menu-editor";
@@ -451,6 +452,8 @@ export function BackOfficeApp() {
       />
 
       <PassportPanel currency={currency} token={token} onAuthLost={() => setToken(null)} />
+
+      <FootprintPanel currency={currency} token={token} onAuthLost={() => setToken(null)} />
 
       <MenuEditor token={token} onAuthLost={() => setToken(null)} />
     </main>

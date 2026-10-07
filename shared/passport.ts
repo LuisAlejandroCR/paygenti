@@ -1,6 +1,7 @@
 // shared/passport.ts: the signed sales passport format shared by server and browser — report
 // shape, canonical JSON (sorted keys) that gets signed, base64url helpers, the verify-link payload
-// and Ed25519 verification with WebCrypto (works in Node 22+ and current browsers).
+// and Ed25519 verification with WebCrypto (works in Node 22+ and current browsers). Also the
+// financial footprint: descriptive indicators (never a score), each part labelled with provenance.
 
 export const PASSPORT_KIND = "paygent.sales-passport";
 
@@ -13,9 +14,64 @@ export interface PassportDay {
   net: number;
 }
 
+/** Provenance labels: they travel inside the signed payload, so nobody can relabel a figure. */
+export const VERIFIED_LABEL = "verified";
+export const STATEMENT_LABEL = "self-reported, not verified";
+export const FOOTPRINT_DISCLAIMER =
+  "Descriptive indicators only. Not a credit score and not a loan offer.";
+
+/** One month of verified PayPal income in one currency (never mixed with another currency). */
+export interface FootprintMonth {
+  month: string;
+  currency: string;
+  count: number;
+  net: number;
+}
+
+/** One month of inflows from an imported bank statement: aggregates only, nothing else kept. */
+export interface StatementMonth {
+  month: string;
+  currency: string;
+  inflow: number;
+  count: number;
+}
+
+export interface SavingsGoal {
+  currency: string;
+  target: number;
+  saved: number;
+}
+
+export type TrendDirection = "up" | "down" | "flat" | "n/a";
+
+export interface Footprint {
+  disclaimer: string;
+  verified: {
+    label: typeof VERIFIED_LABEL;
+    source: string;
+    firstSaleDay: string | null;
+    lastSaleDay: string | null;
+    daysActive: number;
+    /** Calendar months from the first verified sale to the end of the period, inclusive. */
+    monthsSelling: number;
+    /** Weeks (7-day blocks from the first sale) with at least one verified sale. */
+    activeWeeks: number;
+    totalWeeks: number;
+    monthly: FootprintMonth[];
+    /** Last month against the one before it, per currency. */
+    trend: { currency: string; direction: TrendDirection }[];
+  };
+  selfReported: {
+    label: typeof STATEMENT_LABEL;
+    source: string;
+    monthly: StatementMonth[];
+  };
+  savingsGoal: (SavingsGoal & { label: string; progressPercent: number }) | null;
+}
+
 export interface PassportReport {
   kind: typeof PASSPORT_KIND;
-  version: 1;
+  version: 1 | 2;
   issuer: string;
   issuedAt: string;
   /** True when signed with an ephemeral key generated at startup (no PASSPORT_SIGNING_KEY). */
@@ -43,6 +99,8 @@ export interface PassportReport {
     /** Push-rail sales (Pix, SPEI, Bre-B) only the vendor confirmed: not verified by any provider. */
     vendorConfirmed?: { label: string; amount: number; count: number };
   };
+  /** Version 2+: the financial footprint (signed together with everything else). */
+  footprint?: Footprint;
 }
 
 export interface SignedPassport {

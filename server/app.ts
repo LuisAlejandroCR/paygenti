@@ -105,6 +105,12 @@ const imageLimit = bodyLimit({
   onError: (c) => c.json({ error: "IMAGE_TOO_LARGE" }, 413),
 });
 const EXTRACT_PATH = "/api/backoffice/catalog/extract";
+/** Bank statements: a 1 MB file (checked again in the route) plus the multipart envelope. */
+const statementLimit = bodyLimit({
+  maxSize: 1024 * 1024 + 16 * 1024,
+  onError: (c) => c.json({ error: "STATEMENT_TOO_LARGE" }, 413),
+});
+const STATEMENT_PATH = "/api/backoffice/statement";
 
 export function createApp(deps: AppDeps): Hono {
   const { paypal } = deps;
@@ -136,7 +142,13 @@ export function createApp(deps: AppDeps): Hono {
     return c.json({ error: "INTERNAL" }, 500);
   });
 
-  app.use("/api/*", (c, next) => (c.req.path === EXTRACT_PATH ? imageLimit : limit)(c, next));
+  app.use("/api/*", (c, next) =>
+    (c.req.path === EXTRACT_PATH
+      ? imageLimit
+      : c.req.path === STATEMENT_PATH
+        ? statementLimit
+        : limit)(c, next),
+  );
   app.use("/webhooks/*", limit);
 
   // Public route: modes only, never the failure reason (it stays in the server log).
