@@ -4,6 +4,23 @@
 
 # Memoria — paygent
 
+## 2026-10-07 — Botones Apple Pay / Google Pay (`feat/wallet-buttons`)
+
+- API del SDK v6 tomada de `paypal-examples/v6-web-sdk-sample-integration` (leído 2026-10-07,
+  `client/components/{applepay,googlepay}Payments/oneTimePayment`): componentes
+  `applepay-payments` / `googlepay-payments`; `createApplePayOneTimePaymentSession()` con
+  `formatConfigForPaymentRequest`, `validateMerchant({ validationUrl })`, `confirmOrder({ orderId,
+  token, billingContact, shippingContact })`; `createGooglePayOneTimePaymentSession()` con
+  `formatConfigForPaymentRequest` y `confirmOrder({ orderId, paymentMethodData })` → `{ status }`.
+  Scripts: `applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js`, `pay.google.com/gp/p/js/pay.js`.
+- Decisión: se reutiliza el pedido que el servidor creó con la venta; tras `confirmOrder` se llama
+  a nuestro `/capture` y el wallet solo da éxito si la venta quedó `paid`. `PAYER_ACTION_REQUIRED`
+  (3DS) no se captura: error y la venta sigue abierta. Sin elegibilidad, sin script o en mock: no
+  hay botón y PayPal sigue.
+- `APPLE_PAY_DOMAIN_ASSOCIATION` se sirve en `/.well-known/apple-developer-merchantid-domain-association`.
+- ⏳ Sin probar en sandbox real ni en dispositivos (Safari/iPhone con Apple Pay, Chrome Android con
+  Google Pay); falta registrar el dominio de Render en PayPal.
+
 ## 2026-10-07 — Transferencias entre cuentas propias (`fix/statement-internal-transfers`)
 
 - El import sumaba todo abono como ingreso; mover dinero de ahorro a cheques inflaba la huella.

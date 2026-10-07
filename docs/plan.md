@@ -125,6 +125,24 @@ Reglas de arquitectura:
 - [x] Tests: unidad de la selección por moneda; e2e que lee `data-funding` (USD incluye venmo y
       paylater; MXN no incluye venmo).
 
+### Botones Apple Pay / Google Pay (`feat/wallet-buttons`)
+
+Hoy `RAIL_APPLE_PAY` / `RAIL_GOOGLE_PAY` solo anuncian el riel. Se montan los botones nativos con el
+SDK v6 (`applepay-payments`, `googlepay-payments`; API tomada de
+`paypal-examples/v6-web-sdk-sample-integration`, leída 2026-10-07).
+
+- [x] Cada botón aparece solo si el riel está activo **y** el navegador es elegible:
+      `ApplePaySession.canMakePayments()` / `PaymentsClient.isReadyToPay().result` **y**
+      `findEligibleMethods().isEligible("applepay"|"googlepay")`. Si no, no hay botón (oculto).
+- [x] Usa el pedido que el servidor ya creó (`sale.orderId`): `confirmOrder` del SDK y luego
+      `POST /api/sales/:id/capture`. Nada queda `paid` sin la captura PayPal (misma ruta que hoy).
+- [x] Modo mock (sin llaves): sin botones de wallet, sin cargar scripts de Apple/Google; los botones
+      simulados siguen igual. Si un script falla, se ocultan los wallets y PayPal sigue.
+- [x] `GET /.well-known/apple-developer-merchantid-domain-association` sirve
+      `APPLE_PAY_DOMAIN_ASSOCIATION` tal cual (text/plain); sin la variable, 404.
+- [x] Tests: unidad de elegibilidad y de los pedidos Apple/Google; ruta `.well-known`; e2e en mock
+      sin contenedor de wallets.
+
 ## Fuera de alcance hasta que los bloques 0–5 corran
 
 Soundbox (ESP32/Android kiosko), tap teléfono-a-teléfono (HCE), AG Grid, foto del menú → catálogo,
