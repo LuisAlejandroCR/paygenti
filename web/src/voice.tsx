@@ -3,9 +3,10 @@
 // ("Type the order") goes through the same parser for browsers without speech, and for judges.
 import { useRef, useState } from "preact/hooks";
 import { formatMoney, type Money, money } from "../../shared/money";
-import type { CartLine } from "../../shared/types";
+import type { CartLine, CatalogItem } from "../../shared/types";
 import { api } from "./api";
 import { lineName, speechLang, useT } from "./i18n";
+import { CloseIcon, KeyboardIcon, KeypadIcon, MicIcon, MinusIcon, PlusIcon } from "./icons";
 
 interface Recognition {
   lang: string;
@@ -51,9 +52,17 @@ interface Props {
   onCart: (cart: CartLine[]) => void;
   onCharge: () => void;
   busy: boolean;
+  /** Real catalog for the quick-add chips (from GET /api/terminals/:id). */
+  catalog?: CatalogItem[];
+  /** Keypad toggle shown next to the typed order while the cart is empty. */
+  keypad?: { open: boolean; toggle: () => void };
 }
 
-export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
+export function catalogLine(item: CatalogItem): CartLine {
+  return { sku: item.sku, name: item.name, names: item.names, qty: 1, unitPrice: item.price };
+}
+
+export function VoiceCart({ vendorId, cart, onCart, onCharge, busy, catalog = [], keypad }: Props) {
   const { t, locale } = useT();
   const Ctor = recognitionCtor();
   const [listening, setListening] = useState(false);
@@ -132,74 +141,135 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy }: Props) {
           onPointerUp={stop}
           onPointerLeave={stop}
         >
-          {listening ? t("voice.listening") : t("voice.hold")}
+          <span class="ptt-mic">
+            <MicIcon size={30} />
+          </span>
+          <span class="ptt-text">
+            <span class="ptt-title">{listening ? t("voice.listening") : t("voice.hold")}</span>
+            <span class="ptt-hint" aria-hidden="true">
+              {t("voice.example")}
+            </span>
+          </span>
         </button>
       ) : (
         <p class="hint">{t("voice.unsupported")}</p>
       )}
-      <form class="type-order" onSubmit={submitTyped}>
-        <input
-          type="text"
-          aria-label={t("voice.typeLabel")}
-          placeholder={t("voice.typePlaceholder")}
-          maxLength={500}
-          value={typed}
-          onInput={(e) => setTyped(e.currentTarget.value)}
-        />
-        <button type="submit" class="secondary" disabled={!typed.trim()}>
-          {t("voice.typeSubmit")}
-        </button>
-      </form>
+      <div class="type-row">
+        <form class="type-order" onSubmit={submitTyped}>
+          <label class="type-field">
+            <KeyboardIcon size={18} />
+            <input
+              type="text"
+              aria-label={t("voice.typeLabel")}
+              placeholder={t("voice.typePlaceholder")}
+              maxLength={500}
+              value={typed}
+              onInput={(e) => setTyped(e.currentTarget.value)}
+            />
+          </label>
+          <button type="submit" class="secondary" disabled={!typed.trim()}>
+            {t("voice.typeSubmit")}
+          </button>
+        </form>
+        {keypad && cart.length === 0 && (
+          <button
+            type="button"
+            class={keypad.open ? "keypad-toggle on" : "keypad-toggle"}
+            aria-pressed={keypad.open}
+            aria-label={t("vendor.keypad")}
+            title={t("vendor.keypad")}
+            onClick={keypad.toggle}
+          >
+            <KeypadIcon />
+          </button>
+        )}
+      </div>
       {heard && <p class="heard">«{heard}»</p>}
-      {note && <p class="hint">{note}</p>}
-      {cart.length > 0 && (
-        <>
-          <ul class="cart">
-            {cart.map((l) => (
-              <li key={l.sku}>
-                <span class="cart-name">{lineName(l, locale)}</span>
-                <span class="qty">
+      {note && (
+        <p class="hint" role="status">
+          {note}
+        </p>
+      )}
+      {(cart.length > 0 || catalog.length > 0) && (
+        <div class="cart-card">
+          {cart.length === 0 && <p class="cart-empty">{t("voice.empty")}</p>}
+          {cart.length > 0 && (
+            <ul class="cart">
+              {cart.map((l) => (
+                <li key={l.sku}>
+                  <span class="cart-name">
+                    {lineName(l, locale)}
+                    <span class="cart-unit">{formatMoney(l.unitPrice)}</span>
+                  </span>
+                  <span class="num cart-sum">
+                    {formatMoney(money(l.unitPrice.minor * l.qty, l.unitPrice.currency))}
+                  </span>
+                  <span class="qty">
+                    <button
+                      type="button"
+                      class="step"
+                      aria-label={t("voice.removeOne", { name: lineName(l, locale) })}
+                      onClick={() => setQty(l.sku, l.qty - 1)}
+                    >
+                      <MinusIcon />
+                    </button>
+                    <span class="qty-n" aria-live="polite">
+                      {l.qty}
+                    </span>
+                    <button
+                      type="button"
+                      class="step"
+                      aria-label={t("voice.addOne", { name: lineName(l, locale) })}
+                      onClick={() => setQty(l.sku, l.qty + 1)}
+                    >
+                      <PlusIcon />
+                    </button>
+                  </span>
                   <button
                     type="button"
-                    class="step"
-                    aria-label={t("voice.removeOne", { name: lineName(l, locale) })}
-                    onClick={() => setQty(l.sku, l.qty - 1)}
+                    class="step remove"
+                    aria-label={t("voice.removeAll", { name: lineName(l, locale) })}
+                    onClick={() => setQty(l.sku, 0)}
                   >
-                    −
+                    <CloseIcon />
                   </button>
-                  <span aria-live="polite">{l.qty}</span>
-                  <button
-                    type="button"
-                    class="step"
-                    aria-label={t("voice.addOne", { name: lineName(l, locale) })}
-                    onClick={() => setQty(l.sku, l.qty + 1)}
-                  >
-                    +
-                  </button>
-                </span>
-                <span class="num">
-                  {formatMoney(money(l.unitPrice.minor * l.qty, l.unitPrice.currency))}
-                </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {catalog.length > 0 && (
+            <div class="chips" role="group" aria-label={t("voice.menu")}>
+              {catalog.map((item) => (
                 <button
+                  key={item.sku}
                   type="button"
-                  class="step remove"
-                  aria-label={t("voice.removeAll", { name: lineName(l, locale) })}
-                  onClick={() => setQty(l.sku, 0)}
+                  class="chip"
+                  onClick={() => onCart(mergeLines(cartRef.current, [catalogLine(item)]))}
                 >
-                  ×
+                  + {lineName(item, locale)}
                 </button>
-              </li>
-            ))}
-          </ul>
-          <button type="button" class="primary" disabled={busy} onClick={onCharge}>
+              ))}
+            </div>
+          )}
+          {cart.length > 0 && (
+            <button type="button" class="link clear-cart" onClick={() => onCart([])}>
+              {t("voice.clear")}
+            </button>
+          )}
+        </div>
+      )}
+      {cart.length > 0 && (
+        <div class="charge-bar">
+          <div class="charge-total">
+            <span class="charge-label">{t("vendor.total")}</span>
+            <span class="num charge-amount">{formatMoney(cartTotal(cart))}</span>
+          </div>
+          <button type="button" class="primary charge" disabled={busy} onClick={onCharge}>
             {busy
               ? t("vendor.creating")
               : t("vendor.chargeAmount", { amount: formatMoney(cartTotal(cart)) })}
           </button>
-          <button type="button" class="secondary" onClick={() => onCart([])}>
-            {t("voice.clear")}
-          </button>
-        </>
+        </div>
       )}
     </section>
   );

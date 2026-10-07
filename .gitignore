@@ -18,3 +18,5 @@ test-results/
 playwright-report/
 blob-report/
 .playwright-cli/
+# Lovable-synced design reference: a separate project, never committed here.
+lovable/
