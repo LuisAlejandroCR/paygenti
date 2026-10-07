@@ -4,6 +4,17 @@
 
 # Memoria — paygent
 
+## 2026-10-07 — Confirmación bancaria automática (spec, `docs/bank-confirm.md`)
+
+- El usuario pidió confirmar Bre-B sin PIN usando los avisos del banco: correo de Banco de Bogotá
+  ("Comprobante de Transferencia") y de Nequi ("Recibiste plata por Bre-B").
+- Sin fricción: Google sign-in crea el reenvío y el filtro por la API de Gmail; Paygent se autoverifica la
+  dirección. Se descartó leer el buzón entero (más permiso del necesario).
+- En Android, opcional: leer la notificación de la app del banco con `NotificationListenerService`. iOS no
+  lo permite.
+- Estado nuevo `bank_confirmed`, nunca `paid`; solo con una coincidencia única por monto en 30 min.
+- ⏳ Faltan muestras reales de cada banco y confirmar la clasificación de los permisos de Gmail.
+
 ## 2026-10-07 — Voz en Firefox (`feat/voice-firefox`)
 
 - Firefox no trae `SpeechRecognition`. Respaldo: `web/src/stt.ts` elige `native` → `record`
