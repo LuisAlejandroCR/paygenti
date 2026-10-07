@@ -1322,3 +1322,20 @@ button.link {
     border: 0;
   }
 }
+
+.agent-tools ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0;
+}
+.agent-tools li.denied code {
+  text-decoration: line-through;
+}
+.agent-tools .badge {
+  margin-left: 0.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: #003087;
+  color: #fff;
+}

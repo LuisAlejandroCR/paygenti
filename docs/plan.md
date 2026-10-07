@@ -23,6 +23,7 @@ Locale de la interfaz: `es-MX`.
 | PayPal | Solo a través de `server/paypal/gateway.ts`; `RestPayPal` (sandbox) o `MockPayPal` (sin keys) |
 | Tiempo real | SSE por terminal: `GET /api/terminals/:id/events` |
 | IA | Claude (Haiku 4.5 para voz→carrito, Sonnet 5.5 para el agente) con ruta degradada sin key |
+| PayPal + IA | `@paypal/agent-toolkit` (adaptador Bedrock): lista blanca de lectura y cobro para el agente; reembolsos solo por el candado con PIN |
 | Persistencia | En memoria detrás de una interfaz `Store`; basta para la demo |
 
 Reglas de arquitectura:

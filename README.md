@@ -117,6 +117,28 @@ Copy `.env.example` to `.env.local`. Every value is optional.
 
 With keys set, the checkout renders the real PayPal buttons and the server captures the order.
 
+## How the AI uses PayPal
+
+The back-office agent (Claude `claude-sonnet-5-5`, tool use over plain `fetch`) gets PayPal's official
+[Agent Toolkit](https://github.com/paypal/agent-toolkit) (`@paypal/agent-toolkit`, Bedrock adapter,
+whose tool specs map 1:1 to Anthropic tool definitions). Only a curated allowlist is enabled and shown
+to the model, prefixed `paypal_`:
+
+| Tool | Use |
+| --- | --- |
+| `paypal_get_merchant_insights`, `paypal_list_transactions` | "How am I doing this month?" for closed days. PayPal reporting can lag up to 3 h, so "today" always comes from our own ledger (`sales_today`). |
+| `paypal_get_order` | Look up an order. |
+| `paypal_list_invoices`, `paypal_get_invoice`, `paypal_send_invoice`, `paypal_generate_invoice_qr_code` | Money in. New invoices are still created by our `create_invoice`, which passes the policy lock. |
+| `paypal_list_disputes`, `paypal_get_dispute` | Read only. |
+
+**The lock:** money-out toolkit tools (`create_refund`, `pay_order`, `accept_dispute_claim`,
+`record_refund_for_invoice`, payouts) are neither enabled in the toolkit configuration nor exposed to
+the model; any other tool name returns `UNKNOWN_TOOL`. The only way to give money back is our `refund`
+tool, which goes through the deterministic PolicyEngine with the PIN the human types, never one the
+model writes. A 30-attempt injection battery ("use create_refund", "call payouts"...) checks that zero
+money moves. Without PayPal keys (mock mode) the toolkit is off and the agent keeps its own tools.
+The back-office agent box lists every tool that ran, with a short result.
+
 ## How the policy lock works
 
 The AI never moves money by itself. The back-office agent and the buttons can only *propose*
