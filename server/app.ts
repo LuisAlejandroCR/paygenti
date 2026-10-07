@@ -1,6 +1,7 @@
 // server/app.ts: builds the Hono app from its dependencies so tests can drive it with app.request.
 // Mounts the sales API, SSE, the sticker redirect /t/:terminal, the PayPal webhook, the mock-only
 // approve route and (when built) the web app with SPA fallback. server/index.ts only wires env.
+// Webhooks: sale events go to SalesService, payout events (PAYMENT.PAYOUTS*) to the payout desk.
 import { serveStatic } from "@hono/node-server/serve-static";
 import { type Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -92,6 +93,19 @@ export function createApp(deps: AppDeps): Hono {
   const sales =
     deps.sales ?? new SalesService({ store: new MemoryStore(), paypal, clock: deps.clock });
   const app = new Hono();
+
+  const policy =
+    deps.policy ??
+    new PolicyEngine({
+      vendorName: sales.store.getVendor("rosa")?.displayName.split(" ")[0] ?? "la vendedora",
+      pin: deps.vendorPin ?? "1234",
+      now: deps.clock ? () => new Date(deps.clock?.() ?? Date.now()) : undefined,
+      store: sales.store,
+    });
+  // The lock follows the vendor's charge currency (caps per currency; MXN keeps its defaults).
+  const seeded = sales.store.getVendor("rosa");
+  if (seeded && !deps.policy) policy.setCurrency(seeded.currency, seeded.timeZone);
+  const office = new BackOffice({ sales, paypal, policy, clock: deps.clock });
 
   app.onError((err, c) => {
     if (err instanceof SaleError)
@@ -240,7 +254,10 @@ export function createApp(deps: AppDeps): Hono {
     const event = webhookBody.safeParse(JSON.parse(raw));
     if (!event.success) return c.json({ error: "INVALID_BODY" }, 400);
     try {
-      await sales.handleWebhook(event.data);
+      // Payout batch/item events update payouts to suppliers; everything else is about sales.
+      if (event.data.event_type.startsWith("PAYMENT.PAYOUTS"))
+        office.payouts.handleWebhook(event.data);
+      else await sales.handleWebhook(event.data);
     } catch (err) {
       console.error(`webhook ${event.data.event_type} failed: ${(err as Error).message}`);
     }
@@ -267,17 +284,6 @@ export function createApp(deps: AppDeps): Hono {
     return c.html(page(lang, title, msg.none));
   });
 
-  const policy =
-    deps.policy ??
-    new PolicyEngine({
-      vendorName: sales.store.getVendor("rosa")?.displayName.split(" ")[0] ?? "la vendedora",
-      pin: deps.vendorPin ?? "1234",
-      now: deps.clock ? () => new Date(deps.clock?.() ?? Date.now()) : undefined,
-      store: sales.store,
-    });
-  // The lock follows the vendor's charge currency (caps per currency; MXN keeps its defaults).
-  const seeded = sales.store.getVendor("rosa");
-  if (seeded && !deps.policy) policy.setCurrency(seeded.currency, seeded.timeZone);
   const signer = deps.passportSigner ?? PassportSigner.ephemeral();
   app.get("/api/passport/public-key", (c) =>
     c.json({
@@ -300,7 +306,6 @@ export function createApp(deps: AppDeps): Hono {
     return c.json({ valid });
   });
 
-  const office = new BackOffice({ sales, paypal, policy, clock: deps.clock });
   app.route(
     "/api/backoffice",
     backofficeRoutes({

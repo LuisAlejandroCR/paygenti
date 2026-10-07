@@ -1,14 +1,16 @@
 // server/backoffice/tools.ts: the vendor's back-office tools — today's sales, cash reconcile,
-// invoice with QR and refund. Reports are deterministic arithmetic over the store; refunds and
-// invoices always pass through the PolicyEngine (the lock) before PayPal is called.
+// invoice with QR, refund and payouts to suppliers (server/backoffice/payouts.ts). Reports are
+// deterministic arithmetic over the store; refunds, payouts and invoices always pass through the
+// PolicyEngine (the lock) before PayPal is called.
 import { randomUUID } from "node:crypto";
 import QRCode from "qrcode";
 import { type Money, money } from "../../shared/money";
-import type { Sale } from "../../shared/types";
+import type { Payout, Sale } from "../../shared/types";
 import type { PassportSale } from "../passport";
 import { PayPalError, type PayPalGateway } from "../paypal/gateway";
 import { type Actor, type DecisionParams, localDay, type PolicyEngine } from "../policy";
 import type { SalesService } from "../sales";
+import { isMoneyOut, PayoutDesk } from "./payouts";
 
 export interface SalesTodayReport {
   day: string;
@@ -58,6 +60,10 @@ export interface LedgerReport {
   terminals: string[];
   rows: LedgerRow[];
   totals: { paid: Money; refunded: Money; net: Money; cash: Money; count: number };
+  /** Money out to suppliers that day: a separate section, never mixed into the sales totals. */
+  payouts: Payout[];
+  /** Sum of the day's payouts that left the account (excludes denied, failed, returned...). */
+  paidOut: Money;
 }
 
 export interface CashReconcile {
@@ -113,13 +119,25 @@ export class BackOffice {
   private readonly sales: SalesService;
   private readonly paypal: PayPalGateway;
   readonly policy: PolicyEngine;
+  readonly payouts: PayoutDesk;
   private readonly clock: () => number;
+
+  /** "mock" or "sandbox": the payouts panel warns that the sandbox has no PHONE payouts. */
+  get paypalMode(): PayPalGateway["mode"] {
+    return this.paypal.mode;
+  }
 
   constructor(deps: BackOfficeDeps) {
     this.sales = deps.sales;
     this.paypal = deps.paypal;
     this.policy = deps.policy;
     this.clock = deps.clock ?? Date.now;
+    this.payouts = new PayoutDesk({
+      store: deps.sales.store,
+      paypal: deps.paypal,
+      policy: deps.policy,
+      clock: this.clock,
+    });
   }
 
   private today(): string {
@@ -179,6 +197,10 @@ export class BackOffice {
     const cash = sum((r) => (r.method === "cash" ? r.paid.minor : 0));
     const refunded = sum((r) => r.refunded.minor);
     const terminals = [...new Set(all.map((s) => s.terminalId))].sort();
+    const payouts = this.payouts.forDay(day);
+    const paidOut = payouts
+      .filter((p) => isMoneyOut(p.status) && p.amount.currency === c)
+      .reduce((n, p) => n + p.amount.minor, 0);
     return {
       day,
       terminals,
@@ -190,6 +212,8 @@ export class BackOffice {
         cash: money(cash, c),
         count: rows.filter((r) => r.paid.minor > 0).length,
       },
+      payouts,
+      paidOut: money(paidOut, c),
     };
   }
 

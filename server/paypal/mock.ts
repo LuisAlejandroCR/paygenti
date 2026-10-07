@@ -1,14 +1,18 @@
 // server/paypal/mock.ts: in-memory PayPal used by tests, local dev and judge mode without keys.
 // Mirrors the sandbox state machine: CREATED -> APPROVED (buyer) -> COMPLETED (capture).
 // `approve` and `decline` stand in for the buyer's wallet; they are not part of the real API.
+// Payouts: created PENDING, then SUCCESS on the first status read — or DENIED (item FAILED) when the
+// receiver contains "denied"; `payoutError` makes the next create fail (e.g. PAYOUTS_NOT_ENABLED).
 import { randomUUID } from "node:crypto";
 import type { Money } from "../../shared/money";
 import {
   type CreateInvoiceInput,
   type CreateOrderInput,
+  type CreatePayoutInput,
   type GatewayCapture,
   type GatewayInvoice,
   type GatewayOrder,
+  type GatewayPayout,
   type GatewayRefund,
   PayPalError,
   type PayPalGateway,
@@ -19,12 +23,58 @@ interface MockOrder extends GatewayOrder {
   capture?: GatewayCapture;
 }
 
+interface MockPayout {
+  payout: GatewayPayout;
+  deny: boolean;
+}
+
 export class MockPayPal implements PayPalGateway {
   readonly mode = "mock" as const;
   readonly clientId = undefined;
   private readonly orders = new Map<string, MockOrder>();
   private readonly captures = new Map<string, GatewayCapture & { refunded: number }>();
+  private readonly payouts = new Map<string, MockPayout>();
   private readonly idempotent = new Map<string, unknown>();
+  /** When set, the next createPayout throws it once (tests: permission, funds, timeout). */
+  payoutError: PayPalError | undefined;
+
+  async createPayout(input: CreatePayoutInput): Promise<GatewayPayout> {
+    const failure = this.payoutError;
+    this.payoutError = undefined;
+    if (failure) throw failure;
+    return this.once(`payout:${input.senderBatchId}`, () => {
+      if (input.amount.minor <= 0)
+        throw new PayPalError("amount must be positive", 422, "INVALID_PARAMETER_VALUE");
+      if (!input.receiver.trim())
+        throw new PayPalError("receiver is required", 400, "VALIDATION_ERROR");
+      const batchId = `MOCKPOUT-${randomUUID().slice(0, 13).toUpperCase()}`;
+      const payout: GatewayPayout = {
+        batchId,
+        batchStatus: "PENDING",
+        senderBatchId: input.senderBatchId,
+        items: [
+          { itemId: `MOCKITEM-${randomUUID().slice(0, 13).toUpperCase()}`, status: "PENDING" },
+        ],
+      };
+      this.payouts.set(batchId, { payout, deny: /denied/i.test(input.receiver) });
+      return { ...payout, items: [] };
+    });
+  }
+
+  /** Deterministic settlement: the first read after create settles to SUCCESS or DENIED. */
+  async getPayout(batchId: string): Promise<GatewayPayout> {
+    const found = this.payouts.get(batchId);
+    if (!found) throw new PayPalError(`payout ${batchId} not found`, 404, "RESOURCE_NOT_FOUND");
+    const p = found.payout;
+    const item = p.items[0];
+    if (p.batchStatus === "PENDING" && item) {
+      p.batchStatus = found.deny ? "DENIED" : "SUCCESS";
+      item.status = found.deny ? "FAILED" : "SUCCESS";
+      if (found.deny) item.error = "RECEIVER_UNREGISTERED";
+      else item.transactionId = `MOCKTX-${randomUUID().slice(0, 13).toUpperCase()}`;
+    }
+    return structuredClone(p);
+  }
 
   async createOrder(input: CreateOrderInput): Promise<GatewayOrder> {
     return this.once(`create:${input.idempotencyKey}`, () => {

@@ -2,7 +2,7 @@
 // Two implementations: RestPayPal (real sandbox REST) and MockPayPal (in-memory, zero setup).
 // Nothing outside server/paypal/ may call PayPal's HTTP API directly.
 import type { Money } from "../../shared/money";
-import type { CartLine } from "../../shared/types";
+import type { CartLine, RecipientType } from "../../shared/types";
 
 export type OrderStatus =
   | "CREATED"
@@ -59,6 +59,48 @@ export interface GatewayInvoice {
   qrPngBase64?: string;
 }
 
+/** Payouts v1 batch_status. */
+export type PayoutBatchStatus = "PENDING" | "PROCESSING" | "SUCCESS" | "DENIED" | "CANCELED";
+
+/** Payouts v1 item transaction_status. */
+export type PayoutItemStatus =
+  | "SUCCESS"
+  | "FAILED"
+  | "PENDING"
+  | "UNCLAIMED"
+  | "RETURNED"
+  | "ONHOLD"
+  | "BLOCKED"
+  | "REFUNDED"
+  | "REVERSED";
+
+export interface CreatePayoutInput {
+  /** sender_batch_id (PayPal refuses a reuse within 30 days); also sent as PayPal-Request-Id. */
+  senderBatchId: string;
+  recipientType: RecipientType;
+  receiver: string;
+  amount: Money;
+  /** sender_item_id. */
+  senderItemId: string;
+  note?: string;
+}
+
+export interface GatewayPayoutItem {
+  itemId: string;
+  status?: PayoutItemStatus;
+  transactionId?: string;
+  /** PayPal error name when the item failed (e.g. RECEIVER_UNREGISTERED). */
+  error?: string;
+}
+
+export interface GatewayPayout {
+  batchId: string;
+  batchStatus: PayoutBatchStatus;
+  senderBatchId: string;
+  /** Filled by GET; the create response only carries the batch header. */
+  items: GatewayPayoutItem[];
+}
+
 export interface WebhookHeaders {
   authAlgo: string;
   certUrl: string;
@@ -77,6 +119,13 @@ export interface PayPalGateway {
   refundCapture(captureId: string, amount: Money, idempotencyKey: string): Promise<GatewayRefund>;
   /** Create an invoice, mark it sent without emailing, and fetch its QR (Invoicing v2). */
   createInvoice(input: CreateInvoiceInput): Promise<GatewayInvoice>;
+  /**
+   * Payouts v1 batch with one item. A missing Payouts permission surfaces as PayPalError with
+   * issue PAYOUTS_NOT_ENABLED.
+   */
+  createPayout(input: CreatePayoutInput): Promise<GatewayPayout>;
+  /** Latest batch and item status (GET /v1/payments/payouts/{id}). */
+  getPayout(batchId: string): Promise<GatewayPayout>;
   /** True only when PayPal confirms the signature for our webhook id. */
   verifyWebhook(headers: WebhookHeaders, rawBody: string): Promise<boolean>;
 }

@@ -1,6 +1,8 @@
 // server/backoffice/agent.ts: the back-office agent — Claude with tool use over the Messages API.
 // The model only proposes tool calls; every call runs through BackOffice and the policy lock.
 // A refund uses the PIN typed by the human in the HTTP request, never anything the model writes.
+// Payouts: the model can only propose_payout (a dry run through the lock); the vendor executes it
+// in the UI with her PIN. No payout-executing tool exists in the model's tool list.
 import { z } from "zod";
 import { type Currency, formatMoney, money } from "../../shared/money";
 import type { Lang } from "../lang";
@@ -81,6 +83,25 @@ export const TOOLS: ToolSpec[] = [
       required: ["sale_id", "amount_minor"],
     },
   },
+  {
+    name: "list_suppliers",
+    description: "List the vendor's saved suppliers (the only people payouts can go to).",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "propose_payout",
+    description:
+      "Propose paying one of the vendor's saved suppliers. Returns a pending proposal that the vendor confirms with her PIN in the app; this tool never pays and you never handle PINs.",
+    input_schema: {
+      type: "object",
+      properties: {
+        supplier: { type: "string", description: "Supplier name, email or phone as saved" },
+        amount_minor: { type: "integer", minimum: 1 },
+        note: { type: "string" },
+      },
+      required: ["supplier", "amount_minor"],
+    },
+  },
 ];
 
 const SYSTEM = [
@@ -92,6 +113,8 @@ const SYSTEM = [
   "Today's numbers always come from sales_today: PayPal reporting can lag up to 3 hours.",
   "For closed days, weeks or the month use the paypal_* tools (PayPal Agent Toolkit), which are read",
   "or money-in only. The only way to give money back is the refund tool.",
+  "To pay a supplier use propose_payout: it only drafts a proposal the vendor confirms with her PIN;",
+  "say so plainly and never claim the supplier was paid.",
 ].join(" ");
 
 const PAYPAL_HINT =
@@ -105,6 +128,12 @@ const invoiceInput = z.object({
 const refundInput = z.object({
   sale_id: z.string().min(1).max(64),
   amount_minor: z.number().int().min(1).max(10_000_000),
+});
+/** Strict: a model that slips a pin, recipient email or currency into the call gets INVALID_INPUT. */
+const proposeInput = z.strictObject({
+  supplier: z.string().min(1).max(127),
+  amount_minor: z.number().int().min(1).max(10_000_000),
+  note: z.string().max(200).optional(),
 });
 
 export interface AgentAction {
@@ -209,6 +238,26 @@ async function runTool(
         { saleId: p.data.sale_id, amount: money(p.data.amount_minor, currency) },
         { actor: who.actor, pin: who.pin, client: who.client },
       );
+      return { ok: r.ok, result: r };
+    }
+    case "list_suppliers":
+      return {
+        ok: true,
+        result: {
+          suppliers: office.payouts
+            .suppliers()
+            .map((s) => ({ name: s.name, currency: s.currency, type: s.recipientType })),
+        },
+      };
+    case "propose_payout": {
+      const p = proposeInput.safeParse(input);
+      if (!p.success) return { ok: false, result: { code: "INVALID_INPUT" } };
+      // Never executes: the human's PIN and actor are not even passed in.
+      const r = office.payouts.propose({
+        supplier: p.data.supplier,
+        amountMinor: p.data.amount_minor,
+        note: p.data.note,
+      });
       return { ok: r.ok, result: r };
     }
     default:

@@ -170,13 +170,34 @@ describe("rules: payout", () => {
     ).toBe("PIN_REQUIRED");
   });
 
+  it("caps each payout at 300 MXN", () => {
+    const c = { config: payoutCfg };
+    expect(decide(payout("proveedor@example.com", 30000), ctx(c)).allow).toBe(true);
+    const over = decide(payout("proveedor@example.com", 30001), ctx(c));
+    expect(over).toMatchObject({ allow: false, code: "PAYOUT_OVER_CAP" });
+    expect(over.params).toMatchObject({ max: "$300.00 MXN" });
+  });
+
   it("caps payouts per day at 500 MXN", () => {
     const c = { config: payoutCfg };
-    expect(decide(payout("proveedor@example.com", 50000), ctx(c)).allow).toBe(true);
-    expect(decide(payout("proveedor@example.com", 50001), ctx(c)).code).toBe("PAYOUT_DAILY_CAP");
+    expect(
+      decide(payout("proveedor@example.com", 20000), ctx({ ...c, paidOutToday: mxn(30000) })).allow,
+    ).toBe(true);
+    expect(
+      decide(payout("proveedor@example.com", 20001), ctx({ ...c, paidOutToday: mxn(30000) })).code,
+    ).toBe("PAYOUT_DAILY_CAP");
     expect(
       decide(payout("proveedor@example.com", 100), ctx({ ...c, paidOutToday: mxn(49950) })).code,
     ).toBe("PAYOUT_DAILY_CAP");
+  });
+
+  it("supplier list changes need the vendor and her PIN", () => {
+    const add: PolicyAction = { kind: "supplier", op: "add", recipient: "masa@example.com" };
+    expect(decide(add, ctx()).code).toBe("SUPPLIER_OK");
+    expect(decide(add, ctx({ pinVerified: false })).code).toBe("PIN_REQUIRED");
+    expect(decide(add, ctx({ actor: "agent" })).code).toBe("VENDOR_REQUIRED");
+    expect(decide(add, ctx({ actor: "customer" })).code).toBe("CUSTOMER_NOT_AUTHORIZED");
+    expect(decide({ ...add, recipient: " " }, ctx()).code).toBe("MALFORMED_ACTION");
   });
 });
 
@@ -414,13 +435,14 @@ describe("PolicyEngine", () => {
     const p: PolicyAction = {
       kind: "payout",
       recipient: "proveedor@example.com",
-      amount: mxn(50000),
+      amount: mxn(25000),
     };
-    const d = e.decide(p, vendor);
-    expect(d.allow).toBe(true);
+    const d1 = e.decide(p, vendor);
+    const d2 = e.decide(p, vendor);
+    expect(d1.allow && d2.allow).toBe(true);
     expect(e.decide({ ...p, amount: mxn(100) }, vendor).code).toBe("PAYOUT_DAILY_CAP");
     clock.t = new Date(NOON.getTime() + 6 * 60_000);
-    expect(e.commit(d.ticket as string)).toBe(false);
+    expect(e.commit(d1.ticket as string)).toBe(false);
     expect(e.decide(p, vendor).allow).toBe(true);
     expect(e.totals().paidOut.minor).toBe(0);
   });

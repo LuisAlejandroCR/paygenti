@@ -4,6 +4,48 @@
 
 # Memoria — paygent
 
+## 2026-10-07 — Pagos a proveedores (`feat/payouts`)
+
+- Hechos verificados (leídos 2026-10-07):
+  - https://developer.paypal.com/api/payments.payouts-batch/v1/schema.json (spec OpenAPI de
+    https://developer.paypal.com/docs/api/payments.payouts-batch/v1/): `POST /v1/payments/payouts`
+    con `sender_batch_header` (`sender_batch_id`, `recipient_type`, `email_subject`,
+    `email_message`) e `items[]` (`recipient_type` EMAIL | PHONE | PAYPAL_ID, `amount` =
+    `{ value, currency }` — no `currency_code` —, `receiver`, `note`, `sender_item_id`).
+    `PayPal-Request-Id` se guarda 30 días; un `sender_batch_id` usado en los últimos 30 días se
+    rechaza; con un 5xx se puede reintentar con el mismo `sender_batch_id`. `batch_status`:
+    DENIED | PENDING | PROCESSING | SUCCESS | CANCELED; `transaction_status` del ítem: SUCCESS |
+    FAILED | PENDING | UNCLAIMED | RETURNED | ONHOLD | BLOCKED | REFUNDED | REVERSED. Sin permiso:
+    403 `NOT_AUTHORIZED`; también existe `REQUIRED_SCOPE_MISSING`. **El sandbox no admite PHONE.**
+  - https://developer.paypal.com/api/rest/webhooks/event-names/: `PAYMENT.PAYOUTSBATCH.DENIED`,
+    `.PROCESSING`, `.SUCCESS`; `PAYMENT.PAYOUTS-ITEM.BLOCKED`, `.CANCELED`, `.FAILED`, `.HELD`,
+    `.REFUNDED`, `.RETURNED`, `.SUCCEEDED`, `.UNCLAIMED`.
+  - https://developer.paypal.com/docs/payouts/standard/: en live hay que pedir acceso a Payouts y
+    fondear el saldo; se paga con saldo PayPal.
+- Sandbox real (2026-10-07, solo lectura, sin mover dinero): el token OAuth de la app trae el scope
+  `https://uri.paypal.com/payments/payouts` y `GET /v1/payments/payouts/<id falso>` responde 404
+  `INVALID_RESOURCE_ID`, no 403: **Payouts está activo**. No se hizo un pago real porque no hay
+  registrada una cuenta personal sandbox; ⏳ hacer uno pequeño desde `/backoffice` con esa cuenta.
+- Gateway: `createPayout` / `getPayout` en `PayPalGateway`. `RestPayPal` manda `sender_batch_id`
+  = `PayPal-Request-Id` = id del pago; 403 o `NOT_AUTHORIZED` / `AUTHORIZATION_ERROR` /
+  `REQUIRED_SCOPE_MISSING` se traducen a `PAYOUTS_NOT_ENABLED` (la UI lo explica). `MockPayPal`:
+  PENDING al crear, SUCCESS al primer GET; un receptor con «denied» queda DENIED.
+- Cerrojo: nuevo tope **por pago** = 60 % del tope diario (MXN 300 de 500; USD 15 de 25). El diario
+  no cambió. Alta/baja de proveedor es una acción del cerrojo (`kind: "supplier"`): vendedora + PIN,
+  auditada. La allowlist sale de la tabla `suppliers` (`setPayoutAllowlist`), no de la config. El
+  proveedor guarda su moneda; si no es la de la cuenta, `CURRENCY_MISMATCH` (sin FX).
+- Presupuesto: `commit` solo cuando PayPal acepta; `release` si lo rechaza (4xx). Si la respuesta se
+  pierde (timeout, red, 5xx) el presupuesto **se queda gastado** y el pago queda `UNKNOWN`: puede
+  existir, así que liberar el tope lo debilitaría. «Actualizar estado» reenvía el mismo
+  `sender_batch_id` (idempotente) para recuperar el batch. Un pago luego DENIED no devuelve tope.
+- IA: el agente tiene `list_suppliers` y `propose_payout` (zod estricto: si mete `pin` o
+  `receiver` → `INVALID_INPUT`). `PolicyEngine.preview` evalúa «¿pasaría con PIN?» sin ticket y lo
+  audita como `propose`. La UI rellena el formulario de pago y la vendedora teclea el PIN. Ninguna
+  herramienta del modelo ejecuta pagos; batería de 8 ataques + 5 nuevos en la batería del cerrojo.
+- Persistencia: migración 2 (`suppliers`, `payouts`). El `requestId` del cliente es el id del pago:
+  un doble envío devuelve el primero. `/api/backoffice/config` ya no expone la allowlist.
+- Libro del día: los pagos van en una sección aparte bajo AG Grid; los totales de ventas no cambian.
+
 ## 2026-10-07 — Checkout con Venmo, Pay Later y tarjeta: JS SDK v6 (`feat/venmo-paylater`)
 
 - Hechos verificados (leídos 2026-10-07):
