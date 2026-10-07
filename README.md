@@ -21,8 +21,8 @@ Entry for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). The
 - **Paid announcement** — the vendor's phone turns green and says the amount out loud
   (en-US or es-MX voice).
 - **Back office (`/backoffice`, PIN `1234` in the demo)** — today's sales, cash reconcile, invoice
-  with QR, refunds, and an optional Claude assistant. Money only moves through a deterministic
-  policy lock.
+  with QR, refunds, payouts to suppliers, and an optional Claude assistant. Money only moves
+  through a deterministic policy lock.
 
 ## Try it in 60 seconds
 
@@ -73,6 +73,26 @@ Changing any number makes it INVALID. Set `PASSPORT_SIGNING_KEY` (Ed25519 PKCS8,
 DER) for a stable key; without it each start uses an ephemeral key and the report says
 "demo key".
 
+## Suppliers & payouts (money out)
+
+"Pay the masa supplier": in `/backoffice` the **Suppliers & payouts** panel keeps an allowlist of
+suppliers (name, PayPal email or phone, currency) and pays them from the PayPal balance with the
+[Payouts API](https://developer.paypal.com/docs/api/payments.payouts-batch/v1/) (one batch, one item).
+
+- Adding or removing a supplier, and every payout, needs the vendor's PIN; the policy lock decides
+  and writes each decision to the audit log.
+- Caps per currency: MXN 300 per payout and MXN 500 per day (USD 15 / 25, and so on). Budget is
+  committed only after PayPal accepts the payout and released if it refuses; if PayPal's answer is
+  lost (timeout) the budget stays spent, because the payout may exist.
+- Each payout's id is PayPal's `sender_batch_id` and `PayPal-Request-Id`, so a retried submit pays
+  once. The history shows PayPal's status (Pending, Paid, Denied, Unclaimed...); payout webhooks and
+  a **Refresh status** button keep it current. The daily ledger lists payouts in their own section.
+- The Claude assistant can only **propose** a payout (`propose_payout`): the proposal fills the pay
+  form and the vendor confirms it with her PIN. The model never sees a PIN and has no tool that pays.
+- Mock mode pays instantly (a receiver containing `denied` simulates a denied payout). In the sandbox,
+  the app needs **Payouts** enabled (developer.paypal.com → your app → Features); otherwise the panel
+  shows `PAYOUTS_NOT_ENABLED`. The sandbox does not support phone payouts: use an email.
+
 ## Run locally
 
 Requires Node 22+.
@@ -104,7 +124,7 @@ Copy `.env.example` to `.env.local`. Every value is optional.
 | `PAYPAL_WEBHOOK_ID` | Verifies `/webhooks/paypal` signatures |
 | `ANTHROPIC_API_KEY` | Claude for voice-to-cart and the back-office agent; otherwise a rule parser runs |
 | `VENDOR_PIN` | PIN that unlocks the back office and refunds (demo default `1234`) |
-| `DATABASE_URL` | Postgres connection string; sales, catalog, audit log, PIN lockouts and daily refund caps then survive restarts. Unset: everything lives in memory |
+| `DATABASE_URL` | Postgres connection string; sales, catalog, suppliers, payouts, audit log, PIN lockouts and daily refund/payout caps then survive restarts. Unset: everything lives in memory |
 | `PASSPORT_SIGNING_KEY` | Ed25519 private key (PKCS8 PEM or base64 DER) that signs sales passports; otherwise an ephemeral demo key |
 
 ## PayPal sandbox setup
@@ -113,9 +133,15 @@ Copy `.env.example` to `.env.local`. Every value is optional.
    **Sandbox** → create an app; copy the client ID and secret into `PAYPAL_CLIENT_ID` /
    `PAYPAL_CLIENT_SECRET`.
 2. Under **Sandbox accounts** use the generated *Personal* account to pay at checkout.
-3. Optional webhooks: add `https://<your-host>/webhooks/paypal` to the app, subscribe to
-   `PAYMENT.CAPTURE.*`, and put its ID in `PAYPAL_WEBHOOK_ID`.
-4. Set `PUBLIC_URL` to the host customers will reach (QR codes and stickers point there).
+3. Optional webhooks: add `https://<your-host>/webhooks/paypal` to the app and put its ID in
+   `PAYPAL_WEBHOOK_ID`. Events handled (each signature is verified with PayPal):
+   - Sales: `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`,
+     `PAYMENT.CAPTURE.REFUNDED`.
+   - Payouts: `PAYMENT.PAYOUTSBATCH.PROCESSING`, `PAYMENT.PAYOUTSBATCH.SUCCESS`,
+     `PAYMENT.PAYOUTSBATCH.DENIED`, and `PAYMENT.PAYOUTS-ITEM.SUCCEEDED`, `.FAILED`, `.BLOCKED`,
+     `.CANCELED`, `.HELD`, `.REFUNDED`, `.RETURNED`, `.UNCLAIMED`.
+4. Payouts: enable **Payouts** for the app (Features). A live app needs PayPal to approve Payouts.
+5. Set `PUBLIC_URL` to the host customers will reach (QR codes and stickers point there).
 
 With keys set, the checkout renders the real PayPal buttons and the server captures the order.
 
@@ -158,8 +184,11 @@ to the model, prefixed `paypal_`:
 `record_refund_for_invoice`, payouts) are neither enabled in the toolkit configuration nor exposed to
 the model; any other tool name returns `UNKNOWN_TOOL`. The only way to give money back is our `refund`
 tool, which goes through the deterministic PolicyEngine with the PIN the human types, never one the
-model writes. A 30-attempt injection battery ("use create_refund", "call payouts"...) checks that zero
-money moves. Without PayPal keys (mock mode) the toolkit is off and the agent keeps its own tools.
+model writes. Supplier payouts work the same way: the agent's `propose_payout` only drafts a proposal
+that the vendor confirms with her PIN in the app. A 30-attempt injection battery ("use create_refund",
+"call payouts"...) plus a payout battery (unknown email, over the cap, a PIN in the tool call,
+invented payout tools) checks that zero money moves. Without PayPal keys (mock mode) the toolkit
+is off and the agent keeps its own tools.
 The back-office agent box lists every tool that ran, with a short result.
 
 ## How the policy lock works
@@ -170,7 +199,8 @@ decides, with no I/O and failing closed on anything malformed:
 
 - Refunds need the vendor's PIN on **each** request, are capped per refund (MXN 200) and per day
   (MXN 1,000), only within the same day, and never above what was captured.
-- Payouts go only to an allow-list with a daily cap.
+- Payouts go only to suppliers on the allowlist (adding one needs the PIN), need the PIN on each
+  payout, and are capped per payout (MXN 300) and per day (MXN 500).
 - Every decision is written to an audit log; text from customers or the model cannot unlock it
   (see `test/policy-injection.test.ts`).
 
@@ -211,6 +241,8 @@ del navegador; botón EN/ES arriba).
 - **Bocina:** abre `/soundbox?terminal=rosa-01` en un Android viejo, instálala, toca una vez para
   activar el sonido y déjala en pantalla completa: solo los pagos confirmados por PayPal suenan.
 - **Candado:** la IA solo propone; las devoluciones exigen el PIN cada vez y tienen topes.
+- **Proveedores y pagos:** en `/backoffice` guarda a tus proveedores (correo o teléfono de PayPal) y
+  págales con tu PIN (máx. 300 MXN por pago, 500 al día). El asistente solo propone el pago.
 - **Pasaporte de ventas:** en `/backoffice` genera un reporte firmado (Ed25519) de las ventas
   confirmadas por PayPal, con el efectivo aparte como declarado; cualquiera lo verifica en `/verify`.
 
