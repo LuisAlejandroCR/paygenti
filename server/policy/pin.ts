@@ -16,6 +16,17 @@ export interface PinGuardOptions {
   /** Wrong attempts from all clients within globalWindowMs that lock everyone. */
   globalMaxAttempts?: number;
   globalWindowMs?: number;
+  /** Lockout state saved by a previous process (a restart must not reset lockouts). */
+  state?: PinGuardState;
+  /** Called with a fresh snapshot after every attempt. */
+  onChange?: (state: PinGuardState) => void;
+}
+
+/** Serializable lockout state; never contains the PIN or its digest. */
+export interface PinGuardState {
+  clients: Array<{ key: string } & ClientState>;
+  globalFailures: number[];
+  globalLockedUntil: number;
 }
 
 export type PinResult =
@@ -46,6 +57,7 @@ export class PinGuard {
   readonly #clients = new Map<string, ClientState>();
   #globalFailures: number[] = [];
   #globalLockedUntil = 0;
+  readonly #onChange?: (state: PinGuardState) => void;
 
   constructor(opts: PinGuardOptions) {
     if (typeof opts.pin !== "string" || !PIN_PATTERN.test(opts.pin))
@@ -57,6 +69,23 @@ export class PinGuard {
     this.#maxLockoutMs = opts.maxLockoutMs ?? 60 * 60_000;
     this.#globalMax = opts.globalMaxAttempts ?? 50;
     this.#globalWindow = opts.globalWindowMs ?? 15 * 60_000;
+    this.#onChange = opts.onChange;
+    if (opts.state) {
+      for (const { key, ...c } of opts.state.clients) this.#clients.set(key, { ...c });
+      this.#globalFailures = [...opts.state.globalFailures];
+      this.#globalLockedUntil = opts.state.globalLockedUntil;
+    }
+  }
+
+  /** Clients with failures or a lockout history; clean clients are not worth saving. */
+  snapshot(): PinGuardState {
+    return {
+      clients: [...this.#clients]
+        .filter(([, c]) => c.failures > 0 || c.lockouts > 0 || c.lockedUntil > 0)
+        .map(([key, c]) => ({ key, ...c })),
+      globalFailures: [...this.#globalFailures],
+      globalLockedUntil: this.#globalLockedUntil,
+    };
   }
 
   /**
@@ -64,6 +93,12 @@ export class PinGuard {
    * a failure; any locked key (or the global backstop) refuses the attempt.
    */
   verify(candidate: unknown, clients: string | readonly string[] = ANON): PinResult {
+    const result = this.#verify(candidate, clients);
+    this.#onChange?.(this.snapshot());
+    return result;
+  }
+
+  #verify(candidate: unknown, clients: string | readonly string[]): PinResult {
     const now = this.#now();
     const keys = [...new Set(typeof clients === "string" ? [clients] : clients)];
     if (keys.length === 0) keys.push(ANON);

@@ -4,6 +4,36 @@
 
 # Memoria — paygent
 
+## 2026-10-06 — Persistencia en Postgres (`feat/persistence`)
+
+- `PostgresStore` (`server/db/postgres.ts`) se elige si hay `DATABASE_URL`; si no, `MemoryStore`
+  (tests, modo jurado sin setup). La interfaz `Store` sigue síncrona: el store carga todo a memoria al
+  arrancar y escribe a Postgres por una cola ordenada, un job por transacción. Así no se tocó ningún
+  caller (ni `server/backoffice/agent.ts`). Riesgo aceptado: una escritura en vuelo se pierde si el
+  proceso muere sin SIGTERM; con SIGTERM (`index.ts`) la cola se vacía antes de salir.
+- `Store` ahora también guarda lo del cerrojo: uso diario de topes (por día y moneda), reembolsos por
+  captura (antes un `Map` en `BackOffice`), audit log y estado de bloqueo del PIN. Un reinicio ya no
+  libera presupuesto de reembolso ni desbloquea el PIN.
+- Atomicidad: decide/commit son síncronos en un proceso (sin carreras); en SQL los contadores son
+  `INSERT … ON CONFLICT DO UPDATE SET x = x + EXCLUDED.x`, así dos procesos no pierden incrementos;
+  índice único parcial en `sales.capture_id`. Las reservas (tickets de 5 min) siguen en memoria: un
+  pago en vuelo muere con el proceso. Con más de una instancia el tope por instancia podría sumar;
+  Render free corre una sola.
+- Migraciones versionadas (`schema_migrations`) bajo `pg_advisory_xact_lock`. Dinero en minor units
+  `bigint` + `char(3)`. Pool `pg` de 3, timeouts de conexión/consulta, SSL según `sslmode`.
+- Tests: la misma suite de contrato corre contra `MemoryStore` y `PostgresStore` sobre PGlite
+  (Postgres en WASM, sin Docker) con un adaptador `test/pglite.ts`; más reinicio, concurrencia del
+  tope (12 reembolsos concurrentes, pasan 5 = 1,000 MXN) y dos stores incrementando el mismo contador.
+  `pgClient` (pool real) no se probó contra un servidor: ⏳ verificar en el primer deploy con Neon.
+- Proveedor (consultado 2026-10-06):
+  - Render Postgres free: expira a los 30 días de creada, 14 días de gracia y luego se borra —
+    https://render.com/docs/free . Descartado.
+  - Supabase free: 500 MB, pausa tras 1 semana de inactividad — https://supabase.com/pricing .
+    Riesgoso para un deploy que debe vivir hasta el 15-dic sin tráfico.
+  - **Neon free (elegido)**: 1 GB por proyecto, 100 CU-h/mes, scale-to-zero a los 5 min, sin
+    expiración ni borrado por inactividad documentados — https://neon.com/docs/introduction/plans .
+  - No se creó ninguna cuenta: falta crear el proyecto Neon y poner `DATABASE_URL` en Render.
+
 ## 2026-10-06 — Moneda por vendedora y onboarding (`feat/onboarding-currency`)
 
 - Hechos verificados (leídos 2026-10-06):

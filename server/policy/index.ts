@@ -3,6 +3,7 @@
 // PayPal confirms, release(ticket) frees it on failure. Daily counters roll over at local midnight.
 import { randomUUID } from "node:crypto";
 import type { Currency, Money } from "../../shared/money";
+import type { PolicyStore } from "../store";
 import { AuditLog } from "./audit";
 import { PinGuard, type PinResult } from "./pin";
 import {
@@ -28,6 +29,8 @@ export interface PolicyEngineOptions {
   audit?: AuditLog;
   /** How long an unconfirmed reservation holds budget before it lapses. */
   ticketTtlMs?: number;
+  /** Where cap usage, audit and PIN lockouts live across restarts; omitted = memory only. */
+  store?: PolicyStore;
 }
 
 export interface Request {
@@ -56,6 +59,7 @@ export class PolicyEngine {
   readonly #pin: PinGuard;
   readonly #now: () => Date;
   readonly #ttl: number;
+  readonly #store?: PolicyStore;
   readonly #tickets = new Map<string, Ticket>();
   #day: string;
   /** Real committed refunds/payouts today, per currency (no FX: never summed across currencies). */
@@ -89,10 +93,29 @@ export class PolicyEngine {
     });
     this.#vendorName = opts.vendorName;
     this.#now = opts.now ?? (() => new Date());
-    this.#pin = new PinGuard({ pin: opts.pin, now: () => this.#now().getTime() });
-    this.audit = opts.audit ?? new AuditLog();
+    const store = opts.store;
+    this.#store = store;
+    this.#pin = new PinGuard({
+      pin: opts.pin,
+      now: () => this.#now().getTime(),
+      state: store?.pinState(),
+      onChange: store ? (s) => store.savePinState(s) : undefined,
+    });
+    this.audit =
+      opts.audit ??
+      (store
+        ? new AuditLog({ initial: store.auditEntries(), onAppend: (e) => store.appendAudit(e) })
+        : new AuditLog());
     this.#ttl = opts.ticketTtlMs ?? 5 * 60_000;
     this.#day = localDay(this.#now(), this.config.timeZone);
+    this.#loadUsage();
+  }
+
+  /** Today's committed totals from the store, so a restart never frees refund or payout budget. */
+  #loadUsage(): void {
+    this.#used.clear();
+    for (const u of this.#store?.usageForDay(this.#day) ?? [])
+      this.#used.set(u.currency, { refunded: u.refunded, paidOut: u.paidOut });
   }
 
   get config(): PolicyConfig {
@@ -187,6 +210,13 @@ export class PolicyEngine {
       if (t.kind === "refund") u.refunded += t.amount;
       if (t.kind === "payout") u.paidOut += t.amount;
       this.#used.set(t.currency, u);
+      if (t.kind !== "other")
+        this.#store?.addUsage(
+          t.day,
+          t.currency,
+          t.kind === "refund" ? t.amount : 0,
+          t.kind === "payout" ? t.amount : 0,
+        );
     }
     this.audit.append({
       at: now.toISOString(),
@@ -237,7 +267,7 @@ export class PolicyEngine {
     const today = localDay(now, this.config.timeZone);
     if (today !== this.#day) {
       this.#day = today;
-      this.#used.clear();
+      this.#loadUsage();
     }
     for (const [id, t] of this.#tickets) if (t.expiresAt <= now.getTime()) this.#tickets.delete(id);
   }

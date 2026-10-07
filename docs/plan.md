@@ -122,7 +122,7 @@ aceptados, 250 rechazado por el tope.
 |---|---|---|---|
 | 1 | UI/UX web: pasada de diseño completa sobre todas las pantallas (jerarquía, estados vacíos, errores, onboarding) | Usuario | Revisión pantalla por pantalla a 375 px y 1280 px, claro/oscuro, en/es; e2e verde |
 | 2 | App móvil nativa iOS + Android (Expo SDK 57, `mobile/`): **en progreso** — venta, PAGADO, bocina, NFC sticker, HCE Android y administración implementados; typecheck, lint, jest, expo-doctor, export Android y prebuild Android verdes. Falta: compilar dev client y probar en dispositivos reales (EAS para iOS) | BRAINSTORM §4, §7 | Un iPhone y un Android leen el tag emulado (HCE solo en Android; iOS no puede emular) y abren `/t/:terminal`; ver `mobile/README.md` |
-| 3 | Persistencia: hoy todo vive en memoria y se pierde en cada reinicio o sueño de Render | Riesgo de demo | Ventas, catálogo y auditoría sobreviven a un reinicio |
+| 3 | Persistencia: hoy todo vive en memoria y se pierde en cada reinicio o sueño de Render | Riesgo de demo | Ventas, catálogo y auditoría sobreviven a un reinicio — código en `feat/persistence` (PostgresStore); ⏳ falta `DATABASE_URL` de Neon en Render |
 | 4 | Pruebas en dispositivos reales: sticker NTAG, voz en el mercado, soundbox en Android viejo | BRAINSTORM §9 | Un tap real en un sticker paga una orden sandbox y el teléfono habla |
 | 5 | Payouts a proveedores (requiere habilitarlo en la app sandbox) | Stretch | Pago a proveedor en allowlist, con PIN y tope, o propuesta firmada sin ejecutar |
 | 6 | Soundbox ESP32 (T3b) | Stretch | Opcional; solo con 1–5 cerrados |

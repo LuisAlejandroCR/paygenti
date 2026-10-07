@@ -273,6 +273,7 @@ export function createApp(deps: AppDeps): Hono {
       vendorName: sales.store.getVendor("rosa")?.displayName.split(" ")[0] ?? "la vendedora",
       pin: deps.vendorPin ?? "1234",
       now: deps.clock ? () => new Date(deps.clock?.() ?? Date.now()) : undefined,
+      store: sales.store,
     });
   // The lock follows the vendor's charge currency (caps per currency; MXN keeps its defaults).
   const seeded = sales.store.getVendor("rosa");
