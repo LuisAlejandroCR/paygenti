@@ -24,6 +24,7 @@ import { PayPalError } from "../paypal/gateway";
 import { localDay } from "../policy";
 import type { Store } from "../store";
 import { type ModelClient, runAgent } from "./agent";
+import type { PayPalTools } from "./paypal-tools";
 import { type Authority, type BackOffice, BackOfficeError } from "./tools";
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -71,6 +72,8 @@ const agentBody = z.strictObject({
 export interface BackOfficeRouteDeps {
   office: BackOffice;
   model?: ModelClient;
+  /** PayPal Agent Toolkit tools for the agent; omitted in mock mode. */
+  paypalTools?: PayPalTools;
   clock?: () => number;
   /** Where the catalog lives and whose catalog the back office edits. */
   store: Store;
@@ -109,7 +112,13 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
   const requireVendor = (c: Context) =>
     authority(c).actor === "vendor" ? undefined : c.json({ error: "SESSION_REQUIRED" }, 401);
 
-  app.get("/config", (c) => c.json({ agent: model !== undefined, limits: office.policy.config }));
+  app.get("/config", (c) =>
+    c.json({
+      agent: model !== undefined,
+      paypalTools: model ? (deps.paypalTools?.tools().map((t) => t.name) ?? []) : [],
+      limits: office.policy.config,
+    }),
+  );
 
   app.post("/session", async (c) => {
     const body = loginBody.safeParse(await readJson(c));
@@ -175,7 +184,14 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
     try {
       const lang = body.data.locale ?? pickLang(c.req.header("accept-language"));
       return c.json(
-        await runAgent(model, office, body.data.message, authority(c, body.data.pin), lang),
+        await runAgent(
+          model,
+          office,
+          body.data.message,
+          authority(c, body.data.pin),
+          lang,
+          deps.paypalTools,
+        ),
       );
     } catch (err) {
       console.error(`agent failed: ${(err as Error).message}`);

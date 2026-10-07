@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app";
 import { AnthropicClient } from "./backoffice/agent";
+import { createPayPalTools } from "./backoffice/paypal-tools";
 import { AnthropicVisionClient } from "./catalog/extract";
 import { PassportSigner } from "./passport";
 import { createGateway } from "./paypal";
@@ -22,6 +23,7 @@ const app = createApp({
   passportSigner,
   vendorPin: vendorPin || undefined,
   agentModel: anthropicKey ? new AnthropicClient(anthropicKey) : undefined,
+  paypalTools: createPayPalTools(process.env),
   menuVision: anthropicKey ? new AnthropicVisionClient(anthropicKey) : undefined,
   paypal,
   // Render sets RENDER_EXTERNAL_URL (https); the request origin behind its proxy is http.

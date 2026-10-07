@@ -12,6 +12,13 @@ import { PassportPanel } from "./passport-panel";
 /** Session token shared with /backoffice/ledger (same key as ledger.tsx; not imported to keep AG Grid lazy). */
 const LEDGER_TOKEN_KEY = "paygent.bo.token";
 
+/** One tool the agent ran, as the server reports it. */
+interface AgentToolRun {
+  tool: string;
+  ok: boolean;
+  summary?: string;
+}
+
 interface SaleRow {
   id: string;
   paidAt: string;
@@ -75,6 +82,7 @@ export function BackOfficeApp() {
   const [ask, setAsk] = useState("");
   const [askPin, setAskPin] = useState("");
   const [answer, setAnswer] = useState("");
+  const [ran, setRan] = useState<AgentToolRun[]>([]);
 
   async function call<T>(path: string, body?: unknown): Promise<T | undefined> {
     setError("");
@@ -182,6 +190,7 @@ export function BackOfficeApp() {
       text: string;
       code?: string;
       params?: Record<string, string | number>;
+      actions?: AgentToolRun[];
     }>("/agent", {
       message: ask,
       locale,
@@ -190,6 +199,7 @@ export function BackOfficeApp() {
     setAskPin("");
     if (r) {
       setAnswer((r.code && reasonText(r.code, r.params, undefined, locale)) || r.text);
+      setRan(r.actions ?? []);
       void loadToday();
     }
   }
@@ -266,6 +276,23 @@ export function BackOfficeApp() {
             {t("bo.ask")}
           </button>
           {answer && <p>{answer}</p>}
+          {ran.length > 0 && (
+            <div class="agent-tools" data-testid="agent-tools">
+              <p class="hint">{t("bo.toolsRan")}</p>
+              <ul>
+                {ran.map((a, i) => (
+                  <li key={`${a.tool}-${i}`} class={a.ok ? "ok" : "denied"}>
+                    <code>{a.tool}</code>
+                    {a.tool.startsWith("paypal_") && (
+                      <span class="badge">{t("bo.toolPaypal")}</span>
+                    )}
+                    {a.summary && <span> · {a.summary}</span>}
+                  </li>
+                ))}
+              </ul>
+              {ran.some((a) => a.tool === "refund") && <p class="hint">{t("bo.toolLocked")}</p>}
+            </div>
+          )}
         </form>
       )}
 
