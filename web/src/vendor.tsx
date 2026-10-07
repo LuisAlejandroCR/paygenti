@@ -4,10 +4,11 @@
 // "Cancel" cancels that sale on the server so the sticker stops pointing at it.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { type Currency, formatMoney, fromPayPalValue, type Money } from "../../shared/money";
-import type { CartLine, Sale, TerminalEvent } from "../../shared/types";
+import type { CartLine, CatalogItem, Sale, TerminalEvent } from "../../shared/types";
 import { announcePaid, unlockAudio } from "./announce";
 import { ApiError, api } from "./api";
 import { useT } from "./i18n";
+import { BackspaceIcon, ClockIcon, PaidCheck, XCircleIcon } from "./icons";
 import { LangToggle } from "./lang-toggle";
 import { StickerPanel } from "./sticker";
 import { VoiceCart } from "./voice";
@@ -56,6 +57,8 @@ export function VendorApp({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [payUrl, setPayUrl] = useState("");
   const [showSticker, setShowSticker] = useState(false);
+  const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [keypadOpen, setKeypadOpen] = useState(true);
   const saleRef = useRef<Sale | undefined>(undefined);
   saleRef.current = sale;
 
@@ -64,7 +67,12 @@ export function VendorApp({
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("terminal"))))
       .then(
         (d: {
-          vendor: { id: string; displayName: string; currency: Currency };
+          vendor: {
+            id: string;
+            displayName: string;
+            currency: Currency;
+            catalog?: CatalogItem[];
+          };
           payUrl: string;
           openSale: Sale | null;
         }) => {
@@ -72,6 +80,7 @@ export function VendorApp({
           setVendorId(d.vendor.id);
           setPayUrl(d.payUrl);
           setCurrency(d.vendor.currency);
+          setCatalog(d.vendor.catalog ?? []);
           // Resume the sale already waiting on this terminal instead of hiding it behind a keypad.
           if (d.openSale && !saleRef.current) {
             setSale(d.openSale);
@@ -177,6 +186,8 @@ export function VendorApp({
     setPhase("entry");
   }
 
+  const mmss = `${Math.floor(left / 60000)}:${String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}`;
+
   return (
     <main class={`vendor phase-${phase}`}>
       <header class="bar">
@@ -194,12 +205,14 @@ export function VendorApp({
           onCart={setCart}
           onCharge={() => charge(true)}
           busy={busy}
+          catalog={catalog}
+          keypad={{ open: keypadOpen, toggle: () => setKeypadOpen((v) => !v) }}
         />
       )}
 
-      {phase === "entry" && cart.length === 0 && (
-        <section class="entry" aria-label={t("vendor.amountEntry")}>
-          <output class="amount" aria-live="polite">
+      {phase === "entry" && cart.length === 0 && keypadOpen && (
+        <section class="entry card" aria-label={t("vendor.amountEntry")}>
+          <output class="amount num" aria-live="polite">
             ${digits || "0"}
           </output>
           <div class="keypad">
@@ -207,11 +220,11 @@ export function VendorApp({
               <button
                 key={k}
                 type="button"
-                class="key"
+                class="key num"
                 aria-label={k === "⌫" ? t("vendor.delete") : k === "." ? t("vendor.decimal") : k}
                 onClick={() => setDigits((d) => press(d, k))}
               >
-                {k}
+                {k === "⌫" ? <BackspaceIcon size={26} /> : k}
               </button>
             ))}
           </div>
@@ -226,17 +239,22 @@ export function VendorApp({
       )}
 
       {phase === "waiting" && sale && (
-        <section class="waiting" aria-live="polite">
-          <p class="total">{formatMoney(sale.total)}</p>
+        <section class="waiting card" aria-live="polite">
+          <p class="show">{t("vendor.show")}</p>
+          <p class="total num">{formatMoney(sale.total)}</p>
           <img
             class="qr"
             src={`/api/terminals/${terminal}/qr.svg`}
             alt={t("vendor.qrAlt", { terminal })}
           />
           <p class="hint">{t("vendor.scanHint")}</p>
-          <p class="timer">
-            {t("vendor.waiting")} {Math.floor(left / 60000)}:
-            {String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}
+          <p class="pending">
+            <span class="pulse" aria-hidden="true" />
+            {t("vendor.waiting")} · PayPal
+          </p>
+          <p class="timer num">
+            <ClockIcon size={20} />
+            <span>{mmss}</span>
           </p>
           <button type="button" class="secondary" disabled={busy} onClick={cancel}>
             {t("vendor.cancel")}
@@ -245,18 +263,24 @@ export function VendorApp({
       )}
 
       {phase === "paid" && sale && (
-        <section class="result paid" role="alert">
-          <p class="big">{t("vendor.paid")}</p>
-          <p class="total">{formatMoney(sale.total)}</p>
-          <button type="button" class="primary" onClick={reset}>
+        <section class="result paid flood" role="alert">
+          <PaidCheck />
+          <p class="big paid-word">{t("vendor.paid")}</p>
+          <p class="total num paid-amount">{formatMoney(sale.total)}</p>
+          <p class="paid-via">{sale.total.currency} · PayPal ✓</p>
+          <button type="button" class="ghost" onClick={reset}>
             {t("vendor.newSale")}
           </button>
         </section>
       )}
 
       {(phase === "failed" || phase === "expired") && (
-        <section class="result bad" role="alert">
+        <section class="result bad card" role="alert">
+          <span class="bad-icon">
+            {phase === "failed" ? <XCircleIcon size={64} /> : <ClockIcon size={64} />}
+          </span>
           <p class="big">{phase === "failed" ? t("vendor.declined") : t("vendor.expired")}</p>
+          {sale && <p class="total num">{formatMoney(sale.total)}</p>}
           <button type="button" class="primary" onClick={reset}>
             {t("vendor.newSale")}
           </button>

@@ -75,12 +75,17 @@ interface Ledger {
 /** Grid colors come from the app's CSS tokens, so light/dark follow styles.css. */
 const theme = themeQuartz.withParams({
   backgroundColor: "var(--card)",
-  foregroundColor: "var(--fg)",
-  accentColor: "var(--brand)",
-  borderColor: "var(--line)",
-  headerBackgroundColor: "var(--bg)",
-  chromeBackgroundColor: "var(--bg)",
+  foregroundColor: "var(--foreground)",
+  accentColor: "var(--action)",
+  borderColor: "var(--border)",
+  headerBackgroundColor: "var(--muted)",
+  headerTextColor: "var(--foreground)",
+  chromeBackgroundColor: "var(--background)",
+  rowHoverColor: "var(--muted)",
+  borderRadius: "0.5rem",
+  wrapperBorderRadius: "1rem",
   fontFamily: "inherit",
+  headerFontFamily: "var(--font-display)",
 });
 
 function readToken(): string | null {
