@@ -15,6 +15,12 @@ type Listener = (event: TerminalEvent) => void;
 export const SALE_TTL_MS = 5 * 60 * 1000;
 /** A push-rail sale stays pending this long so the vendor can check her bank app. */
 export const BANK_TTL_MS = 30 * 60 * 1000;
+    return updated;
+  }
+
+/** "+5 min" step and the hard ceiling on a sale's life (accessibility: WCAG 2.2.1 timing adjustable). */
+export const SALE_EXTEND_MS = 5 * 60 * 1000;
+export const SALE_MAX_LIFE_MS = 30 * 60 * 1000;
 const DECLINE_ISSUES = new Set([
   "INSTRUMENT_DECLINED",
   "TRANSACTION_REFUSED",
@@ -166,6 +172,21 @@ export class SalesService {
       paidAt: new Date(this.clock()).toISOString(),
     });
     this.emit({ type: "sale.vendor_confirmed", sale: updated });
+    return updated;
+  }
+
+  /** Vendor asks for more time on an open sale ("+5 min"); capped at SALE_MAX_LIFE_MS from creation. */
+  extend(saleId: string): Sale {
+    const sale = this.getSale(saleId);
+    if (!sale) throw new SaleError("SALE_NOT_FOUND", 404, "unknown sale");
+    if (sale.status !== "open")
+      throw new SaleError("SALE_NOT_OPEN", 409, `sale is ${sale.status}`);
+    const ceiling = Date.parse(sale.createdAt) + SALE_MAX_LIFE_MS;
+    const next = Math.min(Date.parse(sale.expiresAt) + SALE_EXTEND_MS, ceiling);
+    if (next <= Date.parse(sale.expiresAt))
+      throw new SaleError("SALE_MAX_LIFE", 409, "sale cannot be extended further");
+    const updated = this.save(sale, { expiresAt: new Date(next).toISOString() });
+    this.emit({ type: "sale.open", sale: updated });
     return updated;
   }
 
