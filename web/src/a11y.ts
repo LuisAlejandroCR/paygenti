@@ -1,8 +1,11 @@
 // web/src/a11y.ts: accessibility settings and the voice-first mode for blind vendors — persisted
 // high-contrast and voice-mode flags (mirrored on <html data-*>), speak() in es/en, a distinct tone
-// per sale state, and parseCommand() mapping spoken words to vendor actions. DOM access is guarded.
+// per sale state, parseCommand() mapping spoken words to vendor actions, and listenOnce() (native
+// recognizer, or a recorded clip transcribed by the server in Firefox). DOM access is guarded.
+
 import { useEffect, useState } from "preact/hooks";
 import { getLocale, type Locale, speechLang } from "./i18n";
+import { hasNativeSpeech, type SpeechMode, startRecording, transcribeClip } from "./stt";
 
 export type Pref = "contrast" | "voice";
 const KEYS: Record<Pref, string> = { contrast: "paygent.contrast", voice: "paygent.voice" };
@@ -164,12 +167,34 @@ interface Recognition {
 type RecognitionCtor = new () => Recognition;
 
 export function canListen(): boolean {
-  const w = globalThis as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown };
-  return !!(w.SpeechRecognition ?? w.webkitSpeechRecognition);
+  return hasNativeSpeech();
 }
 
-/** Listens once and hands back the transcript ("" when nothing was heard). */
-export function listenOnce(onText: (text: string) => void): boolean {
+/** Firefox path: records a short clip, transcribes it on the server, hands back the text. */
+const COMMAND_CLIP_MS = 3500;
+function recordOnce(onText: (text: string) => void, onFail: () => void): void {
+  startRecording()
+    .then(async (r) => {
+      await new Promise((ok) => setTimeout(ok, COMMAND_CLIP_MS));
+      const clip = await r.stop();
+      onText(await transcribeClip(clip, getLocale() === "en" ? "en" : "es"));
+    })
+    .catch(onFail);
+}
+
+/**
+ * Listens once and hands back the transcript ("" when nothing was heard). With mode "record"
+ * (no SpeechRecognition) it records a clip instead; onFail runs if the mic or server fails.
+ */
+export function listenOnce(
+  onText: (text: string) => void,
+  mode: SpeechMode = "native",
+  onFail: () => void = () => onText(""),
+): boolean {
+  if (mode === "record" && !hasNativeSpeech()) {
+    recordOnce(onText, onFail);
+    return true;
+  }
   const w = globalThis as {
     SpeechRecognition?: RecognitionCtor;
     webkitSpeechRecognition?: RecognitionCtor;

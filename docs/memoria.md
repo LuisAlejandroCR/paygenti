@@ -4,6 +4,19 @@
 
 # Memoria — paygent
 
+## 2026-10-07 — Voz en Firefox (`feat/voice-firefox`)
+
+- Firefox no trae `SpeechRecognition`. Respaldo: `web/src/stt.ts` elige `native` → `record`
+  (`MediaRecorder` + `POST /api/voice/transcribe`) → `none`. El servidor no tenía speech-to-text
+  (Claude no recibe audio), así que se agregó `server/voice/transcribe.ts` como integración
+  opcional `speech-to-text`: `STT_API_KEY` usa un endpoint compatible con Whisper (`STT_URL`,
+  `STT_MODEL`, por defecto OpenAI `whisper-1`); `STT_MOCK_TRANSCRIPT` devuelve un texto fijo (e2e);
+  sin config, 503 `TRANSCRIBE_UNAVAILABLE` y `/api/config` trae `transcribe: false`.
+- Accesibilidad: el botón de mantener ahora responde a Espacio/Enter (antes solo puntero, fallaba
+  WCAG 2.1.1); la nota de estado siempre está montada como `role="status"` para que se anuncie.
+- e2e corre en Chromium ocultando `SpeechRecognition` y con micrófono falso (WebAudio): no hay
+  navegador Firefox de Playwright instalado. ⏳ Probar en Firefox real con micrófono.
+
 ## 2026-10-07 — Rieles de pago (`feat/payment-rails-v2`)
 
 - Investigación y fuentes en `docs/payment-rails.md`. Registro en `shared/rails.ts`: cada riel se

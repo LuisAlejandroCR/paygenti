@@ -42,6 +42,9 @@ export default defineConfig({
       PAYPAL_CLIENT_SECRET: "",
       PAYPAL_WEBHOOK_ID: "",
       ANTHROPIC_API_KEY: "",
+      STT_API_KEY: "",
+      // Firefox path (no SpeechRecognition): the mock transcriber answers a fixed order.
+      STT_MOCK_TRANSCRIPT: "dos de mole y uno de rajas",
       VENDOR_PIN: "",
     },
   },

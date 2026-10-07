@@ -54,3 +54,44 @@ test("typed order builds the same cart without speech support", async ({ page, t
   await page.getByRole("button", { name: tx.clear }).click();
   await expect(page.locator(".cart li")).toHaveCount(0);
 });
+
+// Firefox has no SpeechRecognition: hide Chromium's, fake the mic with a silent WebAudio stream,
+// and let the real MediaRecorder + /api/voice/transcribe (mock transcriber) fill the cart.
+const firefoxLike = () => {
+  for (const k of ["SpeechRecognition", "webkitSpeechRecognition"])
+    Object.defineProperty(window, k, { value: undefined, configurable: true });
+  navigator.mediaDevices.getUserMedia = async () =>
+    new AudioContext().createMediaStreamDestination().stream;
+};
+
+test("without SpeechRecognition, a keyboard hold records and the server transcribes", async ({
+  page,
+  tx,
+}) => {
+  await page.addInitScript(firefoxLike);
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: tx.hold })).toBeVisible();
+  const ptt = page.locator("button.ptt"); // its name switches to "Listening…" while held
+  await ptt.focus();
+  await page.keyboard.down("Space");
+  await expect(ptt).toHaveAttribute("aria-pressed", "true");
+  await page.waitForTimeout(300);
+  await page.keyboard.up("Space");
+  await expect(page.locator(".cart li")).toHaveCount(2); // mock: "dos de mole y uno de rajas"
+  await expect(page.getByRole("button", { name: tx.charge })).toHaveText(/81/);
+  await page.getByRole("button", { name: tx.clear }).click();
+});
+
+test("without speech or server transcription, the page says so in a status region", async ({
+  page,
+  tx,
+}) => {
+  await page.addInitScript(firefoxLike);
+  await page.route("**/api/config", async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, json: { ...(await res.json()), transcribe: false } });
+  });
+  await page.goto("/");
+  await expect(page.getByRole("status").filter({ hasText: tx.noDictation })).toBeVisible();
+  await expect(page.getByRole("button", { name: tx.hold })).toHaveCount(0);
+});
