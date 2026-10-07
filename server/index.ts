@@ -24,7 +24,8 @@ const app = createApp({
   agentModel: anthropicKey ? new AnthropicClient(anthropicKey) : undefined,
   menuVision: anthropicKey ? new AnthropicVisionClient(anthropicKey) : undefined,
   paypal,
-  publicUrl: process.env.PUBLIC_URL?.trim() || undefined,
+  // Render sets RENDER_EXTERNAL_URL (https); the request origin behind its proxy is http.
+  publicUrl: process.env.PUBLIC_URL?.trim() || process.env.RENDER_EXTERNAL_URL?.trim() || undefined,
   voiceEnv: process.env,
   staticRoot: existsSync(webRoot) ? webRoot : undefined,
 });
