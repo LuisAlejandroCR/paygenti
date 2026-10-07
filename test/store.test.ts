@@ -1,7 +1,8 @@
 // test/store.test.ts: one Store contract suite run against MemoryStore and PostgresStore (PGlite),
 // plus Postgres-only checks: a restart keeps sales, catalog, audit, PIN lockouts and cap usage,
 // concurrent refunds never overspend the daily cap, and concurrent writers never lose an increment.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { PostgresStore } from "../server/db/postgres";
 import { sslFromUrl } from "../server/db/sql";
 import { PolicyEngine } from "../server/policy";
@@ -9,6 +10,9 @@ import { DEMO_VENDOR, MemoryStore, type Store } from "../server/store";
 import { money } from "../shared/money";
 import type { Sale } from "../shared/types";
 import { newPglite, pgliteClient } from "./pglite";
+
+// Each PostgresStore case boots an in-process PGlite (WASM); under a loaded runner that alone can pass 5 s.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
 const mxn = (minor: number) => money(minor, "MXN");
 const NOON = new Date("2026-10-06T18:00:00Z"); // 12:00 in Mexico City
