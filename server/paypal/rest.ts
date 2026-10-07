@@ -1,22 +1,67 @@
 // server/paypal/rest.ts: PayPalGateway against the real REST API (sandbox by default).
-// OAuth2 client_credentials with a cached token, Orders v2, refunds and webhook verification.
+// OAuth2 client_credentials with a cached token, Orders v2, refunds, Payouts v1 and webhook checks.
 // Every write carries PayPal-Request-Id; every call has a timeout; secrets are never logged.
 import { isPayPalCurrency } from "../../shared/currency";
 import { fromPayPalValue, type Money, toPayPalValue } from "../../shared/money";
 import {
   type CreateInvoiceInput,
   type CreateOrderInput,
+  type CreatePayoutInput,
   type GatewayCapture,
   type GatewayInvoice,
   type GatewayOrder,
+  type GatewayPayout,
   type GatewayRefund,
   type OrderStatus,
+  type PayoutBatchStatus,
+  type PayoutItemStatus,
   PayPalError,
   type PayPalGateway,
   type WebhookHeaders,
 } from "./gateway";
 
 export const SANDBOX_URL = "https://api-m.sandbox.paypal.com";
+
+/** Our issue code when the app's credentials may not send payouts. */
+export const PAYOUTS_NOT_ENABLED = "PAYOUTS_NOT_ENABLED";
+
+/**
+ * PayPal answers a payout from an app without the Payouts permission with 403 (NOT_AUTHORIZED,
+ * AUTHORIZATION_ERROR, PERMISSION_DENIED) or REQUIRED_SCOPE_MISSING; all become PAYOUTS_NOT_ENABLED.
+ */
+const NO_PAYOUTS = new Set([
+  "NOT_AUTHORIZED",
+  "AUTHORIZATION_ERROR",
+  "PERMISSION_DENIED",
+  "REQUIRED_SCOPE_MISSING",
+  "REFUSED_ACCESS_DENIED",
+]);
+
+export function toPayoutError(err: unknown): unknown {
+  if (!(err instanceof PayPalError)) return err;
+  if (err.status === 403 || (err.issue && NO_PAYOUTS.has(err.issue)))
+    return new PayPalError(
+      "Payouts is not enabled for this PayPal app",
+      403,
+      PAYOUTS_NOT_ENABLED,
+      err.debugId,
+    );
+  return err;
+}
+
+interface PayPalPayoutBatch {
+  batch_header?: {
+    payout_batch_id?: string;
+    batch_status?: PayoutBatchStatus;
+    sender_batch_header?: { sender_batch_id?: string };
+  };
+  items?: {
+    payout_item_id?: string;
+    transaction_id?: string;
+    transaction_status?: PayoutItemStatus;
+    errors?: { name?: string };
+  }[];
+}
 
 export interface RestPayPalOptions {
   clientId: string;
@@ -179,6 +224,48 @@ export class RestPayPal implements PayPalGateway {
     };
   }
 
+  async createPayout(input: CreatePayoutInput): Promise<GatewayPayout> {
+    const body = {
+      sender_batch_header: {
+        sender_batch_id: input.senderBatchId,
+        recipient_type: input.recipientType,
+        email_subject: "You have a payment",
+        email_message: (input.note ?? "Payment from your customer").slice(0, 1000),
+      },
+      items: [
+        {
+          recipient_type: input.recipientType,
+          // Payouts v1 money is { value, currency } (not Orders' currency_code).
+          amount: { value: toPayPalValue(input.amount), currency: input.amount.currency },
+          receiver: input.receiver,
+          sender_item_id: input.senderItemId.slice(0, 63),
+          ...(input.note && { note: input.note.slice(0, 1000) }),
+        },
+      ],
+    };
+    try {
+      const res = await this.call<PayPalPayoutBatch>("POST", "/v1/payments/payouts", {
+        body,
+        requestId: input.senderBatchId,
+      });
+      return toPayout(res, input.senderBatchId);
+    } catch (err) {
+      throw toPayoutError(err);
+    }
+  }
+
+  async getPayout(batchId: string): Promise<GatewayPayout> {
+    try {
+      const res = await this.call<PayPalPayoutBatch>(
+        "GET",
+        `/v1/payments/payouts/${encodeURIComponent(batchId)}`,
+      );
+      return toPayout(res);
+    } catch (err) {
+      throw toPayoutError(err);
+    }
+  }
+
   async verifyWebhook(headers: WebhookHeaders, rawBody: string): Promise<boolean> {
     if (!this.webhookId) return false;
     try {
@@ -311,6 +398,25 @@ function extractBase64(text: string): string | undefined {
   const lines = text.split(/\r?\n/).map((l) => l.trim());
   const runs = lines.filter((l) => l.length >= 100 && /^[A-Za-z0-9+/=]+$/.test(l));
   return runs.sort((a, b) => b.length - a.length)[0];
+}
+
+function toPayout(res: PayPalPayoutBatch, senderBatchId?: string): GatewayPayout {
+  const h = res.batch_header;
+  if (!h?.payout_batch_id || !h.batch_status)
+    throw new PayPalError("payout response without a batch id", 502, "MALFORMED_RESPONSE");
+  return {
+    batchId: h.payout_batch_id,
+    batchStatus: h.batch_status,
+    senderBatchId: h.sender_batch_header?.sender_batch_id ?? senderBatchId ?? "",
+    items: (res.items ?? [])
+      .filter((i) => typeof i.payout_item_id === "string")
+      .map((i) => ({
+        itemId: i.payout_item_id as string,
+        ...(i.transaction_status && { status: i.transaction_status }),
+        ...(i.transaction_id && { transactionId: i.transaction_id }),
+        ...(i.errors?.name && { error: i.errors.name }),
+      })),
+  };
 }
 
 function toOrder(order: PayPalOrder, fallback?: Money): GatewayOrder {

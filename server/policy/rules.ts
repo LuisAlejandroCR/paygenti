@@ -18,6 +18,8 @@ export type PolicyAction =
       alreadyRefunded: Money;
     }
   | { kind: "payout"; recipient: string; amount: Money }
+  /** Adding or removing a supplier on the payout allowlist (vendor + PIN, like money out). */
+  | { kind: "supplier"; op: "add" | "remove"; recipient: string }
   | { kind: "accept_dispute"; disputeId: string }
   | { kind: "create_order" | "create_invoice"; amount: Money };
 
@@ -28,6 +30,8 @@ export interface PolicyConfig {
   /** IANA zone that defines "today" for refunds and daily caps. */
   timeZone: string;
   payoutAllowlist: string[];
+  /** Largest single payout. */
+  maxPayout: Money;
   maxPayoutPerDay: Money;
 }
 
@@ -59,6 +63,7 @@ export const DEFAULT_POLICY_CONFIG: PolicyConfig = Object.freeze({
   maxRefundPerDay: Object.freeze({ minor: 100000, currency: "MXN" }),
   timeZone: "America/Mexico_City",
   payoutAllowlist: Object.freeze([]) as unknown as string[],
+  maxPayout: Object.freeze({ minor: 30000, currency: "MXN" }),
   maxPayoutPerDay: Object.freeze({ minor: 50000, currency: "MXN" }),
 }) as PolicyConfig;
 
@@ -93,14 +98,26 @@ const CAPS: Record<Currency, readonly [number, number, number]> = {
   ILS: [35, 180, 90],
 };
 
+/** A single payout may use at most this share of the daily payout cap (MXN: 300 of 500). */
+const PAYOUT_SHARE = 0.6;
+
 /** Policy caps for a currency (and zone); the payout allowlist is kept by the caller. */
 export function policyCapsFor(
   currency: Currency,
-): Pick<PolicyConfig, "currency" | "maxRefund" | "maxRefundPerDay" | "maxPayoutPerDay"> {
+): Pick<
+  PolicyConfig,
+  "currency" | "maxRefund" | "maxRefundPerDay" | "maxPayout" | "maxPayoutPerDay"
+> {
   const [refund, perDay, payout] = CAPS[currency];
   const scale = 10 ** decimalsOf(currency);
   const m = (units: number): Money => Object.freeze({ minor: units * scale, currency });
-  return { currency, maxRefund: m(refund), maxRefundPerDay: m(perDay), maxPayoutPerDay: m(payout) };
+  return {
+    currency,
+    maxRefund: m(refund),
+    maxRefundPerDay: m(perDay),
+    maxPayout: m(Math.floor(payout * PAYOUT_SHARE)),
+    maxPayoutPerDay: m(payout),
+  };
 }
 const CLOCK_SKEW_MS = 60_000;
 
@@ -123,6 +140,8 @@ function decideUnsafe(action: PolicyAction, ctx: PolicyContext): Decision {
       return decideRefund(action, ctx);
     case "payout":
       return decidePayout(action, ctx);
+    case "supplier":
+      return decideSupplier(action, ctx);
     case "accept_dispute":
       return deny(
         "DISPUTE_MANUAL_ONLY",
@@ -217,7 +236,7 @@ function decidePayout(a: Extract<PolicyAction, { kind: "payout" }>, ctx: PolicyC
 
   if (!isPositiveMoney(a.amount))
     return deny("INVALID_AMOUNT", "El monto no es válido; tiene que ser mayor a cero.");
-  if (!sameCurrency(cfg.currency, a.amount, ctx.paidOutToday, cfg.maxPayoutPerDay))
+  if (!sameCurrency(cfg.currency, a.amount, ctx.paidOutToday, cfg.maxPayout, cfg.maxPayoutPerDay))
     return deny("CURRENCY_MISMATCH", "La moneda no coincide con la de la cuenta; no se paga.");
 
   const recipient = normalizeRecipient(a.recipient);
@@ -227,6 +246,13 @@ function decidePayout(a: Extract<PolicyAction, { kind: "payout" }>, ctx: PolicyC
       "PAYOUT_NOT_ALLOWLISTED",
       `Ese destinatario no está en la lista de ${name(ctx)}; no se paga.`,
       { vendor: name(ctx) },
+    );
+
+  if (a.amount.minor > cfg.maxPayout.minor)
+    return deny(
+      "PAYOUT_OVER_CAP",
+      `El máximo por pago es ${speak(cfg.maxPayout)}; pediste ${speak(a.amount)}.`,
+      { max: formatMoney(cfg.maxPayout), amount: formatMoney(a.amount) },
     );
 
   if (
@@ -246,6 +272,25 @@ function decidePayout(a: Extract<PolicyAction, { kind: "payout" }>, ctx: PolicyC
   });
 }
 
+function decideSupplier(
+  a: Extract<PolicyAction, { kind: "supplier" }>,
+  ctx: PolicyContext,
+): Decision {
+  const gate = moneyOutGate(
+    ctx,
+    "suppliers",
+    `y el tope de pagos del día es ${speak(ctx.config.maxPayoutPerDay)}`,
+    { limit: formatMoney(ctx.config.maxPayoutPerDay) },
+  );
+  if (gate) return gate;
+  if ((a.op !== "add" && a.op !== "remove") || !normalizeRecipient(a.recipient))
+    return deny("MALFORMED_ACTION", "No entendí el cambio de proveedores; no se hace nada.");
+  return allow(
+    "SUPPLIER_OK",
+    a.op === "add" ? "Proveedor agregado a la lista." : "Proveedor quitado de la lista.",
+  );
+}
+
 function decideCharge(
   a: Extract<PolicyAction, { kind: "create_order" | "create_invoice" }>,
   ctx: PolicyContext,
@@ -263,14 +308,15 @@ function decideCharge(
   );
 }
 
-/** Who may move money out at all: only the vendor, and only with a verified PIN. */
+/** Who may move money out (or change who may receive it): only the vendor, with a verified PIN. */
 function moneyOutGate(
   ctx: PolicyContext,
-  kind: "refunds" | "payouts",
+  kind: "refunds" | "payouts" | "suppliers",
   limit: string,
   limitParams: DecisionParams,
 ): Decision | undefined {
-  const what = kind === "refunds" ? "devoluciones" : "pagos";
+  const what =
+    kind === "refunds" ? "devoluciones" : kind === "payouts" ? "pagos" : "cambios de proveedores";
   const params = { vendor: name(ctx), what: kind };
   if (ctx.actor === "customer")
     return deny(

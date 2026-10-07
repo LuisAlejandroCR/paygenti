@@ -4,8 +4,9 @@
 // ordered queue, every job in its own transaction. Counters (daily cap usage, refunds per capture)
 // are atomic SQL increments, so even two processes on one DB never lose an update; a unique index
 // keeps one capture id per sale. close() flushes the queue (SIGTERM on Render) before exiting.
+// Suppliers (payout allowlist) and payouts are loaded and written the same way.
 import type { Currency } from "../../shared/money";
-import type { CatalogItem, Sale, Terminal, Vendor } from "../../shared/types";
+import type { CatalogItem, Payout, Sale, Supplier, Terminal, Vendor } from "../../shared/types";
 import type { AuditEntry } from "../policy/audit";
 import type { PinGuardState } from "../policy/pin";
 import { DEMO_TERMINAL, DEMO_VENDOR, MemoryStore } from "../store";
@@ -95,6 +96,16 @@ export class PostgresStore extends MemoryStore {
       });
     const pin = (await db.query("SELECT state FROM pin_state WHERE id = 1")).rows[0];
     this.pin = pin ? (pin.state as PinGuardState) : undefined;
+    this.supplierMap.clear();
+    for (const r of (await db.query("SELECT * FROM suppliers ORDER BY seq")).rows) {
+      const s = rowToSupplier(r);
+      this.supplierMap.set(s.id, s);
+    }
+    this.payoutMap.clear();
+    for (const r of (await db.query("SELECT * FROM payouts ORDER BY seq")).rows) {
+      const p = rowToPayout(r);
+      this.payoutMap.set(p.id, p);
+    }
   }
 
   #enqueue(what: string, job: Job): void {
@@ -218,6 +229,65 @@ export class PostgresStore extends MemoryStore {
     );
   }
 
+  override saveSupplier(supplier: Supplier): void {
+    super.saveSupplier(supplier);
+    const s = structuredClone(supplier);
+    this.#enqueue("supplier", (tx) =>
+      tx
+        .query(
+          `INSERT INTO suppliers (id, name, recipient_type, receiver, currency, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name,
+             recipient_type = EXCLUDED.recipient_type, receiver = EXCLUDED.receiver,
+             currency = EXCLUDED.currency`,
+          [s.id, s.name, s.recipientType, s.receiver, s.currency, s.createdAt],
+        )
+        .then(() => undefined),
+    );
+  }
+
+  override deleteSupplier(id: string): boolean {
+    const existed = super.deleteSupplier(id);
+    if (existed)
+      this.#enqueue("supplier", (tx) =>
+        tx.query("DELETE FROM suppliers WHERE id = $1", [id]).then(() => undefined),
+      );
+    return existed;
+  }
+
+  override savePayout(payout: Payout): void {
+    super.savePayout(payout);
+    const p = structuredClone(payout);
+    this.#enqueue("payout", (tx) =>
+      tx
+        .query(
+          `INSERT INTO payouts (id, supplier_id, supplier_name, recipient_type, receiver,
+             amount_minor, currency, note, batch_id, item_id, status, error, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           ON CONFLICT (id) DO UPDATE SET batch_id = EXCLUDED.batch_id,
+             item_id = EXCLUDED.item_id, status = EXCLUDED.status, error = EXCLUDED.error,
+             updated_at = EXCLUDED.updated_at`,
+          [
+            p.id,
+            p.supplierId,
+            p.supplierName,
+            p.recipientType,
+            p.receiver,
+            p.amount.minor,
+            p.amount.currency,
+            p.note ?? null,
+            p.batchId ?? null,
+            p.itemId ?? null,
+            p.status,
+            p.error ?? null,
+            p.createdAt,
+            p.updatedAt,
+          ],
+        )
+        .then(() => undefined),
+    );
+  }
+
   override savePinState(state: PinGuardState): void {
     super.savePinState(state);
     const json = JSON.stringify(state);
@@ -316,6 +386,36 @@ function rowToVendor(r: Row, catalog: CatalogItem[]): Vendor {
   if (r.onboarded !== null) v.onboarded = Boolean(r.onboarded);
   if (r.prices_need_review !== null) v.pricesNeedReview = Boolean(r.prices_need_review);
   return v;
+}
+
+function rowToSupplier(r: Row): Supplier {
+  return {
+    id: String(r.id),
+    name: String(r.name),
+    recipientType: String(r.recipient_type) as Supplier["recipientType"],
+    receiver: String(r.receiver),
+    currency: String(r.currency) as Currency,
+    createdAt: iso(r.created_at) as string,
+  };
+}
+
+function rowToPayout(r: Row): Payout {
+  const p: Payout = {
+    id: String(r.id),
+    supplierId: String(r.supplier_id),
+    supplierName: String(r.supplier_name),
+    recipientType: String(r.recipient_type) as Payout["recipientType"],
+    receiver: String(r.receiver),
+    amount: { minor: Number(r.amount_minor), currency: String(r.currency) as Currency },
+    status: String(r.status) as Payout["status"],
+    createdAt: iso(r.created_at) as string,
+    updatedAt: iso(r.updated_at) as string,
+  };
+  if (r.note !== null) p.note = String(r.note);
+  if (r.batch_id !== null) p.batchId = String(r.batch_id);
+  if (r.item_id !== null) p.itemId = String(r.item_id);
+  if (r.error !== null) p.error = String(r.error);
+  return p;
 }
 
 function rowToSale(r: Row): Sale {

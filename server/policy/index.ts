@@ -1,6 +1,8 @@
 // server/policy/index.ts: PolicyEngine — the lock the back-office agent must go through.
 // decide() checks PIN + rules and reserves budget with a ticket; commit(ticket) consumes it only once
 // PayPal confirms, release(ticket) frees it on failure. Daily counters roll over at local midnight.
+// preview() answers "would this pass if the vendor confirmed it with her PIN?" for AI proposals;
+// it never returns a ticket, so a proposal can never move money by itself.
 import { randomUUID } from "node:crypto";
 import type { Currency, Money } from "../../shared/money";
 import type { PolicyStore } from "../store";
@@ -139,6 +141,11 @@ export class PolicyEngine {
     this.#roll(this.#now());
   }
 
+  /** Replaces the payout allowlist (the vendor's saved suppliers' receivers). */
+  setPayoutAllowlist(recipients: readonly string[]): void {
+    this.#config = Object.freeze({ ...this.#config, payoutAllowlist: [...recipients] });
+  }
+
   /** Decide a proposal. An allowed money move returns a ticket that must be committed or released. */
   decide(action: PolicyAction, req: Request): EngineDecision {
     const now = this.#now();
@@ -151,29 +158,8 @@ export class PolicyEngine {
       pinVerified = result.ok;
     }
 
+    const decision: EngineDecision = this.#rules(action, req.actor, pinVerified, now);
     const kind = action?.kind;
-    const pending = this.#pending(kind === "refund" ? action.captureId : undefined);
-    const ctxAction =
-      kind === "refund" && pending.capture > 0 && isCount(action.alreadyRefunded)
-        ? {
-            ...action,
-            alreadyRefunded: {
-              ...action.alreadyRefunded,
-              minor: action.alreadyRefunded.minor + pending.capture,
-            },
-          }
-        : action;
-
-    const decision: EngineDecision = decide(ctxAction, {
-      actor: req.actor,
-      pinVerified,
-      now,
-      refundedToday: this.#money(this.#refunded + pending.refund),
-      paidOutToday: this.#money(this.#paidOut + pending.payout),
-      config: this.config,
-      vendorName: this.#vendorName,
-    });
-
     if (decision.allow) {
       const ticket = randomUUID();
       const moves = kind === "refund" || kind === "payout";
@@ -196,6 +182,43 @@ export class PolicyEngine {
       decision,
     });
     return decision;
+  }
+
+  /**
+   * Dry run for an AI proposal: the decision the vendor would get if she confirmed it now with her
+   * PIN (same caps, usage and reservations). No ticket, no budget reserved; audited as "propose".
+   */
+  preview(action: PolicyAction, actor: Actor = "agent"): Decision {
+    const now = this.#now();
+    this.#roll(now);
+    const decision = this.#rules(action, "vendor", true, now);
+    this.audit.append({ at: now.toISOString(), event: "propose", actor, action, decision });
+    return decision;
+  }
+
+  #rules(action: PolicyAction, actor: Actor, pinVerified: boolean, now: Date): Decision {
+    const kind = action?.kind;
+    const pending = this.#pending(kind === "refund" ? action.captureId : undefined);
+    const ctxAction =
+      kind === "refund" && pending.capture > 0 && isCount(action.alreadyRefunded)
+        ? {
+            ...action,
+            alreadyRefunded: {
+              ...action.alreadyRefunded,
+              minor: action.alreadyRefunded.minor + pending.capture,
+            },
+          }
+        : action;
+
+    return decide(ctxAction, {
+      actor,
+      pinVerified,
+      now,
+      refundedToday: this.#money(this.#refunded + pending.refund),
+      paidOutToday: this.#money(this.#paidOut + pending.payout),
+      config: this.config,
+      vendorName: this.#vendorName,
+    });
   }
 
   /** The action ran (PayPal confirmed): consume the reserved budget. False for unknown/used tickets. */
