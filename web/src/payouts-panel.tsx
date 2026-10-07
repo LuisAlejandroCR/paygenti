@@ -1,11 +1,13 @@
 // web/src/payouts-panel.tsx: back-office "Suppliers & payouts" panel — the supplier allowlist (add or
 // remove with the PIN), a pay form with the PIN and today's limits, the payout history with status,
 // and an assistant proposal prefilled for the vendor to confirm. The server decides; this renders.
+
 import { useEffect, useRef, useState } from "preact/hooks";
 import { decimalsOf } from "../../shared/currency";
 import { type Currency, formatMoney, type Money, parseAmount } from "../../shared/money";
 import type { Payout, PayoutStatus, RecipientType, Supplier } from "../../shared/types";
 import { type Key, reasonText, useT } from "./i18n";
+import { boUrl } from "./stall";
 
 /** What the assistant's propose_payout returned; the vendor still confirms with her PIN. */
 export interface PayoutProposal {
@@ -79,7 +81,7 @@ export function PayoutsPanel({
   };
 
   async function call<T>(path: string, body?: unknown): Promise<T | undefined> {
-    const res = await fetch(`/api/backoffice${path}`, {
+    const res = await fetch(boUrl(path), {
       method: body === undefined ? "GET" : "POST",
       headers: {
         Authorization: `Bearer ${token}`,

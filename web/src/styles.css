@@ -1540,4 +1540,27 @@ button.link {
 :root[data-contrast="high"] textarea,
 :root[data-contrast="high"] .card {
   border: 2px solid currentColor;
+/* Multi-paygent: stall switcher, approvals inbox, Claude access. */
+.stall-switcher select {
+  font: inherit;
+  font-size: 1rem;
+  padding: 6px 10px;
+  border-radius: 10px;
+  max-width: 14rem;
+}
+.approvals {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.approvals li {
+  display: grid;
+  gap: 6px;
+}
+.approvals .note {
+  overflow-wrap: anywhere;
+}
+[data-testid="claude-access"] code {
+  overflow-wrap: anywhere;
 }
