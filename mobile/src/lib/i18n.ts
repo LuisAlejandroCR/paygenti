@@ -122,6 +122,19 @@ const en = {
   "bo.ledgerNet": "Net {amount}",
   "bo.logout": "Lock",
   "bo.loadFailed": "Could not load. Try again.",
+  "a11y.langHint": "Switches the app language between English and Spanish",
+  "a11y.keyHint": "Types into the amount",
+  "a11y.keypadHint": "Shows or hides the number keypad",
+  "a11y.chargeHint": "Creates the charge and shows the QR to the customer",
+  "a11y.cancelHint": "Cancels this charge; nothing is paid",
+  "a11y.newSaleHint": "Clears the screen for the next sale",
+  "a11y.refundHint": "Opens the refund form for this sale",
+  "a11y.amount": "Amount: {amount}",
+  "a11y.timeLeft": "Time left to pay: {time}",
+  "say.waiting": "Charging {amount}. Waiting for payment.",
+  "say.failed": "Payment declined. {amount} was not paid.",
+  "say.expired": "Charge expired. {amount} was not paid.",
+  "say.cancelled": "Charge cancelled.",
 } as const;
 
 export type Key = keyof typeof en;
@@ -245,6 +258,19 @@ const es: Dict = {
   "bo.ledgerNet": "Neto {amount}",
   "bo.logout": "Bloquear",
   "bo.loadFailed": "No se pudo cargar. Intenta de nuevo.",
+  "a11y.langHint": "Cambia el idioma de la app entre inglés y español",
+  "a11y.keyHint": "Escribe en el monto",
+  "a11y.keypadHint": "Muestra u oculta el teclado numérico",
+  "a11y.chargeHint": "Crea el cobro y muestra el QR al cliente",
+  "a11y.cancelHint": "Cancela este cobro; no se paga nada",
+  "a11y.newSaleHint": "Limpia la pantalla para la siguiente venta",
+  "a11y.refundHint": "Abre el formulario de devolución de esta venta",
+  "a11y.amount": "Monto: {amount}",
+  "a11y.timeLeft": "Tiempo para pagar: {time}",
+  "say.waiting": "Cobrando {amount}. Esperando el pago.",
+  "say.failed": "Pago rechazado. No se pagaron {amount}.",
+  "say.expired": "Cobro expirado. No se pagaron {amount}.",
+  "say.cancelled": "Cobro cancelado.",
 };
 
 export const DICTIONARIES: Readonly<Record<Locale, Dict>> = { en, es };

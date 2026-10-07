@@ -4,6 +4,7 @@
 // "/setup" is stall settings (name, country, currency); "/soundbox" (lazy) is the counter kiosk that announces paid sales. Registers the app-shell service worker in production.
 import { type ComponentType, render } from "preact";
 import { useEffect, useState } from "preact/hooks";
+import { applyPrefs } from "./a11y";
 import { BackOfficeApp } from "./backoffice";
 import { Checkout } from "./checkout";
 import { JudgeApp } from "./judge";
@@ -43,6 +44,7 @@ function App() {
   return <VendorApp terminal={terminal} />;
 }
 
+applyPrefs();
 const root = document.getElementById("app");
 if (root) render(<App />, root);
 

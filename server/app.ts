@@ -270,6 +270,12 @@ export function createApp(deps: AppDeps): Hono {
     return c.json({ sale: updated, label: saleStatusLabel(updated.status) });
   });
 
+  app.post("/api/sales/:id/extend", (c) => {
+    const id = uuid.safeParse(c.req.param("id"));
+    if (!id.success) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    return c.json({ sale: sales.extend(id.data) });
+  });
+
   app.get("/api/terminals/:id/events", (c) => {
     const id = terminalId.safeParse(c.req.param("id"));
     if (!id.success || !sales.store.getTerminal(id.data)) {

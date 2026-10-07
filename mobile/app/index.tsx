@@ -1,10 +1,11 @@
 // app/index.tsx: the vendor's sale screen — push-to-talk/typed cart, keypad, Charge -> QR of
 // PUBLIC_URL/t/:terminal with countdown, live SSE status, PAID flood (haptics + spoken amount),
 // cancel, and links to soundbox, NFC, back office and settings. Sends first-run vendors to onboarding.
+// Every control has a label/role/hint and each state change is announced to VoiceOver/TalkBack.
 import type { CartLine, Sale, TerminalEvent } from "@shared/types";
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { useApp } from "@/app-state";
 import { announcePaid, buzzError, tick } from "@/lib/announce";
@@ -47,6 +48,20 @@ export default function SaleScreen() {
   useEffect(() => {
     saleRef.current = sale;
   }, [sale]);
+  // Screen-reader announcement on every state change ("paid" is announced by PaidFlood).
+  useEffect(() => {
+    const s = saleRef.current;
+    const amount = s ? formatMoney(s.total) : "";
+    const text =
+      phase === "waiting"
+        ? t("say.waiting", { amount })
+        : phase === "failed"
+          ? t("say.failed", { amount })
+          : phase === "expired"
+            ? t("say.expired", { amount })
+            : "";
+    if (text) AccessibilityInfo.announceForAccessibility(text);
+  }, [phase, t]);
   const localeRef = useRef(locale);
   useEffect(() => {
     localeRef.current = locale;
@@ -162,7 +177,12 @@ export default function SaleScreen() {
     return (
       <Screen scroll={false}>
         <PaidFlood word={t("sale.paid")} amount={formatMoney(sale.total)}>
-          <Button label={t("sale.newSale")} variant="secondary" onPress={reset} />
+          <Button
+            label={t("sale.newSale")}
+            hint={t("a11y.newSaleHint")}
+            variant="secondary"
+            onPress={reset}
+          />
         </PaidFlood>
       </Screen>
     );
@@ -177,6 +197,7 @@ export default function SaleScreen() {
       {phase === "entry" && cart.length > 0 && (
         <Button
           label={t("sale.charge")}
+          hint={t("a11y.chargeHint")}
           busy={busy}
           onPress={() => charge(true)}
           style={{ minHeight: 72 }}
@@ -185,7 +206,13 @@ export default function SaleScreen() {
 
       {phase === "entry" && cart.length === 0 && (
         <Card>
-          <Pressable onPress={() => setKeypadOpen((v) => !v)} accessibilityRole="button">
+          <Pressable
+            onPress={() => setKeypadOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={keypadOpen ? t("sale.hideKeypad") : t("sale.keypad")}
+            accessibilityHint={t("a11y.keypadHint")}
+            accessibilityState={{ expanded: keypadOpen }}
+          >
             <Text style={{ color: colors.actionText, fontFamily: FONTS.bodyBold }}>
               {keypadOpen ? t("sale.hideKeypad") : t("sale.keypad")}
             </Text>
@@ -194,6 +221,9 @@ export default function SaleScreen() {
             <>
               <Text
                 accessibilityLiveRegion="polite"
+                accessibilityLabel={t("a11y.amount", {
+                  amount: `${currencyInfo(currency).symbol}${digits || "0"}`,
+                })}
                 style={[styles.amount, { color: colors.foreground }]}
               >
                 {currencyInfo(currency).symbol}
@@ -205,6 +235,8 @@ export default function SaleScreen() {
                     key={k}
                     accessibilityRole="button"
                     accessibilityLabel={k === "⌫" ? t("sale.delete") : k}
+                    accessibilityHint={t("a11y.keyHint")}
+                    accessibilityState={{ disabled: k === "." && decimals === 0 }}
                     disabled={k === "." && decimals === 0}
                     onPress={() => {
                       tick();
@@ -231,6 +263,7 @@ export default function SaleScreen() {
                       ? t("sale.chargeAmount", { amount: formatMoney(amount) })
                       : t("sale.charge")
                 }
+                hint={t("a11y.chargeHint")}
                 disabled={!amount}
                 busy={busy}
                 onPress={() => charge(false)}
@@ -257,18 +290,33 @@ export default function SaleScreen() {
           <Text style={{ color: colors.paypal, fontFamily: FONTS.bodyBold }}>
             {t("sale.waiting")} · PayPal
           </Text>
-          <Text style={[styles.timer, { color: colors.mutedForeground }]}>{mmss}</Text>
-          <Button label={t("sale.cancel")} variant="ghost" busy={busy} onPress={cancel} />
+          <Text
+            accessibilityLabel={t("a11y.timeLeft", { time: mmss })}
+            style={[styles.timer, { color: colors.mutedForeground }]}
+          >
+            {mmss}
+          </Text>
+          <Button
+            label={t("sale.cancel")}
+            hint={t("a11y.cancelHint")}
+            variant="ghost"
+            busy={busy}
+            onPress={cancel}
+          />
         </Card>
       )}
 
       {(phase === "failed" || phase === "expired") && (
         <Card style={{ alignItems: "center" }}>
-          <Text style={[styles.total, { color: colors.destructive }]}>
+          <Text
+            accessibilityRole="header"
+            accessibilityLiveRegion="assertive"
+            style={[styles.total, { color: colors.destructive }]}
+          >
             {phase === "failed" ? t("sale.declined") : t("sale.expired")}
           </Text>
           {sale && <Body>{formatMoney(sale.total)}</Body>}
-          <Button label={t("sale.newSale")} onPress={reset} />
+          <Button label={t("sale.newSale")} hint={t("a11y.newSaleHint")} onPress={reset} />
         </Card>
       )}
 
