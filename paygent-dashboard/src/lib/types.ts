@@ -1,5 +1,8 @@
-export type Rail = "paypal" | "card" | "applepay" | "googlepay" | "pix" | "spei" | "oxxo";
-export type Currency = "MXN" | "BRL" | "USD";
+// types.ts: dashboard domain types (transactions, stalls, rails, goals) shared by mock and live data.
+export type Rail =
+  "paypal" | "card" | "applepay" | "googlepay" | "pix" | "spei" | "oxxo" | "cash" | "breb" | "bank";
+/** Any ISO 4217 code the server sends; the three named ones have mock data. */
+export type Currency = "MXN" | "BRL" | "USD" | (string & {});
 export type TxStatus = "COMPLETED" | "pending_bank" | "refunded" | "denied";
 export type TxType = "venta" | "reembolso" | "payout";
 export type Origin = "verificado" | "autodeclarado";

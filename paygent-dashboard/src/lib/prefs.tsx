@@ -1,3 +1,5 @@
+// prefs.tsx: per-device preferences (language, dark mode, large text, privacy) and the t()/money()
+// formatters every component uses; stored in localStorage when available.
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { LOCALES, translate, type Lang, type TKey } from "./i18n";
 import type { Currency } from "./types";
@@ -19,7 +21,7 @@ interface Ctx extends Prefs {
 }
 const PrefsCtx = createContext<Ctx | null>(null);
 
-export const PREFIX: Record<Currency, string> = { MXN: "MX$", BRL: "R$", USD: "US$" };
+export const PREFIX: Record<string, string> = { MXN: "MX$", BRL: "R$", USD: "US$" };
 
 export function PrefsProvider({ children }: { children: ReactNode }) {
   const [p, setP] = useState<Prefs>(DEFAULT);
@@ -27,7 +29,9 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
     try {
       const s = localStorage.getItem(KEY);
       if (s) setP({ ...DEFAULT, ...JSON.parse(s) });
-    } catch {}
+    } catch {
+      /* storage blocked: keep defaults */
+    }
   }, []);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", p.dark);
@@ -42,15 +46,18 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
   const locale = LOCALES[p.lang];
-  const t = useCallback((k: TKey, v?: Record<string, string | number>) => translate(p.lang, k, v), [p.lang]);
+  const t = useCallback(
+    (k: TKey, v?: Record<string, string | number>) => translate(p.lang, k, v),
+    [p.lang],
+  );
   const money = useCallback(
     (n: number, c: Currency, opts?: { compact?: boolean }) => {
-      if (p.privacy) return `${PREFIX[c]} •••••`;
+      if (p.privacy) return `${PREFIX[c] ?? `${c} `} •••••`;
       const f = new Intl.NumberFormat(locale, {
         minimumFractionDigits: opts?.compact ? 0 : 2,
         maximumFractionDigits: opts?.compact ? 0 : 2,
       }).format(n);
-      return `${PREFIX[c]}${f}`;
+      return `${PREFIX[c] ?? `${c} `}${f}`;
     },
     [p.privacy, locale],
   );
@@ -64,6 +71,10 @@ export function usePrefs() {
 }
 
 export function haptic() {
-  if (typeof navigator !== "undefined" && "vibrate" in navigator && !matchMedia("(prefers-reduced-motion: reduce)").matches)
+  if (
+    typeof navigator !== "undefined" &&
+    "vibrate" in navigator &&
+    !matchMedia("(prefers-reduced-motion: reduce)").matches
+  )
     navigator.vibrate?.(10);
 }

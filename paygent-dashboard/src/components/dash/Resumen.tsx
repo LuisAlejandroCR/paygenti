@@ -1,10 +1,33 @@
+// Resumen.tsx: overview tab — wine sales card (verified total, 3 KPIs, day strip), shortcut pills,
+// month-to-date pace vs last month, rails strip and top products. Totals are verified-only; the
+// self-declared amount is always shown beside it, never added in.
 import { useMemo, useRef, useState } from "react";
-import { Area, AreaChart, Bar, BarChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Icon, RAIL_COLOR, RAIL_NAME, RailIcon, itemIcon } from "@/components/icons";
 import { usePrefs } from "@/lib/prefs";
-import { daily, daysIn, inMonth, monthKey, monthName, shiftMonth, split, byRail, topItems } from "@/lib/stats";
+import {
+  daily,
+  daysIn,
+  inMonth,
+  monthKey,
+  monthName,
+  shiftMonth,
+  split,
+  byRail,
+  topItems,
+} from "@/lib/stats";
 import { TODAY } from "@/lib/mock";
 import { useDash, type FlowName } from "./context";
 import { ChartCard, Delta, Money, Tap } from "./shared";
@@ -12,7 +35,13 @@ import { ChartCard, Delta, Money, Tap } from "./shared";
 export function HatchDefs() {
   return (
     <defs>
-      <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <pattern
+        id="hatch"
+        width="6"
+        height="6"
+        patternUnits="userSpaceOnUse"
+        patternTransform="rotate(45)"
+      >
         <rect width="6" height="6" fill="var(--card)" />
         <rect width="3" height="6" fill="var(--declared)" />
       </pattern>
@@ -21,7 +50,15 @@ export function HatchDefs() {
 }
 
 // Pace ring: outer arc = verified vs last month, inner hatched arc = self-declared, tick = days elapsed.
-function PaceRing({ verified, declared, elapsed }: { verified: number; declared: number; elapsed: number }) {
+function PaceRing({
+  verified,
+  declared,
+  elapsed,
+}: {
+  verified: number;
+  declared: number;
+  elapsed: number;
+}) {
   const arc = (r: number, p: number) => {
     const c = 2 * Math.PI * r;
     return { strokeDasharray: `${(Math.min(100, p) / 100) * c} ${c}` };
@@ -31,10 +68,37 @@ function PaceRing({ verified, declared, elapsed }: { verified: number; declared:
     <svg viewBox="0 0 64 64" className="size-16 shrink-0" aria-hidden>
       <HatchDefs />
       <circle cx="32" cy="32" r="27" fill="none" stroke="var(--muted)" strokeWidth="6" />
-      <circle cx="32" cy="32" r="27" fill="none" stroke="var(--verified)" strokeWidth="6" strokeLinecap="round" transform="rotate(-90 32 32)" style={arc(27, verified)} />
+      <circle
+        cx="32"
+        cy="32"
+        r="27"
+        fill="none"
+        stroke="var(--verified)"
+        strokeWidth="6"
+        strokeLinecap="round"
+        transform="rotate(-90 32 32)"
+        style={arc(27, verified)}
+      />
       <circle cx="32" cy="32" r="18" fill="none" stroke="var(--muted)" strokeWidth="5" />
-      <circle cx="32" cy="32" r="18" fill="none" stroke="url(#hatch)" strokeWidth="5" transform="rotate(-90 32 32)" style={arc(18, declared)} />
-      <line x1={32 + 22 * Math.cos(a)} y1={32 + 22 * Math.sin(a)} x2={32 + 31 * Math.cos(a)} y2={32 + 31 * Math.sin(a)} stroke="var(--foreground)" strokeWidth="2" strokeLinecap="round" />
+      <circle
+        cx="32"
+        cy="32"
+        r="18"
+        fill="none"
+        stroke="url(#hatch)"
+        strokeWidth="5"
+        transform="rotate(-90 32 32)"
+        style={arc(18, declared)}
+      />
+      <line
+        x1={32 + 22 * Math.cos(a)}
+        y1={32 + 22 * Math.sin(a)}
+        x2={32 + 31 * Math.cos(a)}
+        y2={32 + 31 * Math.sin(a)}
+        stroke="var(--foreground)"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -48,7 +112,10 @@ export function useMonthStats() {
     const day = isCurrent ? TODAY.getDate() : daysIn(m);
     const cur = split(inMonth(txs, m), stall.currency);
     const prevAll = split(inMonth(txs, prev), stall.currency);
-    const prevSame = split(inMonth(txs, prev).filter((t) => new Date(t.date).getDate() <= day), stall.currency);
+    const prevSame = split(
+      inMonth(txs, prev).filter((t) => new Date(t.date).getDate() <= day),
+      stall.currency,
+    );
     return { m, prev, day, cur, prevAll, prevSame, total: daysIn(m) };
   }, [txs, search.month, stall.currency]);
 }
@@ -67,25 +134,40 @@ export function Resumen() {
 
   const mName = monthName(s.m, locale);
   const pName = monthName(s.prev, locale);
-  const delta = s.prevSame.verified ? ((s.cur.verified - s.prevSame.verified) / s.prevSame.verified) * 100 : 0;
+  const delta = s.prevSame.verified
+    ? ((s.cur.verified - s.prevSame.verified) / s.prevSame.verified) * 100
+    : 0;
   const pctV = s.prevAll.verified ? Math.round((s.cur.verified / s.prevAll.verified) * 100) : 0;
   const pctD = s.prevAll.declared ? Math.round((s.cur.declared / s.prevAll.declared) * 100) : 0;
 
-  const six = useMemo(() => Array.from({ length: 6 }, (_, i) => {
-    const m = shiftMonth(monthKey(TODAY), i - 5);
-    const sp = split(inMonth(txs, m), c);
-    return { m, label: monthName(m, locale, "short"), verified: Math.round(sp.verified), declared: Math.round(sp.declared) };
-  }), [txs, c, locale]);
+  const six = useMemo(
+    () =>
+      Array.from({ length: 6 }, (_, i) => {
+        const m = shiftMonth(monthKey(TODAY), i - 5);
+        const sp = split(inMonth(txs, m), c);
+        return {
+          m,
+          label: monthName(m, locale, "short"),
+          verified: Math.round(sp.verified),
+          declared: Math.round(sp.declared),
+        };
+      }),
+    [txs, c, locale],
+  );
 
   const dayByDay = useMemo(() => {
-    const a = daily(txs, s.m, c, s.day), b = daily(txs, s.prev, c);
+    const a = daily(txs, s.m, c, s.day),
+      b = daily(txs, s.prev, c);
     return a.map((r, i) => ({ day: r.day, now: r.verified, before: b[i]?.verified ?? 0 }));
   }, [txs, s, c]);
 
   // long-press / right-click compare
   const hovered = useRef<string | null>(null);
   const timer = useRef<number>(0);
-  const compare = () => hovered.current && hovered.current !== s.m && open({ kind: "compare", a: s.m, b: hovered.current });
+  const compare = () =>
+    hovered.current &&
+    hovered.current !== s.m &&
+    open({ kind: "compare", a: s.m, b: hovered.current });
 
   const dismiss = () => {
     setDismissed(true);
@@ -101,20 +183,31 @@ export function Resumen() {
     { flow: "exportar", label: t("a_export"), icon: "download" },
   ];
 
-  const tip = { background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, color: "var(--popover-foreground)" };
-  const cal = useMemo(() => daily(txs, s.m, c).map((r) => ({ day: r.day, total: r.verified + r.declared, future: r.day > s.day })), [txs, s.m, s.day, c]);
+  const tip = {
+    background: "var(--popover)",
+    border: "1px solid var(--border)",
+    borderRadius: 12,
+    color: "var(--popover-foreground)",
+  };
+  const cal = useMemo(
+    () => daily(txs, s.m, c).map((r) => ({ day: r.day, total: r.verified, future: r.day > s.day })),
+    [txs, s.m, s.day, c],
+  );
   const calMax = Math.max(1, ...cal.map((d) => d.total));
   const cum = useMemo(() => {
-    const a = daily(txs, s.m, c), b = daily(txs, s.prev, c);
-    let x = 0, y = 0;
+    const a = daily(txs, s.m, c),
+      b = daily(txs, s.prev, c);
+    let x = 0,
+      y = 0;
     return a.map((r, i) => {
-      x += r.verified + r.declared; y += (b[i]?.verified ?? 0) + (b[i]?.declared ?? 0);
+      x += r.verified;
+      y += b[i]?.verified ?? 0;
       return { day: r.day, now: r.day <= s.day ? x : null, before: y };
     });
   }, [txs, s, c]);
-  const sixMax = Math.max(1, ...six.map((x) => x.verified + x.declared));
-  const railTot = rails.reduce((a, x) => a + x.total, 0) || 1;
-  const itemMax = Math.max(1, ...items.map((i) => i.verified + i.declared));
+  const sixMax = Math.max(1, ...six.map((x) => x.verified));
+  const railTot = rails.reduce((a, x) => a + x.verified, 0) || 1;
+  const itemMax = Math.max(1, ...items.map((i) => Math.max(i.verified, i.declared)));
 
   const summary = `${t("sales_of")} ${mName}: ${t("verified")} ${money(s.cur.verified, c)}, ${t("declared")} ${money(s.cur.declared, c)}, ${Math.round(delta)}% ${t("vs")} ${pName}`;
 
@@ -122,25 +215,50 @@ export function Resumen() {
     <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
       {/* Alert */}
       {allPending.length > 0 && !dismissed && (
-        <div className="lg:col-span-3 flex items-center gap-3 rounded-2xl border border-warning/50 bg-warning-soft p-2 pl-4 text-warning-foreground" role="alert">
+        <div
+          className="lg:col-span-3 flex items-center gap-3 rounded-2xl border border-warning/50 bg-warning-soft p-2 pl-4 text-warning-foreground"
+          role="alert"
+        >
           <Icon.alert className="shrink-0" />
-          <Tap className="flex flex-1 flex-wrap items-center gap-x-2 rounded-xl py-2 hover:shadow-none" onClick={() => open({ kind: "flow", flow: "confirmar", ids: allPending.map((x) => x.id) })}>
+          <Tap
+            className="flex flex-1 flex-wrap items-center gap-x-2 rounded-xl py-2 hover:shadow-none"
+            onClick={() =>
+              open({ kind: "flow", flow: "confirmar", ids: allPending.map((x) => x.id) })
+            }
+          >
             <span className="font-semibold">{t("alert_spei", { n: allPending.length })}</span>
             <span className="font-bold underline underline-offset-2">→ {t("confirm_pin")}</span>
           </Tap>
-          <button onClick={dismiss} className="inline-flex size-11 items-center justify-center rounded-xl hover:bg-warning/20 cursor-pointer" aria-label={t("close")}><Icon.x /></button>
+          <button
+            onClick={dismiss}
+            className="inline-flex size-11 items-center justify-center rounded-xl hover:bg-warning/20 cursor-pointer"
+            aria-label={t("close")}
+          >
+            <Icon.x />
+          </button>
         </div>
       )}
 
       {/* Ticket hero: wine band with the month total, 3 KPIs and a day-by-day calendar strip */}
       <section className="lg:col-span-3 overflow-hidden rounded-3xl bg-primary text-primary-foreground shadow-lift">
         <div className="grid gap-5 p-5 sm:p-6 md:grid-cols-[1.4fr_1fr]">
-          <Tap label={summary} onClick={() => nav({ tab: "ventas" })} className="rounded-2xl text-left hover:shadow-none">
+          <Tap
+            label={summary}
+            onClick={() => nav({ tab: "ventas" })}
+            className="rounded-2xl text-left hover:shadow-none"
+          >
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] opacity-80">{t("sales_of")} {mName}</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] opacity-80">
+                {t("sales_of")} {mName}
+              </h2>
               <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                 <Popover>
-                  <PopoverTrigger className="cursor-pointer rounded-full" aria-label={t("daybyday")}><Delta pct={delta} label={`${t("vs")} ${pName}`} /></PopoverTrigger>
+                  <PopoverTrigger
+                    className="cursor-pointer rounded-full"
+                    aria-label={t("daybyday")}
+                  >
+                    <Delta pct={delta} label={`${t("vs")} ${pName}`} />
+                  </PopoverTrigger>
                   <PopoverContent className="w-80">
                     <p className="mb-2 text-sm font-bold">{t("daybyday")}</p>
                     <div className="h-40">
@@ -148,8 +266,19 @@ export function Resumen() {
                         <BarChart data={dayByDay}>
                           <XAxis dataKey="day" fontSize={10} tickLine={false} axisLine={false} />
                           <Tooltip formatter={(v: number) => money(v, c)} contentStyle={tip} />
-                          <Bar dataKey="before" name={pName} fill="var(--muted-foreground)" opacity={0.35} radius={[3, 3, 0, 0]} />
-                          <Bar dataKey="now" name={mName} fill="var(--verified)" radius={[3, 3, 0, 0]} />
+                          <Bar
+                            dataKey="before"
+                            name={pName}
+                            fill="var(--muted-foreground)"
+                            opacity={0.35}
+                            radius={[3, 3, 0, 0]}
+                          />
+                          <Bar
+                            dataKey="now"
+                            name={mName}
+                            fill="var(--verified)"
+                            radius={[3, 3, 0, 0]}
+                          />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -157,20 +286,58 @@ export function Resumen() {
                 </Popover>
               </div>
             </div>
-            <Money value={s.cur.verified} currency={c} className="mt-2 block text-5xl font-extrabold tracking-tight sm:text-6xl" />
-            <p className="mt-1 text-sm opacity-85">{t("day_of", { d: s.day, t: s.total })} · {t("pct_of_last", { p: pctV, m: pName })}</p>
+            <Money
+              value={s.cur.verified}
+              currency={c}
+              className="mt-2 block text-5xl font-extrabold tracking-tight sm:text-6xl"
+            />
+            <p className="mt-1 text-sm opacity-85">
+              {t("day_of", { d: s.day, t: s.total })} · {t("pct_of_last", { p: pctV, m: pName })}
+            </p>
           </Tap>
           <div className="grid grid-cols-3 divide-x divide-primary-foreground/20 overflow-hidden rounded-2xl bg-primary-foreground/10 md:grid-cols-1 md:divide-x-0 md:divide-y">
             {[
-              { k: "verified", label: t("verified"), v: s.cur.verified, f: "verificado", icon: <Icon.check size={14} /> },
-              { k: "declared", label: t("declared"), v: s.cur.declared, f: "autodeclarado", icon: <span className="hatch-on-wine size-3 rounded-sm" /> },
-              { k: "pending", label: t("pending"), v: s.cur.pending, f: "pending_bank", icon: <Icon.clock size={14} />, n: s.cur.pendingCount },
+              {
+                k: "verified",
+                label: t("verified"),
+                v: s.cur.verified,
+                f: "verificado",
+                icon: <Icon.check size={14} />,
+              },
+              {
+                k: "declared",
+                label: t("declared"),
+                v: s.cur.declared,
+                f: "autodeclarado",
+                icon: <span className="hatch-on-wine size-3 rounded-sm" />,
+              },
+              {
+                k: "pending",
+                label: t("pending"),
+                v: s.cur.pending,
+                f: "pending_bank",
+                icon: <Icon.clock size={14} />,
+                n: s.cur.pendingCount,
+              },
             ].map((x) => (
-              <Tap key={x.k} label={x.label} onClick={() => nav({ tab: "movimientos", filter: x.f as never })} className="rounded-none p-3 text-left hover:bg-primary-foreground/10 hover:shadow-none md:flex md:items-center md:justify-between">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide opacity-80">{x.icon}{x.label}</span>
+              <Tap
+                key={x.k}
+                label={x.label}
+                onClick={() => nav({ tab: "movimientos", filter: x.f as never })}
+                className="rounded-none p-3 text-left hover:bg-primary-foreground/10 hover:shadow-none md:flex md:items-center md:justify-between"
+              >
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide opacity-80">
+                  {x.icon}
+                  {x.label}
+                </span>
                 <span className="mt-1 block md:mt-0">
                   {x.n !== undefined && <span className="num mr-1.5 text-lg font-bold">{x.n}</span>}
-                  <Money value={x.v} currency={c} compact className={x.n !== undefined ? "text-xs opacity-80" : "text-lg font-bold"} />
+                  <Money
+                    value={x.v}
+                    currency={c}
+                    compact
+                    className={x.n !== undefined ? "text-xs opacity-80" : "text-lg font-bold"}
+                  />
                 </span>
               </Tap>
             ))}
@@ -179,11 +346,25 @@ export function Resumen() {
         {/* Calendar strip: one cell per day, height = that day's sales, future days dotted */}
         <div className="flex h-16 items-end gap-[3px] bg-primary-foreground/5 px-5 pb-3 pt-2 sm:px-6">
           {cal.map((d) => (
-            <button key={d.day} type="button" disabled={d.future} onClick={() => nav({ tab: "ventas" })}
-              title={`${d.day}: ${money(d.total, c)}`} aria-label={`${t("day")} ${d.day}: ${money(d.total, c)}`}
-              className="group flex h-full flex-1 flex-col justify-end cursor-pointer disabled:cursor-default">
-              <span className={d.future ? "mx-auto size-1 rounded-full bg-primary-foreground/30" : "w-full rounded-t-sm bg-primary-foreground/80 transition-all group-hover:bg-primary-foreground"}
-                style={d.future ? undefined : { height: `${Math.max(6, (d.total / calMax) * 100)}%` }} />
+            <button
+              key={d.day}
+              type="button"
+              disabled={d.future}
+              onClick={() => nav({ tab: "ventas" })}
+              title={`${d.day}: ${money(d.total, c)}`}
+              aria-label={`${t("day")} ${d.day}: ${money(d.total, c)}`}
+              className="group flex h-full flex-1 flex-col justify-end cursor-pointer disabled:cursor-default"
+            >
+              <span
+                className={
+                  d.future
+                    ? "mx-auto size-1 rounded-full bg-primary-foreground/30"
+                    : "w-full rounded-t-sm bg-primary-foreground/80 transition-all group-hover:bg-primary-foreground"
+                }
+                style={
+                  d.future ? undefined : { height: `${Math.max(6, (d.total / calMax) * 100)}%` }
+                }
+              />
             </button>
           ))}
         </div>
@@ -193,25 +374,59 @@ export function Resumen() {
         {actions.map((a, i) => {
           const I = Icon[a.icon];
           return (
-            <Tap key={a.flow} onClick={() => open({ kind: "flow", flow: a.flow, ids: a.flow === "confirmar" ? allPending.map((x) => x.id) : undefined })}
-              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold hover:shadow-none ${i === 0 ? "bg-primary text-primary-foreground shadow-soft" : "border border-border bg-card text-foreground hover:border-primary hover:text-primary"}`}>
-              <I size={16} />{a.label}
+            <Tap
+              key={a.flow}
+              onClick={() =>
+                open({
+                  kind: "flow",
+                  flow: a.flow,
+                  ids: a.flow === "confirmar" ? allPending.map((x) => x.id) : undefined,
+                })
+              }
+              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold hover:shadow-none ${i === 0 ? "bg-primary text-primary-foreground shadow-soft" : "border border-border bg-card text-foreground hover:border-primary hover:text-primary"}`}
+            >
+              <I size={16} />
+              {a.label}
             </Tap>
           );
         })}
       </div>
 
       {/* Running total vs last month (cumulative), with 6-month chips to jump */}
-      <ChartCard title={t("pace")} className="lg:col-span-2" summary={`${t("pace")}: ${money(s.cur.verified + s.cur.declared, c)} ${t("vs")} ${money(s.prevAll.verified + s.prevAll.declared, c)} ${pName}`}
-        rows={cum.map((r) => ({ dia: r.day, [mName]: Math.round(r.now ?? 0), [pName]: Math.round(r.before) }))}>
-        <div className="mb-3 flex gap-1.5 overflow-x-auto" onContextMenu={(e) => { e.preventDefault(); compare(); }}>
+      <ChartCard
+        title={t("pace")}
+        className="lg:col-span-2"
+        summary={`${t("pace")} (${t("verified")}): ${money(s.cur.verified, c)} ${t("vs")} ${money(s.prevAll.verified, c)} ${pName}`}
+        rows={cum.map((r) => ({
+          dia: r.day,
+          [mName]: Math.round(r.now ?? 0),
+          [pName]: Math.round(r.before),
+        }))}
+      >
+        <div
+          className="mb-3 flex gap-1.5 overflow-x-auto"
+          onContextMenu={(e) => {
+            e.preventDefault();
+            compare();
+          }}
+        >
           {six.map((x) => {
-            const h = Math.max(4, ((x.verified + x.declared) / sixMax) * 22);
+            const h = Math.max(4, (x.verified / sixMax) * 22);
             return (
-              <button key={x.m} onClick={() => nav({ month: x.m })} onMouseEnter={() => { hovered.current = x.m; }}
-                onTouchStart={() => { hovered.current = x.m; timer.current = window.setTimeout(compare, 550); }} onTouchEnd={() => clearTimeout(timer.current)}
+              <button
+                key={x.m}
+                onClick={() => nav({ month: x.m })}
+                onMouseEnter={() => {
+                  hovered.current = x.m;
+                }}
+                onTouchStart={() => {
+                  hovered.current = x.m;
+                  timer.current = window.setTimeout(compare, 550);
+                }}
+                onTouchEnd={() => clearTimeout(timer.current)}
                 aria-pressed={x.m === s.m}
-                className={`flex min-h-11 min-w-14 flex-col items-center justify-end gap-1 rounded-xl border px-2 py-1.5 text-[11px] font-semibold capitalize cursor-pointer ${x.m === s.m ? "border-primary bg-accent text-accent-foreground" : "border-border hover:bg-muted"}`}>
+                className={`flex min-h-11 min-w-14 flex-col items-center justify-end gap-1 rounded-xl border px-2 py-1.5 text-[11px] font-semibold capitalize cursor-pointer ${x.m === s.m ? "border-primary bg-accent text-accent-foreground" : "border-border hover:bg-muted"}`}
+              >
                 <span className="w-3 rounded-sm bg-current opacity-70" style={{ height: h }} />
                 {x.label}
               </button>
@@ -229,36 +444,109 @@ export function Resumen() {
               </defs>
               <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={11} interval={4} />
               <YAxis hide />
-              <Tooltip formatter={(v: number, n) => [money(v, c, { compact: true }), n === "now" ? mName : pName]} labelFormatter={(d) => `${t("day")} ${d}`} contentStyle={tip} />
-              <Area type="monotone" dataKey="before" stroke="var(--muted-foreground)" strokeDasharray="4 4" fill="none" strokeWidth={1.5} />
-              <Area type="monotone" dataKey="now" stroke="var(--primary)" fill="url(#wineFill)" strokeWidth={2.5} />
+              <Tooltip
+                formatter={(v: number, n) => [
+                  money(v, c, { compact: true }),
+                  n === "now" ? mName : pName,
+                ]}
+                labelFormatter={(d) => `${t("day")} ${d}`}
+                contentStyle={tip}
+              />
+              <Area
+                type="monotone"
+                dataKey="before"
+                stroke="var(--muted-foreground)"
+                strokeDasharray="4 4"
+                fill="none"
+                strokeWidth={1.5}
+              />
+              <Area
+                type="monotone"
+                dataKey="now"
+                stroke="var(--primary)"
+                fill="url(#wineFill)"
+                strokeWidth={2.5}
+              />
               <ReferenceLine x={s.day} stroke="var(--border)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
         <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 bg-primary" />{mName}</span>
-          <span className="flex items-center gap-1.5"><span className="w-4 border-t-2 border-dashed border-muted-foreground" />{pName}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-0.5 w-4 bg-primary" />
+            {mName}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-4 border-t-2 border-dashed border-muted-foreground" />
+            {pName}
+          </span>
         </div>
       </ChartCard>
 
       {/* Rails as a 100% stacked strip + ranked rows (no donut) */}
-      <ChartCard title={t("how_paid")} summary={`${t("how_paid")}: ${rails.map((r) => `${RAIL_NAME[r.rail]} ${money(r.total, c)}`).join(", ")}`}
-        rows={rails.map((r) => ({ rail: RAIL_NAME[r.rail], verificado: Math.round(r.verified), autodeclarado: Math.round(r.declared) }))}
-        action={<button onClick={() => nav({ tab: "perfil", section: "rieles" })} className="min-h-11 px-2 text-sm font-semibold text-primary cursor-pointer">{t("see_all")}</button>}>
+      <ChartCard
+        title={t("how_paid")}
+        summary={`${t("how_paid")}: ${rails.map((r) => `${RAIL_NAME[r.rail]} ${money(r.verified, c)} · ${t("declared")} ${money(r.declared, c)}`).join(", ")}`}
+        rows={rails.map((r) => ({
+          rail: RAIL_NAME[r.rail],
+          verificado: Math.round(r.verified),
+          autodeclarado: Math.round(r.declared),
+        }))}
+        action={
+          <button
+            onClick={() => nav({ tab: "perfil", section: "rieles" })}
+            className="min-h-11 px-2 text-sm font-semibold text-primary cursor-pointer"
+          >
+            {t("see_all")}
+          </button>
+        }
+      >
         <div className="flex h-4 overflow-hidden rounded-full" aria-hidden>
-          {rails.map((r) => <span key={r.rail} className={r.declared > r.verified ? "hatch" : ""} style={{ width: `${(r.total / railTot) * 100}%`, background: r.declared > r.verified ? undefined : RAIL_COLOR[r.rail], opacity: search.rail && search.rail !== r.rail ? 0.3 : 1 }} />)}
+          {rails.map((r) =>
+            r.verified ? (
+              <span
+                key={r.rail}
+                style={{
+                  width: `${(r.verified / railTot) * 100}%`,
+                  background: RAIL_COLOR[r.rail],
+                  opacity: search.rail && search.rail !== r.rail ? 0.3 : 1,
+                }}
+              />
+            ) : null,
+          )}
         </div>
         <ul className="mt-3 space-y-1">
           {rails.map((r) => (
             <li key={r.rail}>
-              <button onClick={() => nav({ rail: search.rail === r.rail ? undefined : r.rail })} aria-pressed={search.rail === r.rail}
-                className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-sm cursor-pointer ${search.rail === r.rail ? "bg-accent" : "hover:bg-muted"}`}>
+              <button
+                onClick={() => nav({ rail: search.rail === r.rail ? undefined : r.rail })}
+                aria-pressed={search.rail === r.rail}
+                className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-sm cursor-pointer ${search.rail === r.rail ? "bg-accent" : "hover:bg-muted"}`}
+              >
                 <RailIcon rail={r.rail} size={18} />
                 <span className="truncate font-medium">{RAIL_NAME[r.rail]}</span>
-                {r.declared > r.verified && <span className="hatch size-2.5 rounded-sm" aria-label={t("declared")} />}
-                <Money value={r.total} currency={c} compact className="ml-auto text-sm font-semibold" />
-                <span className="num w-9 text-right text-xs text-muted-foreground">{Math.round((r.total / railTot) * 100)}%</span>
+                {r.declared > r.verified && (
+                  <span className="hatch size-2.5 rounded-sm" aria-label={t("declared")} />
+                )}
+                <span className="ml-auto flex flex-col items-end leading-tight">
+                  <Money
+                    value={r.verified}
+                    currency={c}
+                    compact
+                    className="text-sm font-semibold"
+                  />
+                  {r.declared > 0 && (
+                    <Money
+                      value={r.declared}
+                      currency={c}
+                      compact
+                      className="text-[11px] text-declared"
+                    />
+                  )}
+                </span>
+                <span className="num w-9 text-right text-xs text-muted-foreground">
+                  {Math.round((r.verified / railTot) * 100)}%
+                </span>
               </button>
             </li>
           ))}
@@ -271,27 +559,49 @@ export function Resumen() {
         <ul className="space-y-2">
           {items.map((it) => {
             const I = itemIcon(it.item);
-            const tot = it.verified + it.declared;
+
             return (
               <li key={it.item}>
-                <Tap onClick={() => open({ kind: "item", item: it.item })} className="block rounded-xl p-2 hover:bg-muted hover:shadow-none">
+                <Tap
+                  onClick={() => open({ kind: "item", item: it.item })}
+                  className="block rounded-xl p-2 hover:bg-muted hover:shadow-none"
+                >
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-primary"><I /></span>
+                    <span className="text-primary">
+                      <I />
+                    </span>
                     <span className="truncate font-semibold">{it.item}</span>
                     <span className="num text-xs text-muted-foreground">×{it.count}</span>
-                    <Money value={tot} currency={c} compact className="ml-auto font-bold" />
+                    <Money value={it.verified} currency={c} compact className="ml-auto font-bold" />
+                    {it.declared > 0 && (
+                      <Money
+                        value={it.declared}
+                        currency={c}
+                        compact
+                        className="text-xs text-declared"
+                      />
+                    )}
                   </div>
                   <div className="mt-1.5 flex h-2 overflow-hidden rounded-full bg-muted">
-                    <span className="bg-verified" style={{ width: `${(it.verified / itemMax) * 100}%` }} />
-                    <span className="hatch" style={{ width: `${(it.declared / itemMax) * 100}%` }} />
+                    <span
+                      className="bg-verified"
+                      style={{ width: `${(it.verified / itemMax) * 100}%` }}
+                    />
                   </div>
+                  {it.declared > 0 && (
+                    <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-muted">
+                      <span
+                        className="hatch"
+                        style={{ width: `${(it.declared / itemMax) * 100}%` }}
+                      />
+                    </div>
+                  )}
                 </Tap>
               </li>
             );
           })}
         </ul>
       </section>
-
     </div>
   );
 }

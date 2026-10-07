@@ -1,9 +1,13 @@
+// stats.ts: pure aggregations over Tx[] (month split verified/self-declared/pending, by rail, top
+// items, daily series, heatmap) plus CSV helpers. Verified and self-declared are never added together.
 import type { Currency, Rail, Tx } from "./types";
 
-const USD_RATE: Record<Currency, number> = { MXN: 18, BRL: 5.2, USD: 1 };
-export const toStall = (t: Tx, c: Currency) => (t.currency === c ? t.amount : t.currency === "USD" ? t.amount * USD_RATE[c] : t.amount);
+const USD_RATE: Record<string, number> = { MXN: 18, BRL: 5.2, USD: 1 };
+export const toStall = (t: Tx, c: Currency) =>
+  t.currency === c ? t.amount : t.currency === "USD" ? t.amount * (USD_RATE[c] ?? 1) : t.amount;
 
-export const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+export const monthKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 export const parseMonth = (m: string) => {
   const [y, mo] = m.split("-").map(Number);
   return new Date(y, mo - 1, 1);
@@ -20,13 +24,21 @@ export const daysIn = (m: string) => {
 export const monthName = (m: string, locale: string, style: "long" | "short" = "long") =>
   parseMonth(m).toLocaleDateString(locale, { month: style });
 
-export const isSale = (t: Tx) => t.type === "venta" && t.status !== "denied" && t.status !== "refunded";
+export const isSale = (t: Tx) =>
+  t.type === "venta" && t.status !== "denied" && t.status !== "refunded";
 
 export function split(txs: Tx[], c: Currency) {
-  let verified = 0, declared = 0, pending = 0, pendingCount = 0;
+  let verified = 0,
+    declared = 0,
+    pending = 0,
+    pendingCount = 0;
   for (const t of txs) {
     if (t.type !== "venta") continue;
-    if (t.status === "pending_bank") { pending += toStall(t, c); pendingCount++; continue; }
+    if (t.status === "pending_bank") {
+      pending += toStall(t, c);
+      pendingCount++;
+      continue;
+    }
     if (!isSale(t)) continue;
     if (t.origin === "verificado") verified += toStall(t, c);
     else declared += toStall(t, c);
@@ -46,7 +58,9 @@ export function byRail(txs: Tx[], c: Currency) {
     e[t.origin === "verificado" ? "verified" : "declared"] += toStall(t, c);
     map.set(t.rail, e);
   }
-  return [...map.entries()].map(([rail, v]) => ({ rail, ...v, total: v.verified + v.declared })).sort((a, b) => b.total - a.total);
+  return [...map.entries()]
+    .map(([rail, v]) => ({ rail, ...v }))
+    .sort((a, b) => b.verified - a.verified || b.declared - a.declared);
 }
 
 export function topItems(txs: Tx[], c: Currency) {
@@ -58,12 +72,21 @@ export function topItems(txs: Tx[], c: Currency) {
     e[t.origin === "verificado" ? "verified" : "declared"] += toStall(t, c);
     map.set(t.item, e);
   }
-  return [...map.entries()].map(([item, v]) => ({ item, ...v })).sort((a, b) => b.verified + b.declared - (a.verified + a.declared)).slice(0, 5);
+  return [...map.entries()]
+    .map(([item, v]) => ({ item, ...v }))
+    .sort((a, b) => b.verified - a.verified || b.declared - a.declared)
+    .slice(0, 5);
 }
 
 export function daily(txs: Tx[], m: string, c: Currency, uptoDay?: number) {
   const n = uptoDay ?? daysIn(m);
-  const rows = Array.from({ length: n }, (_, i) => ({ day: i + 1, verified: 0, declared: 0, count: 0, avg7: 0 }));
+  const rows = Array.from({ length: n }, (_, i) => ({
+    day: i + 1,
+    verified: 0,
+    declared: 0,
+    count: 0,
+    avg7: 0,
+  }));
   for (const t of inMonth(txs, m)) {
     if (!isSale(t) || t.status === "pending_bank") continue;
     const d = new Date(t.date).getDate();
@@ -73,7 +96,7 @@ export function daily(txs: Tx[], m: string, c: Currency, uptoDay?: number) {
   }
   rows.forEach((r, i) => {
     const w = rows.slice(Math.max(0, i - 6), i + 1);
-    r.avg7 = w.reduce((s, x) => s + x.verified + x.declared, 0) / w.length;
+    r.avg7 = w.reduce((s, x) => s + x.verified, 0) / w.length; // verified only
   });
   return rows;
 }

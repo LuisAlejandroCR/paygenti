@@ -4,6 +4,24 @@
 
 # Memoria — paygent
 
+## 2026-10-07 — Dashboard web conectado al servidor (`feat/dashboard`)
+
+- Ventas, Movimientos y Perfil (Rieles, Metas) rediseñados con el lenguaje de Resumen: banda vino
+  con KPIs, tiles que filtran, gráficas antes que texto, íconos SVG. Sin scroll horizontal a 375 px.
+- `paygent-dashboard/src/lib/adapter.ts` (puro, con vitest) mapea el JSON del servidor; `api.ts`
+  lo usa si `VITE_PAYGENT_API` existe (`npm run dev:live` → proxy de Vite a `:8787`, porque el
+  servidor no manda CORS). Sin la variable: mocks y el distintivo Sandbox.
+- Real: `/api/stalls`, `POST …/backoffice/session` (el PIN abre sesión de 8 h por puesto),
+  `…/ledger?date=` día por día (mes actual y anterior), `…/footprint` (estado de cuenta como
+  autodeclarado y la meta), `PUT …/savings-goal`, `…/refunds`, `…/suppliers` + `…/payouts`,
+  `…/statement`, `…/approvals` como avisos y `/api/sales/:id/vendor-confirm`.
+- Sigue en mock (sin endpoint): métricas por riel (conversión, tiempo de confirmación) y el
+  interruptor de rieles; nombre y fecha límite de metas (el servidor guarda una sola meta).
+- Invariantes: verificado = PayPal capturado; efectivo, confirmado por la vendedora y estado de
+  cuenta = autodeclarado; nunca se suman (se quitaron sumas en Resumen y el promedio 7 días);
+  `pending_bank` nunca cuenta como pagado; el PIN viaja a reembolso, payout e importación.
+- ⏳ Falta probar con ventas reales en el servidor (se verificó login y carga con ledger vacío).
+
 ## 2026-10-07 — Voz en Firefox (`feat/voice-firefox`)
 
 - Firefox no trae `SpeechRecognition`. Respaldo: `web/src/stt.ts` elige `native` → `record`
