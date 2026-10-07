@@ -1,6 +1,7 @@
 // web/src/ledger.tsx: the daily ledger at /backoffice/ledger — an AG Grid Community table of the
 // day's sales with sorting, filters, quick search, status/reconciliation pills, a pinned total row
 // recomputed over the filtered rows, line-item detail on row click, CSV export and SSE live updates.
+// Payouts to suppliers are a separate section under the grid, so the grid's sales totals stay exact.
 import {
   CellStyleModule,
   ClientSideRowModelApiModule,
@@ -22,6 +23,7 @@ import {
 import { useEffect, useRef, useState } from "preact/hooks";
 import { decimalsOf } from "../../shared/currency";
 import { type Currency, formatMoney, type Money, money } from "../../shared/money";
+import type { Payout } from "../../shared/types";
 import { type Key, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 import { hiddenColumns, OPTIONAL_COLUMNS } from "./ledger-columns";
@@ -72,6 +74,8 @@ interface Ledger {
   terminals: string[];
   rows: Row[];
   totals?: { paid: Money };
+  payouts?: Payout[];
+  paidOut?: Money;
 }
 
 /** Grid colors come from the app's CSS tokens, so light/dark follow styles.css. */
@@ -343,6 +347,45 @@ export function LedgerApp() {
       </div>
       {error && <p class="error">{error}</p>}
       <div ref={host} class="ledger-grid" />
+      <section class="panel ledger-payouts" aria-labelledby="ledger-payouts-title">
+        <h2 id="ledger-payouts-title">{t("ledger.payouts")}</h2>
+        {!ledger?.payouts?.length ? (
+          <p class="muted">{t("ledger.payoutsEmpty")}</p>
+        ) : (
+          <table class="ledger-lines">
+            <thead>
+              <tr>
+                <th>{t("ledger.col.time")}</th>
+                <th>{t("pay.supplier")}</th>
+                <th>{t("ledger.col.status")}</th>
+                <th>{t("pay.amount")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ledger.payouts.map((p) => (
+                <tr key={p.id}>
+                  <td>
+                    {new Date(p.createdAt).toLocaleTimeString(locale === "es" ? "es-MX" : "en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </td>
+                  <td>{p.supplierName}</td>
+                  <td>{t(`pay.status.${p.status}` as Key)}</td>
+                  <td>−{tm(p.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+            {ledger.paidOut && (
+              <tfoot>
+                <tr class="ledger-payouts-total">
+                  <td colSpan={4}>{t("ledger.payoutsTotal", { amount: tm(ledger.paidOut) })}</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        )}
+      </section>
       <section class="panel">
         <h2>{t("ledger.detail")}</h2>
         {!selected ? (

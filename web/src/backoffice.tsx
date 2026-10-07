@@ -1,5 +1,6 @@
 // web/src/backoffice.tsx: the vendor's back office at /backoffice — PIN login, today's sales,
-// cash reconcile, invoice with QR, refunds (PIN asked again each time) and the optional agent.
+// cash reconcile, invoice with QR, refunds (PIN asked again each time), suppliers and payouts, and
+// the optional agent (whose payout proposals prefill the payouts panel for PIN confirmation).
 // All numbers come from the server; this page only renders them.
 
 import { useEffect, useState } from "preact/hooks";
@@ -8,6 +9,7 @@ import { type Key, reasonText, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 import { MenuEditor } from "./menu-editor";
 import { PassportPanel } from "./passport-panel";
+import { type PayoutProposal, PayoutsPanel } from "./payouts-panel";
 
 /** Session token shared with /backoffice/ledger (same key as ledger.tsx; not imported to keep AG Grid lazy). */
 const LEDGER_TOKEN_KEY = "paygent.bo.token";
@@ -17,6 +19,7 @@ interface AgentToolRun {
   tool: string;
   ok: boolean;
   summary?: string;
+  result?: { proposal?: PayoutProposal };
 }
 
 interface SaleRow {
@@ -83,6 +86,7 @@ export function BackOfficeApp() {
   const [askPin, setAskPin] = useState("");
   const [answer, setAnswer] = useState("");
   const [ran, setRan] = useState<AgentToolRun[]>([]);
+  const [proposal, setProposal] = useState<PayoutProposal | null>(null);
 
   async function call<T>(path: string, body?: unknown): Promise<T | undefined> {
     setError("");
@@ -200,6 +204,8 @@ export function BackOfficeApp() {
     if (r) {
       setAnswer((r.code && reasonText(r.code, r.params, undefined, locale)) || r.text);
       setRan(r.actions ?? []);
+      const proposed = r.actions?.find((a) => a.tool === "propose_payout" && a.ok)?.result;
+      if (proposed?.proposal) setProposal({ ...proposed.proposal });
       void loadToday();
     }
   }
@@ -290,7 +296,9 @@ export function BackOfficeApp() {
                   </li>
                 ))}
               </ul>
-              {ran.some((a) => a.tool === "refund") && <p class="hint">{t("bo.toolLocked")}</p>}
+              {ran.some((a) => a.tool === "refund" || a.tool === "propose_payout") && (
+                <p class="hint">{t("bo.toolLocked")}</p>
+              )}
             </div>
           )}
         </form>
@@ -434,6 +442,13 @@ export function BackOfficeApp() {
           </div>
         )}
       </form>
+
+      <PayoutsPanel
+        token={token}
+        currency={currency}
+        proposal={proposal}
+        onAuthLost={() => setToken(null)}
+      />
 
       <PassportPanel currency={currency} token={token} onAuthLost={() => setToken(null)} />
 

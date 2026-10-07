@@ -1369,3 +1369,76 @@ button.link {
   background: #003087;
   color: #fff;
 }
+
+/* ---------- Suppliers & payouts ---------- */
+.payouts-panel h3 {
+  margin: 8px 0 0;
+  font-size: 1rem;
+}
+.payouts-panel .subform {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.payouts-panel .row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.supplier-list,
+.payout-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.supplier-list li,
+.payout-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  min-width: 0;
+}
+.supplier-name,
+.payout-main {
+  font-weight: 600;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.supplier-receiver,
+.payout-meta {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.supplier-list button,
+.payout-list button {
+  margin-left: auto;
+}
+.payouts-panel .proposal {
+  padding: 8px 12px;
+  border-left: 4px solid var(--paypal);
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+}
+.ledger-payouts .ledger-payouts-total {
+  font-weight: 700;
+}
+.ledger-payouts td:last-child,
+.ledger-payouts th:last-child {
+  white-space: nowrap;
+  text-align: right;
+}
