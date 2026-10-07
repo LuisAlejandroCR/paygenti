@@ -1,7 +1,9 @@
 // web/src/menu-editor.tsx: back-office "Menu" panel — take or upload a menu photo (downscaled on
 // the device), review the items Claude proposes in an editable table, or type them by hand, then
 // save. Nothing is saved until the vendor taps Save; the server validates and assigns SKUs.
+
 import { useEffect, useState } from "preact/hooks";
+import { type Currency, money, parseAmount, toPayPalValue } from "../../shared/money";
 import { useT } from "./i18n";
 
 interface Row {
@@ -24,13 +26,6 @@ interface Proposed {
 
 const MAX_SIDE = 1600;
 const empty = (): Row => ({ en: "", es: "", price: "", aliases: "" });
-const major = (minor: number) => (minor / 100).toFixed(2);
-
-function toMinor(text: string): number | undefined {
-  const m = /^\s*\$?\s*(\d{1,7})(?:[.,](\d{1,2}))?\s*$/.exec(text);
-  if (!m) return undefined;
-  return Number(m[1]) * 100 + Number((m[2] ?? "0").padEnd(2, "0"));
-}
 
 /** Re-encodes the photo as JPEG with its longest side at most 1600 px. */
 async function downscale(file: File): Promise<Blob> {
@@ -49,6 +44,9 @@ async function downscale(file: File): Promise<Blob> {
 export function MenuEditor({ token, onAuthLost }: { token: string; onAuthLost: () => void }) {
   const { t } = useT();
   const [rows, setRows] = useState<Row[]>([]);
+  const [currency, setCurrency] = useState<Currency>("MXN");
+  const major = (minor: number, c: Currency = currency) => toPayPalValue(money(minor, c));
+  const toMinor = (text: string) => parseAmount(text, currency, 7);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; error: boolean } | null>(null);
   const auth = { Authorization: `Bearer ${token}` };
@@ -56,16 +54,18 @@ export function MenuEditor({ token, onAuthLost }: { token: string; onAuthLost: (
   useEffect(() => {
     fetch("/api/backoffice/catalog", { headers: auth })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((d: { items: ServerItem[] }) =>
+      .then((d: { items: ServerItem[]; currency?: Currency }) => {
+        const c = d.currency ?? "MXN";
+        setCurrency(c);
         setRows(
           d.items.map((i) => ({
             en: i.names?.en ?? i.name,
             es: i.names?.es ?? i.name,
-            price: major(i.price.minor),
+            price: major(i.price.minor, c),
             aliases: i.aliases.join(", "),
           })),
-        ),
-      )
+        );
+      })
       .catch(() => setRows([empty()]));
   }, [token]);
 

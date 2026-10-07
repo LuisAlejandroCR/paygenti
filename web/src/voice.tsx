@@ -2,7 +2,7 @@
 // into catalog lines, and the vendor edits the cart (qty +/-, remove) before charging. A text box
 // ("Type the order") goes through the same parser for browsers without speech, and for judges.
 import { useRef, useState } from "preact/hooks";
-import { formatMoney, type Money, money } from "../../shared/money";
+import { type Currency, formatMoney, type Money, money } from "../../shared/money";
 import type { CartLine, CatalogItem } from "../../shared/types";
 import { api } from "./api";
 import { lineName, speechLang, useT } from "./i18n";
@@ -38,8 +38,8 @@ export function mergeLines(cart: CartLine[], add: CartLine[]): CartLine[] {
   return out;
 }
 
-export function cartTotal(cart: CartLine[]): Money {
-  const currency = cart[0]?.unitPrice.currency ?? "MXN";
+export function cartTotal(cart: CartLine[], fallback: Currency = "MXN"): Money {
+  const currency = cart[0]?.unitPrice.currency ?? fallback;
   return money(
     cart.reduce((s, l) => s + l.unitPrice.minor * l.qty, 0),
     currency,

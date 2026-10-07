@@ -1,7 +1,8 @@
 // server/paypal/rest.ts: PayPalGateway against the real REST API (sandbox by default).
 // OAuth2 client_credentials with a cached token, Orders v2, refunds and webhook verification.
 // Every write carries PayPal-Request-Id; every call has a timeout; secrets are never logged.
-import { type Currency, fromPayPalValue, type Money, toPayPalValue } from "../../shared/money";
+import { isPayPalCurrency } from "../../shared/currency";
+import { fromPayPalValue, type Money, toPayPalValue } from "../../shared/money";
 import {
   type CreateInvoiceInput,
   type CreateOrderInput,
@@ -320,8 +321,8 @@ function toOrder(order: PayPalOrder, fallback?: Money): GatewayOrder {
 }
 
 function parseAmount(a: PayPalAmount): Money {
-  if (a.currency_code !== "MXN" && a.currency_code !== "USD") {
+  if (!isPayPalCurrency(a.currency_code)) {
     throw new PayPalError(`unsupported currency ${a.currency_code}`, 502, "UNSUPPORTED_CURRENCY");
   }
-  return fromPayPalValue(a.value, a.currency_code as Currency);
+  return fromPayPalValue(a.value, a.currency_code);
 }

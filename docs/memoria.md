@@ -4,6 +4,25 @@
 
 # Memoria — paygent
 
+## 2026-10-06 — Moneda por vendedora y onboarding (`feat/onboarding-currency`)
+
+- Hechos verificados (leídos 2026-10-06):
+  - https://developer.paypal.com/reference/currency-codes/ — 24 monedas cobrables; sin decimales
+    para PayPal: JPY, HUF, TWD; BRL, CNY y MYR solo para cuentas del propio país. En LATAM solo MXN y
+    BRL; COP, ARS, CLP, PEN, etc. no existen en PayPal: esas vendedoras cobran en USD.
+  - https://developer.paypal.com/docs/checkout/apm/crypto/ — "Pay with Crypto" solo para comercios
+    de EE. UU. (cuenta Business verificada), liquida en la moneda principal de la cuenta, reembolsos
+    en PYUSD; la doc no ofrece sandbox. Decisión: cripto se muestra como "próximamente" con su razón;
+    no se finge.
+- `shared/currency.ts`: tabla de países (LATAM primero) → moneda local, moneda de cobro y zona.
+  `Money` respeta el exponente de cada moneda (¥950, no ¥950.00).
+- `PUT /api/backoffice/vendor` (sesión de vendedora, zod, auditado). Los precios no se convierten
+  (no hay fuente FX): se conservan en su valor facial y se pide revisarlos.
+- Cerrojo: topes por moneda (MXN conserva 200/1,000/500; USD y EUR 10/50/25). Contadores por
+  moneda; si hoy ya se movió dinero en otra moneda, el presupuesto de la nueva cuenta como gastado.
+- Pendiente conocido: el libro del día suma en la moneda actual; un día con cambio de moneda mezcla
+  montos.
+
 ## 2026-10-06 — Bloque 4: el cerrojo (`server/policy/`)
 
 - `decide(action, context)` es puro y falla cerrado: acción, actor, monto o zona horaria raros →

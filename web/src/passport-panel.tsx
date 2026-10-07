@@ -2,7 +2,8 @@
 // 30 days), optionally add self-reported cash, generate the signed passport, then show its summary,
 // a QR of the verify link, copy-link and a print-friendly view.
 import { useState } from "preact/hooks";
-import { type Currency, formatMoney, money } from "../../shared/money";
+import { isPayPalCurrency } from "../../shared/currency";
+import { type Currency, formatMoney, money, parseAmount } from "../../shared/money";
 import type { SignedPassport } from "../../shared/passport";
 import { useT } from "./i18n";
 import { PassportFigures } from "./verify";
@@ -12,13 +13,15 @@ interface Generated extends SignedPassport {
   qr: string | null;
 }
 
-function toMinor(text: string): number | undefined {
-  const m = /^\s*(\d{1,9})(?:[.,](\d{1,2}))?\s*$/.exec(text);
-  if (!m) return undefined;
-  return Number(m[1]) * 100 + Number((m[2] ?? "0").padEnd(2, "0"));
-}
-
-export function PassportPanel({ token, onAuthLost }: { token: string; onAuthLost: () => void }) {
+export function PassportPanel({
+  token,
+  onAuthLost,
+  currency,
+}: {
+  token: string;
+  onAuthLost: () => void;
+  currency: Currency;
+}) {
   const { t } = useT();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -31,7 +34,7 @@ export function PassportPanel({ token, onAuthLost }: { token: string; onAuthLost
     e.preventDefault();
     setError("");
     setCopied(false);
-    const cashMinor = cash.trim() ? toMinor(cash) : undefined;
+    const cashMinor = cash.trim() ? parseAmount(cash, currency) : undefined;
     if (cash.trim() && cashMinor === undefined) return setError(t("bo.cashFormat"));
     const res = await fetch("/api/backoffice/passport", {
       method: "POST",
@@ -65,7 +68,7 @@ export function PassportPanel({ token, onAuthLost }: { token: string; onAuthLost
     }
   }
 
-  const cur = (result?.report.currency === "USD" ? "USD" : "MXN") as Currency;
+  const cur = isPayPalCurrency(result?.report.currency) ? result.report.currency : currency;
   return (
     <form class="panel passport-panel" onSubmit={generate}>
       <h2>{t("passport.title")}</h2>

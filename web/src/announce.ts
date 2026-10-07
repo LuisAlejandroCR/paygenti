@@ -1,6 +1,7 @@
-// web/src/announce.ts: says "Received: 95 pesos" / "Recibido: 95 pesos" with speechSynthesis in the
+// web/src/announce.ts: says "Received: 95 pesos" / "Recibido: 10 dólares" (word per currency) with speechSynthesis in the
 // current locale (en-US / es-MX) and falls back to a WebAudio chime when speech is unavailable or fails. unlockAudio() must run on a tap.
-import type { Money } from "../../shared/money";
+import { decimalsOf } from "../../shared/currency";
+import type { Currency, Money } from "../../shared/money";
 import { getLocale, type Key, type Locale, speechLang, translate } from "./i18n";
 
 let ctx: AudioContext | undefined;
@@ -20,13 +21,25 @@ export function unlockAudio(): void {
   }
 }
 
+/** Currencies with a spoken word in the dictionaries; others are spoken by their ISO code. */
+const SPOKEN: Partial<Record<Currency, [Key, Key]>> = {
+  MXN: ["money.peso", "money.pesos"],
+  USD: ["money.dollar", "money.dollars"],
+  CAD: ["money.dollar", "money.dollars"],
+  AUD: ["money.dollar", "money.dollars"],
+  EUR: ["money.euro", "money.euros"],
+  BRL: ["money.real", "money.reais"],
+  GBP: ["money.pound", "money.pounds"],
+  JPY: ["money.yen", "money.yens"],
+};
+
 export function spokenAmount(m: Money, locale: Locale = getLocale()): string {
-  const units = Math.trunc(m.minor / 100);
-  const cents = m.minor % 100;
-  const one = units === 1;
-  const mxn: Key = one ? "money.peso" : "money.pesos";
-  const usd: Key = one ? "money.dollar" : "money.dollars";
-  const whole = `${units} ${translate(locale, m.currency === "MXN" ? mxn : usd)}`;
+  const base = 10 ** decimalsOf(m.currency);
+  const units = Math.trunc(m.minor / base);
+  const cents = m.minor % base;
+  const words = SPOKEN[m.currency];
+  const unit = words ? translate(locale, words[units === 1 ? 0 : 1]) : m.currency;
+  const whole = `${units} ${unit}`;
   return cents ? translate(locale, "money.withCents", { units: whole, cents }) : whole;
 }
 

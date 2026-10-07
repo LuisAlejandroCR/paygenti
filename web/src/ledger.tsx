@@ -20,7 +20,8 @@ import {
   themeQuartz,
 } from "ag-grid-community";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { formatMoney, type Money, money } from "../../shared/money";
+import { decimalsOf } from "../../shared/currency";
+import { type Currency, formatMoney, type Money, money } from "../../shared/money";
 import { type Key, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 import { hiddenColumns, OPTIONAL_COLUMNS } from "./ledger-columns";
@@ -70,6 +71,7 @@ interface Ledger {
   day: string;
   terminals: string[];
   rows: Row[];
+  totals?: { paid: Money };
 }
 
 /** Grid colors come from the app's CSS tokens, so light/dark follow styles.css. */
@@ -96,7 +98,9 @@ function readToken(): string | null {
   }
 }
 
-const minor = (m: Money | undefined) => (m ? m.minor / 100 : 0);
+/** Grid cells hold major units for the number filter (display only; money math stays in minor units). */
+const minor = (m: Money | undefined) => (m ? m.minor / 10 ** decimalsOf(m.currency) : 0);
+const toMinorUnits = (v: number, c: Currency) => Math.round(v * 10 ** decimalsOf(c));
 
 function pill(text: string, tone: string): HTMLElement {
   const el = document.createElement("span");
@@ -136,6 +140,7 @@ export function LedgerApp() {
   const host = useRef<HTMLDivElement>(null);
   const grid = useRef<GridApi<Row> | null>(null);
   const dayRef = useRef(day);
+  const currencyRef = useRef<Currency>("MXN");
   dayRef.current = day;
 
   async function load(d = dayRef.current) {
@@ -150,6 +155,7 @@ export function LedgerApp() {
     const data = (await res.json()) as Ledger;
     if (d === dayRef.current) {
       if (!d) setDay(data.day);
+      currencyRef.current = data.totals?.paid.currency ?? data.rows[0]?.paid.currency ?? "MXN";
       setLedger(data);
       setUpdated(new Date());
     }
@@ -163,7 +169,10 @@ export function LedgerApp() {
       colId: field,
       headerName: t(key),
       valueGetter: (p) => minor(p.data?.[field]),
-      valueFormatter: (p) => formatMoney(money(Math.round((p.value as number) * 100), "MXN")),
+      valueFormatter: (p) =>
+        formatMoney(
+          money(toMinorUnits(Number(p.value) || 0, currencyRef.current), currencyRef.current),
+        ),
       filter: "agNumberColumnFilter",
       type: "rightAligned",
       flex: 1,
@@ -230,7 +239,8 @@ export function LedgerApp() {
       },
       onGridSizeChanged: (e) => fitColumns(e.api, e.clientWidth),
       onFirstDataRendered: (e) => fitColumns(e.api, host.current?.clientWidth ?? 1200),
-      onModelUpdated: (e) => pinTotals(e.api, (amount) => t("ledger.cashTotal", { amount })),
+      onModelUpdated: (e) =>
+        pinTotals(e.api, (amount) => t("ledger.cashTotal", { amount }), currencyRef.current),
     });
     grid.current = api;
     fitColumns(api, host.current.clientWidth);
@@ -381,7 +391,7 @@ function fitColumns(api: GridApi<Row>, width: number) {
 }
 
 /** Pinned bottom row: sums over the rows that survive the current filters and quick search. */
-function pinTotals(api: GridApi<Row>, cashLabel: (amount: string) => string) {
+function pinTotals(api: GridApi<Row>, cashLabel: (amount: string) => string, currency: Currency) {
   let paid = 0;
   let refunded = 0;
   let cash = 0;
@@ -391,7 +401,7 @@ function pinTotals(api: GridApi<Row>, cashLabel: (amount: string) => string) {
     refunded += n.data.refunded.minor;
     if (n.data.method === "cash") cash += n.data.paid.minor;
   });
-  const m = (v: number) => money(v, "MXN");
+  const m = (v: number) => money(v, currency);
   const total: Row = {
     id: "__total",
     isTotal: true,

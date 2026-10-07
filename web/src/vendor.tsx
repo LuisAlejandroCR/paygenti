@@ -3,6 +3,7 @@
 // On load it adopts the terminal's open sale (so /judge never shows a sale the vendor cannot see);
 // "Cancel" cancels that sale on the server so the sticker stops pointing at it.
 import { useEffect, useRef, useState } from "preact/hooks";
+import { currencyInfo, decimalsOf } from "../../shared/currency";
 import { type Currency, formatMoney, fromPayPalValue, type Money } from "../../shared/money";
 import type { CartLine, CatalogItem, Sale, TerminalEvent } from "../../shared/types";
 import { announcePaid, unlockAudio } from "./announce";
@@ -10,6 +11,7 @@ import { ApiError, api } from "./api";
 import { useT } from "./i18n";
 import { BackspaceIcon, ClockIcon, PaidCheck, XCircleIcon } from "./icons";
 import { LangToggle } from "./lang-toggle";
+import { Onboarding } from "./onboarding";
 import { StickerPanel } from "./sticker";
 import { VoiceCart } from "./voice";
 
@@ -27,11 +29,11 @@ export function toMinor(digits: string, currency: Currency): Money | undefined {
   }
 }
 
-function press(digits: string, key: string): string {
+export function press(digits: string, key: string, decimals = 2): string {
   if (key === "⌫") return digits.slice(0, -1);
-  if (key === ".") return digits.includes(".") ? digits : `${digits || "0"}.`;
+  if (key === ".") return decimals === 0 || digits.includes(".") ? digits : `${digits || "0"}.`;
   const [units = "", cents] = digits.split(".");
-  if (cents !== undefined) return cents.length >= 2 ? digits : digits + key;
+  if (cents !== undefined) return cents.length >= decimals ? digits : digits + key;
   if (units.length >= 6) return digits;
   return units === "0" ? key : digits + key;
 }
@@ -59,6 +61,8 @@ export function VendorApp({
   const [showSticker, setShowSticker] = useState(false);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [keypadOpen, setKeypadOpen] = useState(true);
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [reviewPrices, setReviewPrices] = useState(false);
   const saleRef = useRef<Sale | undefined>(undefined);
   saleRef.current = sale;
 
@@ -72,6 +76,8 @@ export function VendorApp({
             displayName: string;
             currency: Currency;
             catalog?: CatalogItem[];
+            onboarded?: boolean;
+            pricesNeedReview?: boolean;
           };
           payUrl: string;
           openSale: Sale | null;
@@ -81,6 +87,8 @@ export function VendorApp({
           setPayUrl(d.payUrl);
           setCurrency(d.vendor.currency);
           setCatalog(d.vendor.catalog ?? []);
+          setNeedsSetup(d.vendor.onboarded === false);
+          setReviewPrices(!!d.vendor.pricesNeedReview);
           // Resume the sale already waiting on this terminal instead of hiding it behind a keypad.
           if (d.openSale && !saleRef.current) {
             setSale(d.openSale);
@@ -186,6 +194,24 @@ export function VendorApp({
     setPhase("entry");
   }
 
+  if (needsSetup)
+    return (
+      <Onboarding
+        terminal={terminal}
+        firstRun
+        onDone={(v) => {
+          setStall(v.displayName);
+          setCurrency(v.currency);
+          setCatalog(v.catalog);
+          setReviewPrices(!!v.pricesNeedReview);
+          setDigits("");
+          setNeedsSetup(false);
+        }}
+      />
+    );
+
+  const decimals = decimalsOf(currency);
+  const symbol = currencyInfo(currency).symbol;
   const mmss = `${Math.floor(left / 60000)}:${String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}`;
 
   return (
@@ -213,7 +239,8 @@ export function VendorApp({
       {phase === "entry" && cart.length === 0 && keypadOpen && (
         <section class="entry card" aria-label={t("vendor.amountEntry")}>
           <output class="amount num" aria-live="polite">
-            ${digits || "0"}
+            {symbol}
+            {digits || "0"}
           </output>
           <div class="keypad">
             {KEYS.map((k) => (
@@ -222,7 +249,8 @@ export function VendorApp({
                 type="button"
                 class="key num"
                 aria-label={k === "⌫" ? t("vendor.delete") : k === "." ? t("vendor.decimal") : k}
-                onClick={() => setDigits((d) => press(d, k))}
+                disabled={k === "." && decimals === 0}
+                onClick={() => setDigits((d) => press(d, k, decimals))}
               >
                 {k === "⌫" ? <BackspaceIcon size={26} /> : k}
               </button>
@@ -267,7 +295,7 @@ export function VendorApp({
           <PaidCheck />
           <p class="big paid-word">{t("vendor.paid")}</p>
           <p class="total num paid-amount">{formatMoney(sale.total)}</p>
-          <p class="paid-via">{sale.total.currency} · PayPal ✓</p>
+          <p class="paid-via">PayPal ✓</p>
           <button type="button" class="ghost" onClick={reset}>
             {t("vendor.newSale")}
           </button>
@@ -287,12 +315,23 @@ export function VendorApp({
         </section>
       )}
 
+      {phase === "entry" && reviewPrices && (
+        <p class="hint review-prices" role="note">
+          {t("onb.reviewBanner", { currency })} <a href="/backoffice">{t("onb.reviewLink")}</a>
+        </p>
+      )}
+
       {phase === "entry" && payUrl && (
         <button type="button" class="link" onClick={() => setShowSticker((v) => !v)}>
           {showSticker ? t("vendor.hideSticker") : t("vendor.writeSticker")}
         </button>
       )}
       {phase === "entry" && showSticker && <StickerPanel terminal={terminal} url={payUrl} />}
+      {phase === "entry" && (
+        <a class="link settings-link" href={`/setup?terminal=${encodeURIComponent(terminal)}`}>
+          {t("onb.settings")}
+        </a>
+      )}
 
       {error && (
         <p class="error" role="alert">
