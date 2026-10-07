@@ -114,8 +114,6 @@ export class BackOffice {
   private readonly paypal: PayPalGateway;
   readonly policy: PolicyEngine;
   private readonly clock: () => number;
-  /** Refunded minor units per capture id (committed refunds only). */
-  private readonly refundedByCapture = new Map<string, number>();
 
   constructor(deps: BackOfficeDeps) {
     this.sales = deps.sales;
@@ -146,7 +144,7 @@ export class BackOffice {
     let total = 0;
     let refunded = 0;
     const rows = paid.map((s) => {
-      const r = (s.captureId && this.refundedByCapture.get(s.captureId)) || 0;
+      const r = (s.captureId && this.sales.store.refundedForCapture(s.captureId)) || 0;
       total += s.total.minor;
       refunded += r;
       return {
@@ -217,7 +215,7 @@ export class BackOffice {
     const c = s.total.currency;
     const settled = s.status === "paid" || s.status === "refunded";
     const paid = settled ? s.total.minor : 0;
-    let refunded = (s.captureId && this.refundedByCapture.get(s.captureId)) || 0;
+    let refunded = (s.captureId && this.sales.store.refundedForCapture(s.captureId)) || 0;
     if (s.status === "refunded" && refunded === 0) refunded = s.total.minor;
     let reconciliation: Reconciliation;
     if (!settled)
@@ -301,7 +299,7 @@ export class BackOffice {
         code: "SALE_NOT_REFUNDABLE",
         reason: "Esa venta no tiene un cobro pagado.",
       };
-    const already = this.refundedByCapture.get(sale.captureId) ?? 0;
+    const already = this.sales.store.refundedForCapture(sale.captureId);
     const decision = this.policy.decide(
       {
         kind: "refund",
@@ -327,8 +325,7 @@ export class BackOffice {
         return { ok: false, code: "REFUND_FAILED", reason: "PayPal no aceptó la devolución." };
       }
       this.policy.commit(decision.ticket);
-      const total = already + req.amount.minor;
-      this.refundedByCapture.set(sale.captureId, total);
+      const total = this.sales.store.addRefund(sale.captureId, req.amount.minor);
       if (total >= sale.total.minor) this.sales.store.saveSale({ ...sale, status: "refunded" });
       return {
         ok: true,

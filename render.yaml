@@ -25,3 +25,5 @@ services:
         sync: false
       - key: PASSPORT_SIGNING_KEY
         sync: false
+      - key: DATABASE_URL
+        sync: false
