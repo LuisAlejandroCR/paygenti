@@ -1,47 +1,19 @@
 // web/src/checkout.tsx: the customer's /pay/:saleId page — stall, lines and total before paying.
-// Sandbox: PayPal JS SDK buttons approve the server-created order, then our server captures.
+// Sandbox: PayPal JS SDK v6 buttons (PayPal, Venmo, Pay Later, card — each only where PayPal offers
+// it for the sale's currency and buyer) approve the server-created order; our server captures.
 // Mock: "Pagar (simulado)" / "Simular rechazo" drive the mock gateway through the same capture.
 // Listens to the terminal's SSE feed so a vendor cancel (or paid/expired) shows up live.
-import { useEffect, useRef, useState } from "preact/hooks";
-import { formatMoney, money } from "../../shared/money";
+import { useEffect, useId, useRef, useState } from "preact/hooks";
+import { type FundingSource, fundingCandidates, sandboxBuyerCountry } from "../../shared/funding";
+import { formatMoney, money, toPayPalValue } from "../../shared/money";
 import type { Sale, TerminalEvent } from "../../shared/types";
 import { ApiError, type AppConfig, api } from "./api";
-import { type Key, type Locale, lineName, useT } from "./i18n";
+import { type Key, lineName, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
+import { mountCheckout, prepareCheckout } from "./paypal-sdk";
 
-interface PayPalButtons {
-  render(el: HTMLElement): Promise<void>;
-}
-interface PayPalNamespace {
-  Buttons(opts: {
-    style?: Record<string, string | number>;
-    createOrder: () => string;
-    onApprove: () => Promise<void>;
-    onCancel?: () => void;
-    onError: (err: unknown) => void;
-  }): PayPalButtons;
-}
-declare global {
-  interface Window {
-    paypal?: PayPalNamespace;
-  }
-}
-
-function loadSdk(clientId: string, currency: string, locale: Locale): Promise<PayPalNamespace> {
-  if (window.paypal) return Promise.resolve(window.paypal);
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    const q = new URLSearchParams({
-      "client-id": clientId,
-      currency,
-      intent: "capture",
-      locale: locale === "es" ? "es_MX" : "en_US",
-    });
-    s.src = `https://www.paypal.com/sdk/js?${q}`;
-    s.onload = () => (window.paypal ? resolve(window.paypal) : reject(new Error("sdk")));
-    s.onerror = () => reject(new Error("sdk"));
-    document.head.append(s);
-  });
+function prefersDark(): boolean {
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
 }
 
 export function Checkout({ saleId }: { saleId: string }) {
@@ -51,7 +23,13 @@ export function Checkout({ saleId }: { saleId: string }) {
   const [config, setConfig] = useState<AppConfig>();
   const [error, setError] = useState<Key | "">("");
   const [busy, setBusy] = useState(false);
+  /** Not an error: the buyer closed PayPal's window; any method can be tried again. */
+  const [notice, setNotice] = useState<Key | "">("");
+  /** Methods the SDK mounted for this buyer (sandbox); undefined until eligibility answers. */
+  const [shown, setShown] = useState<FundingSource[]>();
   const buttonsRef = useRef<HTMLDivElement>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
+  const payWithId = useId();
 
   useEffect(() => {
     Promise.all([api.sale(saleId), api.config()])
@@ -95,28 +73,58 @@ export function Checkout({ saleId }: { saleId: string }) {
 
   const payable = sale && (sale.status === "open" || sale.status === "approved");
 
+  const currency = sale?.total.currency ?? "";
+  const candidates = fundingCandidates(currency);
+
   useEffect(() => {
     if (!payable || config?.paypal !== "sandbox" || !config.clientId || !buttonsRef.current) return;
-    const el = buttonsRef.current;
+    const buttons = buttonsRef.current;
+    const message = messageRef.current;
+    const amount = toPayPalValue(sale.total);
+    const testBuyerCountry = sandboxBuyerCountry(
+      currency,
+      new URLSearchParams(window.location.search).get("buyerCountry"),
+    );
     let cancelled = false;
-    loadSdk(config.clientId, sale.total.currency, locale)
-      .then((pp) => {
+    let cleanup: (() => void) | undefined;
+    setShown(undefined);
+    prepareCheckout({
+      env: "sandbox",
+      clientId: config.clientId,
+      locale,
+      currency,
+      amount,
+      candidates,
+      testBuyerCountry,
+    })
+      .then(async (ready) => {
         if (cancelled) return;
-        el.replaceChildren();
-        return pp
-          .Buttons({
-            style: { layout: "vertical", shape: "pill", height: 55 },
-            createOrder: () => sale.orderId,
-            onApprove: capture,
-            onError: () => setError("checkout.paypalError"),
-          })
-          .render(el);
+        const unmount = await mountCheckout(ready, buttons, message, {
+          orderId: sale.orderId,
+          currency,
+          amount,
+          testBuyerCountry,
+          dark: prefersDark(),
+          onApprove: () => {
+            setNotice("");
+            setError("");
+            return capture();
+          },
+          onCancel: () => setNotice("checkout.paymentClosed"),
+          onError: () => setError("checkout.paypalError"),
+        });
+        if (cancelled) return unmount();
+        cleanup = unmount;
+        setShown(ready.sources);
       })
-      .catch(() => setError("checkout.sdkError"));
+      .catch(() => {
+        if (!cancelled) setError("checkout.sdkError");
+      });
     return () => {
       cancelled = true;
+      cleanup?.();
     };
-  }, [payable, config, sale?.orderId]);
+  }, [payable, config, sale?.orderId, locale]);
 
   async function simulate(decline: boolean) {
     if (!sale || busy) return;
@@ -142,8 +150,14 @@ export function Checkout({ saleId }: { saleId: string }) {
     );
   }
 
+  const sandbox = payable && config?.paypal === "sandbox";
+
   return (
-    <main class="checkout">
+    <main
+      class="checkout"
+      data-funding={candidates.join(" ")}
+      data-funding-shown={shown?.join(" ")}
+    >
       <h1 class="stall">
         {stall} <LangToggle />
       </h1>
@@ -168,6 +182,8 @@ export function Checkout({ saleId }: { saleId: string }) {
           </tr>
         </tfoot>
       </table>
+      {/* Pay Later message from PayPal, mounted only when Pay Later is eligible for this buyer. */}
+      {sandbox && <div ref={messageRef} class="pp-message" />}
 
       {sale.status === "paid" && (
         <p class="result paid" role="alert">
@@ -191,7 +207,25 @@ export function Checkout({ saleId }: { saleId: string }) {
         </p>
       )}
 
-      {payable && config?.paypal === "sandbox" && <div ref={buttonsRef} class="pp-buttons" />}
+      {sandbox && (
+        <div class="pay-with" role="group" aria-labelledby={payWithId}>
+          <h2 id={payWithId} class="pay-with-title">
+            {t("checkout.payWith")}
+          </h2>
+          {!shown && !error && (
+            <p class="hint" role="status">
+              {t("checkout.loadingMethods")}
+            </p>
+          )}
+          {shown?.length === 0 && <p class="hint">{t("checkout.noMethods")}</p>}
+          <div ref={buttonsRef} class="pp-buttons" />
+          {notice && (
+            <p class="hint" role="status">
+              {t(notice)}
+            </p>
+          )}
+        </div>
+      )}
       {payable && config?.paypal === "mock" && (
         <div class="actions">
           <button type="button" class="primary" disabled={busy} onClick={() => simulate(false)}>

@@ -107,6 +107,19 @@ Reglas de arquitectura:
       o llave demo efímera). `/verify#<payload>` público verifica en el navegador (WebCrypto,
       respaldo `POST /api/passport/verify`); cambiar un número lo vuelve INVÁLIDO.
 
+### Checkout: Venmo, Pay Later y tarjeta (`feat/venmo-paylater`)
+
+- [x] `/pay/:saleId` en sandbox usa el JS SDK v6 (`web-sdk/v6/core`) con el `clientId` de
+      `/api/config`; la orden la crea y la captura el servidor (endpoints sin cambios).
+- [x] Botones en este orden y solo si aplican: PayPal, Venmo, Pay Later, tarjeta. Primero una regla
+      estática por moneda de la venta (`shared/funding.ts`: Venmo solo USD; Pay Later solo
+      USD/CAD/GBP/EUR/AUD), luego `findEligibleMethods` del SDK decide por comprador.
+- [x] Mensaje de Pay Later bajo el total solo si Pay Later quedó elegible.
+- [x] Modo mock sin cambios («Pagar (simulado)», «Simular rechazo»); e2e verde.
+- [x] Textos en/es, grupo de botones con nombre accesible, sin scroll horizontal a 375 px.
+- [x] Tests: unidad de la selección por moneda; e2e que lee `data-funding` (USD incluye venmo y
+      paylater; MXN no incluye venmo).
+
 ## Fuera de alcance hasta que los bloques 0–5 corran
 
 Soundbox (ESP32/Android kiosko), tap teléfono-a-teléfono (HCE), AG Grid, foto del menú → catálogo,

@@ -880,9 +880,39 @@ button.link {
 .lines .total {
   font-size: 1.5rem;
 }
-.pp-buttons {
+/* SDK v6 buttons (PayPal, Venmo, Pay Later, card) stacked full width; PayPal draws their insides. */
+.pay-with {
   margin-top: 12px;
+  min-width: 0;
+}
+.pay-with-title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.pp-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   min-height: 48px;
+  min-width: 0;
+}
+.pp-buttons > * {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+.pp-message {
+  margin: -4px 0 12px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--muted-foreground);
+}
+.pp-message:empty {
+  display: none;
 }
 
 /* ---------- Sticker ---------- */

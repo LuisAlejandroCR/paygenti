@@ -314,6 +314,11 @@ const en = {
   "verify.validHint": "The signature matches: these figures are exactly as paygent issued them.",
   "verify.invalidHint":
     "The signature does not match: the figures were changed or the passport was not issued by this server.",
+  "checkout.payWith": "Choose how to pay",
+  "checkout.loadingMethods": "Loading payment methods…",
+  "checkout.noMethods": "No payment method is available for this purchase right now.",
+  "checkout.paymentClosed":
+    "The payment window was closed. Nothing was charged; you can try again.",
 } as const;
 
 export type Key = keyof typeof en;
@@ -627,6 +632,11 @@ const es: Dict = {
   "verify.validHint": "La firma coincide: estas cifras son exactamente las que emitió paygent.",
   "verify.invalidHint":
     "La firma no coincide: las cifras se cambiaron o el pasaporte no lo emitió este servidor.",
+  "checkout.payWith": "Elige cómo pagar",
+  "checkout.loadingMethods": "Cargando métodos de pago…",
+  "checkout.noMethods": "Ahora no hay un método de pago disponible para esta compra.",
+  "checkout.paymentClosed":
+    "Se cerró la ventana de pago. No se cobró nada; puedes intentar de nuevo.",
 };
 
 export const DICTIONARIES: Record<Locale, Dict> = { en, es };
