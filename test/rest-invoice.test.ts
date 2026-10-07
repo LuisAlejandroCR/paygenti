@@ -11,7 +11,8 @@ it("creates, sends (send_to_recipient false) and fetches the QR", async () => {
     const path = new URL(url).pathname;
     calls.push({ path, body: String(init.body ?? "") });
     const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
-    if (path === "/v1/oauth2/token") return json({ access_token: "T", expires_in: 3600 });
+    if (path === "/v1/oauth2/token")
+      return json({ access_token: "T", token_type: "Bearer", expires_in: 3600 });
     if (path === "/v2/invoicing/invoices")
       return json({ href: "https://api-m.sandbox.paypal.com/v2/invoicing/invoices/INV2-AAA" });
     if (path.endsWith("/send"))
