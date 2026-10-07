@@ -103,6 +103,7 @@ Copy `.env.example` to `.env.local`. Every value is optional.
 | `PAYPAL_WEBHOOK_ID` | Verifies `/webhooks/paypal` signatures |
 | `ANTHROPIC_API_KEY` | Claude for voice-to-cart and the back-office agent; otherwise a rule parser runs |
 | `VENDOR_PIN` | PIN that unlocks the back office and refunds (demo default `1234`) |
+| `DATABASE_URL` | Postgres connection string; sales, catalog, audit log, PIN lockouts and daily refund caps then survive restarts. Unset: everything lives in memory |
 | `PASSPORT_SIGNING_KEY` | Ed25519 private key (PKCS8 PEM or base64 DER) that signs sales passports; otherwise an ephemeral demo key |
 
 ## PayPal sandbox setup
@@ -155,6 +156,12 @@ decides, with no I/O and failing closed on anything malformed:
 
 `render.yaml` defines a Render Node web service: build `npm ci && npm run build`, start
 `npm start`, health check `/api/health`. Secrets are set in the Render dashboard.
+
+Render's free web service sleeps and restarts, so set `DATABASE_URL` to keep state. Recommended:
+a **Neon** free project (1 GB storage, no expiry, scales to zero after 5 min idle; paste its
+connection string with `sslmode=require`). Render's free Postgres expires 30 days after creation
+and Supabase's free projects pause after a week idle, so neither fits a deploy that must stay up
+until judging ends. Migrations run automatically at startup.
 
 ## License
 

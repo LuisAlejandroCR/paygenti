@@ -1,4 +1,5 @@
-// server/policy/audit.ts: append-only in-memory audit log of every policy event.
+// server/policy/audit.ts: append-only audit log of every policy event (in memory, optionally
+// mirrored to a Store so it survives restarts).
 // Entries are deep-frozen copies; any field that looks like a PIN or secret is stripped before
 // storing, so even a hostile action carrying `{ pin: "1234" }` never lands in the log.
 
@@ -17,10 +18,19 @@ const SECRET_KEY = /pin|password|secret|token|passcode/i;
 
 export class AuditLog {
   readonly #entries: AuditEntry[] = [];
+  readonly #onAppend?: (entry: AuditEntry) => void;
+
+  /** `initial`: entries loaded from storage; `onAppend`: persists each new entry. */
+  constructor(
+    opts: { initial?: readonly AuditEntry[]; onAppend?: (entry: AuditEntry) => void } = {},
+  ) {
+    for (const e of opts.initial ?? []) this.#entries.push(deepFreeze(structuredClone(e)));
+    this.#onAppend = opts.onAppend;
+  }
 
   append(entry: Omit<AuditEntry, "seq">): AuditEntry {
     const stored = deepFreeze({
-      seq: this.#entries.length + 1,
+      seq: (this.#entries.at(-1)?.seq ?? 0) + 1,
       at: entry.at,
       event: entry.event,
       actor: String(entry.actor),
@@ -32,6 +42,7 @@ export class AuditLog {
       },
     }) as AuditEntry;
     this.#entries.push(stored);
+    this.#onAppend?.(stored);
     return stored;
   }
 
