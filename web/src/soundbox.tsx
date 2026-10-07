@@ -6,6 +6,7 @@ import { formatMoney } from "../../shared/money";
 import type { Sale, TerminalEvent } from "../../shared/types";
 import { announcePaid, unlockAudio } from "./announce";
 import { useT } from "./i18n";
+import { PaidCheck } from "./icons";
 import { LangToggle } from "./lang-toggle";
 import {
   AnnouncedSales,
@@ -146,10 +147,21 @@ export function SoundboxApp({ terminal }: { terminal: string }) {
             />
           </>
         )}
-        {view.kind !== "idle" && (
+        {view.kind === "paid" && (
+          <div class="sb-flood flood">
+            <PaidCheck />
+            <p class="sb-label paid-word">{t("soundbox.paid")}</p>
+            <p class="sb-amount num paid-amount">{amount}</p>
+            <p class="paid-via">{view.sale.total.currency} · PayPal ✓</p>
+            <button type="button" class="ghost" onClick={() => setView({ kind: "idle" })}>
+              {t("vendor.newSale")}
+            </button>
+          </div>
+        )}
+        {view.kind !== "idle" && view.kind !== "paid" && (
           <>
             <p class="sb-label">{t(`soundbox.${view.kind}`)}</p>
-            <p class="sb-amount">{amount}</p>
+            <p class="sb-amount num">{amount}</p>
           </>
         )}
         <p class="sb-trust">{t("soundbox.trust")}</p>
