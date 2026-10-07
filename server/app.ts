@@ -9,6 +9,7 @@ import QRCode from "qrcode";
 import { z } from "zod";
 import { verifyPassport } from "../shared/passport";
 import type { ModelClient } from "./backoffice/agent";
+import type { PayPalTools } from "./backoffice/paypal-tools";
 import { backofficeRoutes } from "./backoffice/routes";
 import { BackOffice } from "./backoffice/tools";
 import type { VisionClient } from "./catalog/extract";
@@ -38,6 +39,8 @@ export interface AppDeps {
   vendorPin?: string;
   /** Claude client for /api/backoffice/agent; omitted when there is no ANTHROPIC_API_KEY. */
   agentModel?: ModelClient;
+  /** PayPal Agent Toolkit tools for the agent; omitted without PayPal keys (mock mode). */
+  paypalTools?: PayPalTools;
   /** Claude vision for menu photo -> catalog; omitted when there is no ANTHROPIC_API_KEY. */
   menuVision?: VisionClient;
   /** Sales passport signer; defaults to an ephemeral demo key. */
@@ -302,6 +305,7 @@ export function createApp(deps: AppDeps): Hono {
     backofficeRoutes({
       office,
       model: deps.agentModel,
+      paypalTools: deps.paypalTools,
       clock: deps.clock,
       store: sales.store,
       vendorId: "rosa",
