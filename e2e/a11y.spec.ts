@@ -13,7 +13,9 @@ async function audit(page: Page, label: string) {
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   const bad = violations
     .filter((v) => v.impact === "serious" || v.impact === "critical")
-    .map((v) => `${label}: ${v.id} (${v.impact}) ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+    .map(
+      (v) => `${label}: ${v.id} (${v.impact}) ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`,
+    );
   expect(bad, `axe violations on ${label}`).toEqual([]);
 }
 
