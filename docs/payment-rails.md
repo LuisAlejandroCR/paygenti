@@ -41,9 +41,19 @@ from a party other than the vendor, that the money arrived.
 - **Not implemented** (research only): Yape/Plin, SINPE Móvil, Transferencias 3.0, FedNow/RTP,
   Zelle, Cash App. Each would be a push rail with the same "not verified" treatment until a
   provider integration exists.
-- Known gaps: Apple Pay / Google Pay / OXXO are listed on the checkout as "through PayPal" and use
-  the same PayPal order, but their native SDK v6 buttons are not mounted yet (Apple Pay needs domain
-  registration). Bre-B is wired but never offered today: sales are in PayPal currencies and COP is
+- Apple Pay / Google Pay buttons (sandbox only, `web/src/wallet-buttons.ts`): SDK v6 components
+  `applepay-payments` / `googlepay-payments`. Each button mounts only when its `RAIL_*` is on, the
+  browser can pay (`ApplePaySession.canMakePayments()` / Google `isReadyToPay`) and PayPal's
+  `findEligibleMethods` says eligible; otherwise nothing renders. The button confirms the order the
+  server already created (`confirmOrder`) and then calls our `/api/sales/:id/capture`: the sale is
+  `paid` only after PayPal's capture. Mock mode shows no wallet buttons and loads no wallet script.
+- **Apple Pay domain registration (required):** enable Apple Pay on the PayPal app, then register
+  the domain in the PayPal dashboard. Apple fetches
+  `https://<domain>/.well-known/apple-developer-merchantid-domain-association`; set
+  `APPLE_PAY_DOMAIN_ASSOCIATION` to that file's content (downloaded from PayPal) and the server
+  serves it as text (404 when unset). Google Pay needs no file, but live requires enabling it on the
+  PayPal app and Google's production approval.
+- Known gaps: OXXO is listed on the checkout as "through PayPal" with no native button. Bre-B is wired but never offered today: sales are in PayPal currencies and COP is
   not one, so a COP sale cannot exist yet.
 - Rails are a registry (`shared/rails.ts`): each one is enabled by config; missing config hides it.
 
@@ -52,7 +62,8 @@ from a party other than the vendor, that the money arrived.
 | `PIX_KEY` (+ `PIX_MERCHANT_NAME`, `PIX_MERCHANT_CITY`) | Pix static BR Code with amount |
 | `SPEI_CLABE` (+ `SPEI_BENEFICIARY`) | SPEI transfer data (CLABE, amount, reference) |
 | `BREB_KEY` | Bre-B key + amount |
-| `RAIL_APPLE_PAY=1`, `RAIL_GOOGLE_PAY=1` | Advertise wallets through the PayPal flow |
+| `RAIL_APPLE_PAY=1`, `RAIL_GOOGLE_PAY=1` | Wallets through the PayPal flow; native buttons in sandbox when eligible |
+| `APPLE_PAY_DOMAIN_ASSOCIATION` | Content served at `/.well-known/apple-developer-merchantid-domain-association` |
 | `RAIL_OXXO=1` | OXXO through PayPal, only for MXN sales up to 10,000 MXN |
 
 ## Sources

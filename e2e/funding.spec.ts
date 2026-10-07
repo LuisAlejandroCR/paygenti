@@ -37,6 +37,11 @@ test("MXN sale: PayPal and card only, mock buttons unchanged", async ({ page, re
   await expect(main).toHaveAttribute("data-funding", "paypal card");
   await expect(page.getByRole("button", { name: tx.payMock })).toBeVisible();
   await expect(page.getByRole("button", { name: tx.declineMock })).toBeVisible();
+  // Mock mode: no Apple Pay / Google Pay buttons and none of their scripts are loaded.
+  await expect(page.locator(".wallet-buttons")).toHaveCount(0);
+  await expect(
+    page.locator('script[src*="apple-pay-sdk"], script[src*="pay.google.com"]'),
+  ).toHaveCount(0);
   await expectNoOverflow(page);
 });
 
