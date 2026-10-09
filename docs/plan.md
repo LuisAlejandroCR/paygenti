@@ -150,6 +150,10 @@ pasaporte de ventas firmado, Payouts.
 
 ## Pendiente (revisado 2026-10-07)
 
+Estado completo y orden de trabajo para un chat nuevo: `docs/handoff.md`. Además están en `main`:
+terceros plug-and-play (#28), PayPal Server SDK (#29), rieles Pix/SPEI/Bre-B (#30), varios paygents +
+MCP (#31), huella financiera (#32) y accesibilidad WCAG 2.2 AA (#33).
+
 Bloques 0–5 y los stretch Soundbox (T3a), AG Grid, foto del menú y pasaporte están hechos y en `main`.
 Verificado en Render con el sandbox real: pago capturado, webhooks entregados, reembolsos de 1 y 150
 aceptados, 250 rechazado por el tope.
@@ -158,9 +162,9 @@ aceptados, 250 rechazado por el tope.
 |---|---|---|---|
 | 1 | UI/UX web: pasada de diseño completa sobre todas las pantallas (jerarquía, estados vacíos, errores, onboarding) | Usuario | Revisión pantalla por pantalla a 375 px y 1280 px, claro/oscuro, en/es; e2e verde |
 | 2 | App móvil nativa iOS + Android (Expo SDK 57, `mobile/`): **en progreso** — venta, PAGADO, bocina, NFC sticker, HCE Android y administración implementados; typecheck, lint, jest, expo-doctor, export Android y prebuild Android verdes. Falta: compilar dev client y probar en dispositivos reales (EAS para iOS) | BRAINSTORM §4, §7 | Un iPhone y un Android leen el tag emulado (HCE solo en Android; iOS no puede emular) y abren `/t/:terminal`; ver `mobile/README.md` |
-| 3 | Persistencia: hoy todo vive en memoria y se pierde en cada reinicio o sueño de Render | Riesgo de demo | Ventas, catálogo y auditoría sobreviven a un reinicio — código en `feat/persistence` (PostgresStore); ⏳ falta `DATABASE_URL` de Neon en Render |
+| 3 | Persistencia: hoy todo vive en memoria y se pierde en cada reinicio o sueño de Render | Riesgo de demo | Ventas, catálogo y auditoría sobreviven a un reinicio — PostgresStore en main (migraciones v1–v4); ⏳ falta `DATABASE_URL` de Neon en Render |
 | 4 | Pruebas en dispositivos reales: sticker NTAG, voz en el mercado, soundbox en Android viejo | BRAINSTORM §9 | Un tap real en un sticker paga una orden sandbox y el teléfono habla |
-| 5 | Payouts a proveedores — **hecho en `feat/payouts`** (sandbox con Payouts activo: el token trae el scope; falta un pago real a una cuenta personal sandbox) | Stretch | Pago a proveedor en allowlist, con PIN y tope, o propuesta firmada sin ejecutar |
+| 5 | Payouts a proveedores — **en main (#27)** (sandbox con Payouts activo: el token trae el scope; falta un pago real a una cuenta personal sandbox) | Stretch | Pago a proveedor en allowlist, con PIN y tope, o propuesta firmada sin ejecutar |
 | 6 | Soundbox ESP32 (T3b) | Stretch | Opcional; solo con 1–5 cerrados |
 | 7 | Validación con personas: 3 entrevistas a vendedores; 10 ventas dictadas por otra persona (≥ 9 carritos correctos); alguien externo corre `/judge` desde un navegador limpio | BRAINSTORM §6.1, §9 | Notas en `docs/memoria.md` |
 | 8 | Entrega: video < 3 min en inglés en dispositivos reales, repo público sin secretos ni docs privados, texto de Devpost, deploy vivo hasta el 15-dic | Reglas del hackathon | Envío antes del 12-nov 12:00 PT |
