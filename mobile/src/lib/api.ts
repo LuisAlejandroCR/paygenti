@@ -126,7 +126,15 @@ export function createApi(baseUrl: string, token?: string, stall: string = DEFAU
     saveVendor: (body: { displayName: string; country: string; currency: string }) =>
       request<{ vendor: Vendor }>(bo("/vendor"), { method: "PUT", body }),
     salesToday: () => request<SalesToday>(bo("/sales-today")),
-    ledger: () => request<Ledger>(bo("/ledger")),
+    /** One day's ledger (YYYY-MM-DD, stall time zone); today when omitted. */
+    ledger: (date?: string) =>
+      request<Ledger>(bo(date ? `/ledger?date=${encodeURIComponent(date)}` : "/ledger")),
+    /** Vendor checked her bank app: PIN-gated; the sale becomes vendor_confirmed, never paid. */
+    vendorConfirm: (saleId: string, pin: string) =>
+      request<{ sale: Sale }>(`/api/sales/${encodeURIComponent(saleId)}/vendor-confirm`, {
+        method: "POST",
+        body: { pin },
+      }),
     refund: (saleId: string, amountMinor: number, pin: string) =>
       request<{ ok: true; refundId: string; amount: Money }>(bo("/refunds"), {
         method: "POST",
