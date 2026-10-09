@@ -20,3 +20,6 @@ blob-report/
 .playwright-cli/
 # Lovable-synced design reference: a separate project, never committed here.
 lovable/
+
+# Real bank receipts (PII); tests use fictional samples
+*.pdf
