@@ -10,7 +10,8 @@
       "!playwright-report",
       "!test-results",
       "!**/*.md",
-      "!mobile"
+      "!mobile",
+      "!paygent-dashboard"
     ]
   },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
