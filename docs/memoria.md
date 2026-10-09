@@ -24,6 +24,24 @@
 - Estado nuevo `bank_confirmed`, nunca `paid`; solo con una coincidencia única por monto en 30 min.
 - ⏳ Faltan muestras reales de cada banco y confirmar la clasificación de los permisos de Gmail.
 
+## 2026-10-07 — Resumen y Perfil en la app móvil (`feat/mobile-dashboard`)
+
+- Del panel web (`paygent-dashboard/`, rama `feat/dashboard`) solo pasa al teléfono lo que la
+  vendedora usa parada en el puesto: `mobile/app/resumen.tsx` (tarjeta vino del mes con verificado
+  grande, autodeclarado y por confirmar aparte, delta vs mes anterior al mismo día, pastillas
+  Cobrar / Confirmar transferencia / Reembolso, tira de días, transferencias por confirmar con PIN)
+  y `mobile/app/perfil.tsx` (cambio de puesto y enlaces a ajustes, configurar puesto y
+  administración). Metas, rieles, AG Grid, gráficas e importar estado de cuenta quedan solo en web.
+- Datos reales, sin endpoints nuevos: el mes se arma con `GET <bo>/ledger?date=` día por día (≤ 62
+  llamadas, 4 a la vez) y confirmar usa `POST /api/sales/:id/vendor-confirm` con el PIN del puesto.
+  Reembolso abre la administración existente (PIN ahí). Matemática pura en `mobile/src/lib/summary.ts`:
+  verificado = PayPal pagado − reembolsado; autodeclarado = efectivo + `vendor_confirmed`;
+  `pending_bank` va a "por confirmar" y nunca suma como pagado. El ledger no trae nombres de pagador.
+- Límite: el día se calcula con el reloj del teléfono, el servidor con la zona del puesto; cerca de
+  medianoche puede faltar o sobrar un día. Un endpoint mensual ahorraría las llamadas (pendiente).
+- jest móvil no encuentra pruebas bajo `.claude/` (worktree): se corrió copiando `mobile/` + `shared/`
+  a un directorio temporal. ⏳ Sin probar en dispositivo real (TalkBack/VoiceOver, texto grande).
+
 ## 2026-10-07 — Voz en Firefox (`feat/voice-firefox`)
 
 - Firefox no trae `SpeechRecognition`. Respaldo: `web/src/stt.ts` elige `native` → `record`
