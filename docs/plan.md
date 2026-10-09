@@ -125,6 +125,24 @@ Reglas de arquitectura:
 - [x] Tests: unidad de la selección por moneda; e2e que lee `data-funding` (USD incluye venmo y
       paylater; MXN no incluye venmo).
 
+### Botones Apple Pay / Google Pay (`feat/wallet-buttons`)
+
+Hoy `RAIL_APPLE_PAY` / `RAIL_GOOGLE_PAY` solo anuncian el riel. Se montan los botones nativos con el
+SDK v6 (`applepay-payments`, `googlepay-payments`; API tomada de
+`paypal-examples/v6-web-sdk-sample-integration`, leída 2026-10-07).
+
+- [x] Cada botón aparece solo si el riel está activo **y** el navegador es elegible:
+      `ApplePaySession.canMakePayments()` / `PaymentsClient.isReadyToPay().result` **y**
+      `findEligibleMethods().isEligible("applepay"|"googlepay")`. Si no, no hay botón (oculto).
+- [x] Usa el pedido que el servidor ya creó (`sale.orderId`): `confirmOrder` del SDK y luego
+      `POST /api/sales/:id/capture`. Nada queda `paid` sin la captura PayPal (misma ruta que hoy).
+- [x] Modo mock (sin llaves): sin botones de wallet, sin cargar scripts de Apple/Google; los botones
+      simulados siguen igual. Si un script falla, se ocultan los wallets y PayPal sigue.
+- [x] `GET /.well-known/apple-developer-merchantid-domain-association` sirve
+      `APPLE_PAY_DOMAIN_ASSOCIATION` tal cual (text/plain); sin la variable, 404.
+- [x] Tests: unidad de elegibilidad y de los pedidos Apple/Google; ruta `.well-known`; e2e en mock
+      sin contenedor de wallets.
+
 ## Fuera de alcance hasta que los bloques 0–5 corran
 
 Soundbox (ESP32/Android kiosko), tap teléfono-a-teléfono (HCE), AG Grid, foto del menú → catálogo,
@@ -150,3 +168,6 @@ aceptados, 250 rechazado por el tope.
 | 6 | Soundbox ESP32 (T3b) | Stretch | Opcional; solo con 1–5 cerrados |
 | 7 | Validación con personas: 3 entrevistas a vendedores; 10 ventas dictadas por otra persona (≥ 9 carritos correctos); alguien externo corre `/judge` desde un navegador limpio | BRAINSTORM §6.1, §9 | Notas en `docs/memoria.md` |
 | 8 | Entrega: video < 3 min en inglés en dispositivos reales, repo público sin secretos ni docs privados, texto de Devpost, deploy vivo hasta el 15-dic | Reglas del hackathon | Envío antes del 12-nov 12:00 PT |
+| 9 | Huella financiera: el import de estado de cuenta no cuenta como ingreso las transferencias entre cuentas propias — **hecho en `fix/statement-internal-transfers`** | Handoff gap #7 | Un abono con concepto de traspaso/cuenta propia (es/pt/en), o compensado por un cargo del mismo monto y moneda en otra cuenta del mismo OFX a ≤ 3 días, queda fuera de `inflow`; la respuesta reporta `ownAccountMoves` (cantidad y total por moneda); "Transferencia de X" o un XFER suelto siguen contando; ningún concepto ni nombre sale del parser; `npm run check` verde |
+| 11 | Voz en Firefox (sin `SpeechRecognition`) — **hecho en `feat/voice-firefox`**: el botón graba con `MediaRecorder` y `POST /api/voice/transcribe` transcribe (`STT_API_KEY` = endpoint compatible con Whisper; `STT_MOCK_TRANSCRIPT` = transcripción fija; sin ninguna, 503). `speechSynthesis` no cambia | Handoff #11, PR #33 | (a) sin reconocedor nativo, mantener Espacio/Enter o el puntero graba y llena el carrito; (b) sin reconocedor ni transcriptor, un `role="status"` dice que no hay dictado (nunca falla en silencio); (c) micrófono bloqueado o fallo del servidor se anuncian; (d) el modo voz-primero usa el mismo respaldo; (e) vitest + e2e (Chromium sin `SpeechRecognition`) verdes. ⏳ Firefox real sin probar |
+| 12 | Confirmación bancaria automática de Bre-B con el aviso de Nequi "Recibiste plata por Bre-B": Gmail solo lectura (hackathon), notificación en Android y reenvío manual en iPhone. Spec en `docs/bank-confirm.md` | Usuario | Ver los 7 criterios en `docs/bank-confirm.md`; nada pasa a `paid`, solo a `bank_confirmed` con una coincidencia única |

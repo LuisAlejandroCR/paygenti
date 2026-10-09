@@ -18,6 +18,7 @@ import { createGateway } from "./paypal";
 import { MockPayPal } from "./paypal/mock";
 import { SalesService } from "./sales";
 import { MemoryStore, type Store } from "./store";
+import { createTranscriber } from "./voice/transcribe";
 
 const port = Number(process.env.PORT ?? 8787);
 const webRoot = resolve(import.meta.dirname, "../dist/web");
@@ -56,6 +57,9 @@ const agentModel = await integrations.optional("claude", () =>
 const menuVision = await integrations.optional("claude-vision", () =>
   anthropicKey ? new AnthropicVisionClient(anthropicKey) : undefined,
 );
+const transcriber = await integrations.optional("speech-to-text", () =>
+  createTranscriber(process.env),
+);
 const paypalTools = await integrations.optional("paypal-agent-toolkit", () =>
   createPayPalTools(process.env),
 );
@@ -75,9 +79,11 @@ const app = createApp({
   paypal,
   // Pix / SPEI / Bre-B / wallets: each shows up only when its env config is present.
   rails: buildRailRegistry(process.env),
+  applePayDomainAssociation: process.env.APPLE_PAY_DOMAIN_ASSOCIATION?.trim() || undefined,
   // Render sets RENDER_EXTERNAL_URL (https); the request origin behind its proxy is http.
   publicUrl: process.env.PUBLIC_URL?.trim() || process.env.RENDER_EXTERNAL_URL?.trim() || undefined,
   voiceEnv: process.env,
+  transcriber,
   staticRoot: existsSync(webRoot) ? webRoot : undefined,
 });
 

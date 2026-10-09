@@ -1,12 +1,13 @@
-// web/src/voice.tsx: push-to-talk ordering — Web Speech API (es-MX) transcribes, the server parses
-// into catalog lines, and the vendor edits the cart (qty +/-, remove) before charging. A text box
-// ("Type the order") goes through the same parser for browsers without speech, and for judges.
+// web/src/voice.tsx: push-to-talk ordering — Web Speech API (es-MX) transcribes, or, in Firefox,
+// MediaRecorder + server transcription; the server parses into catalog lines and the vendor edits
+// the cart before charging. Hold works by pointer or Space/Enter. The typed box uses the same parser.
 import { useRef, useState } from "preact/hooks";
 import { type Currency, formatMoney, type Money, money } from "../../shared/money";
 import type { CartLine, CatalogItem } from "../../shared/types";
 import { api } from "./api";
 import { lineName, speechLang, useT } from "./i18n";
 import { CloseIcon, KeyboardIcon, KeypadIcon, MicIcon, MinusIcon, PlusIcon } from "./icons";
+import { type Recording, SttError, startRecording, transcribeClip, useSpeechMode } from "./stt";
 
 interface Recognition {
   lang: string;
@@ -65,6 +66,8 @@ export function catalogLine(item: CatalogItem): CartLine {
 export function VoiceCart({ vendorId, cart, onCart, onCharge, busy, catalog = [], keypad }: Props) {
   const { t, locale } = useT();
   const Ctor = recognitionCtor();
+  const mode = useSpeechMode();
+  const clip = useRef<Promise<Recording | undefined> | undefined>(undefined);
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState("");
   const [note, setNote] = useState("");
@@ -90,7 +93,9 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy, catalog = []
   }
 
   function start() {
-    if (!Ctor || listening) return;
+    if (listening) return;
+    if (mode === "record") return startClip();
+    if (!Ctor) return;
     const r = new Ctor();
     r.lang = speechLang(locale);
     r.interimResults = false;
@@ -110,8 +115,55 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy, catalog = []
     }
   }
 
+  function startClip() {
+    setListening(true);
+    setNote("");
+    clip.current = startRecording().catch(() => {
+      setListening(false);
+      setNote(t("voice.micDenied"));
+      return undefined;
+    });
+  }
+
+  async function stopClip() {
+    const pending = clip.current;
+    clip.current = undefined;
+    const r = await pending;
+    if (!r) return;
+    const audio = await r.stop();
+    setListening(false);
+    setNote(t("voice.transcribing"));
+    try {
+      const text = await transcribeClip(audio, locale === "en" ? "en" : "es");
+      if (text) await parse(text);
+      else setNote(t("voice.notHeard"));
+    } catch (err) {
+      setNote(
+        err instanceof SttError && err.message === "unavailable"
+          ? t("voice.unsupported")
+          : t("voice.notHeard"),
+      );
+    }
+  }
+
   function stop() {
+    if (mode === "record") {
+      if (clip.current) void stopClip();
+      return;
+    }
     rec.current?.stop();
+  }
+
+  // Keyboard push-to-talk (WCAG 2.1.1): hold Space or Enter like the pointer.
+  function onKeyDown(e: KeyboardEvent) {
+    if (e.key !== " " && e.key !== "Enter") return;
+    e.preventDefault();
+    if (!e.repeat) start();
+  }
+  function onKeyUp(e: KeyboardEvent) {
+    if (e.key !== " " && e.key !== "Enter") return;
+    e.preventDefault();
+    stop();
   }
 
   function submitTyped(e: Event) {
@@ -132,14 +184,18 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy, catalog = []
 
   return (
     <section class="voice" aria-label={t("voice.label")}>
-      {Ctor ? (
+      {mode === "native" || mode === "record" ? (
         <button
           type="button"
           class={listening ? "ptt listening" : "ptt"}
           aria-pressed={listening}
+          aria-keyshortcuts="Space Enter"
           onPointerDown={start}
           onPointerUp={stop}
           onPointerLeave={stop}
+          onKeyDown={onKeyDown}
+          onKeyUp={onKeyUp}
+          onBlur={stop}
         >
           <span class="ptt-mic">
             <MicIcon size={30} />
@@ -151,9 +207,11 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy, catalog = []
             </span>
           </span>
         </button>
-      ) : (
-        <p class="hint">{t("voice.unsupported")}</p>
-      )}
+      ) : mode === "none" ? (
+        <p class="hint" role="status">
+          {t("voice.unsupported")}
+        </p>
+      ) : null}
       <div class="type-row">
         <form class="type-order" onSubmit={submitTyped}>
           <label class="type-field">
@@ -185,11 +243,10 @@ export function VoiceCart({ vendorId, cart, onCart, onCharge, busy, catalog = []
         )}
       </div>
       {heard && <p class="heard">«{heard}»</p>}
-      {note && (
-        <p class="hint" role="status">
-          {note}
-        </p>
-      )}
+      {/* Always mounted so screen readers announce every change, including "unavailable". */}
+      <p class={note ? "hint" : "sr-only"} role="status">
+        {note}
+      </p>
       {(cart.length > 0 || catalog.length > 0) && (
         <div class="cart-card">
           {cart.length === 0 && <p class="cart-empty">{t("voice.empty")}</p>}

@@ -2,17 +2,20 @@
 // Sandbox: PayPal JS SDK v6 buttons (PayPal, Venmo, Pay Later, card — each only where PayPal offers
 // it for the sale's currency and buyer) approve the server-created order; our server captures.
 // Mock: "Pagar (simulado)" / "Simular rechazo" drive the mock gateway through the same capture.
-// Extra rails (Pix, SPEI, Bre-B, wallets via PayPal) come from RailsPanel when configured.
+// Extra rails (Pix, SPEI, Bre-B, wallets via PayPal) come from RailsPanel when configured; in
+// sandbox, eligible Apple Pay / Google Pay buttons mount above PayPal's (wallet-buttons.ts).
 // Listens to the terminal's SSE feed so a vendor cancel (or paid/expired) shows up live.
 import { useEffect, useId, useRef, useState } from "preact/hooks";
 import { type FundingSource, fundingCandidates, sandboxBuyerCountry } from "../../shared/funding";
 import { formatMoney, money, toPayPalValue } from "../../shared/money";
 import type { Sale, TerminalEvent } from "../../shared/types";
+import { type WalletId, walletCandidates } from "../../shared/wallets";
 import { ApiError, type AppConfig, api } from "./api";
 import { type Key, lineName, useT } from "./i18n";
 import { LangToggle } from "./lang-toggle";
 import { mountCheckout, prepareCheckout } from "./paypal-sdk";
 import { RailsPanel } from "./rails-panel";
+import { mountWallets } from "./wallet-buttons";
 
 function prefersDark(): boolean {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
@@ -31,6 +34,8 @@ export function Checkout({ saleId }: { saleId: string }) {
   const [shown, setShown] = useState<FundingSource[]>();
   const buttonsRef = useRef<HTMLDivElement>(null);
   const messageRef = useRef<HTMLDivElement>(null);
+  const walletsRef = useRef<HTMLDivElement>(null);
+  const [walletsShown, setWalletsShown] = useState<WalletId[]>([]);
   const payWithId = useId();
 
   useEffect(() => {
@@ -129,6 +134,51 @@ export function Checkout({ saleId }: { saleId: string }) {
       .catch(() => {
         if (!cancelled) setError("checkout.sdkError");
       });
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [payable, config, sale?.orderId, locale]);
+
+  // Apple Pay / Google Pay: only rails configured on the server, only in sandbox, only if eligible.
+  useEffect(() => {
+    if (!payable || config?.paypal !== "sandbox" || !config.clientId || !walletsRef.current) return;
+    const host = walletsRef.current;
+    const clientId = config.clientId;
+    const amount = toPayPalValue(sale.total);
+    const testBuyerCountry = sandboxBuyerCountry(
+      currency,
+      new URLSearchParams(window.location.search).get("buyerCountry"),
+    );
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+    api
+      .rails(sale.id)
+      .then(async (info) => {
+        const wallets = walletCandidates(info.rails.map((r) => r.id));
+        if (cancelled || wallets.length === 0) return;
+        const res = await mountWallets(wallets, host, {
+          env: "sandbox",
+          clientId,
+          locale,
+          testBuyerCountry,
+          orderId: sale.orderId,
+          sale: { currency, amount, countryCode: testBuyerCountry ?? "US", label: stall },
+          // Throws unless our server's PayPal capture really marked the sale paid.
+          capture: async () => {
+            setNotice("");
+            setError("");
+            const { sale: updated } = await api.capture(saleId);
+            setSale(updated);
+            if (updated.status !== "paid") throw new Error(updated.status);
+          },
+          onError: () => setError("checkout.paypalError"),
+        });
+        if (cancelled) return res.cleanup();
+        cleanup = res.cleanup;
+        setWalletsShown(res.shown);
+      })
+      .catch(() => {}); // wallets are optional: PayPal's own buttons still work
     return () => {
       cancelled = true;
       cleanup?.();
@@ -235,6 +285,11 @@ export function Checkout({ saleId }: { saleId: string }) {
             </p>
           )}
           {shown?.length === 0 && <p class="hint">{t("checkout.noMethods")}</p>}
+          <div
+            ref={walletsRef}
+            class="pp-buttons wallet-buttons"
+            data-wallets-shown={walletsShown.join(" ")}
+          />
           <div ref={buttonsRef} class="pp-buttons" />
           {notice && (
             <p class="hint" role="status">

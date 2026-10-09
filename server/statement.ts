@@ -1,6 +1,7 @@
 // server/statement.ts: bank statement import (CSV or OFX/QFX) reduced to monthly inflow aggregates.
 // Only month, currency, total inflow and inflow count leave this module; account numbers, names,
 // descriptions and counterparties are never copied out, stored or logged. Bad files throw StatementError.
+// Credits that are transfers between the owner's own accounts are excluded from inflow (see isOwnTransfer).
 import { decimalsOf, isPayPalCurrency } from "../shared/currency";
 import type { StatementMonth } from "../shared/passport";
 
@@ -29,12 +30,32 @@ export interface StatementSummary {
   transactions: number;
   /** Lines that could not be read (bad date or amount). */
   skipped: number;
+  /** Credits left out of inflow because they look like transfers between the owner's accounts. */
+  ownAccountMoves: { count: number; totals: { currency: string; amount: number }[] };
 }
 
 interface Txn {
   day: string;
   amount: string;
   currency: string;
+  /** Which account (statement block) the line came from; only used for pairing. */
+  account: number;
+  /** Description names an own-account transfer. The description itself is never kept. */
+  ownTransfer: boolean;
+}
+
+/** Days apart within which a debit in one account and a credit in another count as one transfer. */
+const PAIR_WINDOW_DAYS = 3;
+
+// Phrases banks use for moves between accounts of the same holder (es/pt/en), matched on
+// lowercased text without accents. Deliberately narrow: "transferencia de X" or a bare "XFER"
+// is ordinary income (Pix, SPEI from a client) and keeps counting.
+const OWN_TRANSFER =
+  /\b(traspaso|traspasos|entre cuentas|cuenta propia|cuentas propias|mis cuentas|entre contas|conta propria|contas proprias|mesma titularidade|own account|own accounts|between accounts|between my accounts|internal transfer|transfer from savings|transfer from checking)\b/;
+
+export function isOwnTransfer(description: string): boolean {
+  const s = description.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  return OWN_TRANSFER.test(s);
 }
 
 /** Parses statement bytes; `currency` applies when the file does not state one. */
@@ -55,9 +76,14 @@ export function parseStatement(bytes: Uint8Array, currency: string): StatementSu
   return aggregate(txns, skipped);
 }
 
+const dayNumber = (iso: string) => Date.parse(`${iso}T00:00:00Z`) / 86_400_000;
+
 function aggregate(txns: Txn[], skipped: number): StatementSummary {
   const months = new Map<string, StatementMonth>();
+  const internal = new Map<string, number>();
+  let internalCount = 0;
   let transactions = 0;
+  const valued: { t: Txn; minor: number }[] = [];
   for (const t of txns) {
     if (!isPayPalCurrency(t.currency)) throw new StatementError("STATEMENT_BAD_CURRENCY");
     const minor = toMinor(t.amount, decimalsOf(t.currency));
@@ -66,7 +92,31 @@ function aggregate(txns: Txn[], skipped: number): StatementSummary {
       continue;
     }
     transactions++;
+    valued.push({ t, minor });
+  }
+  // A credit offset by a debit of the same amount and currency in a different account of the
+  // same file, within PAIR_WINDOW_DAYS, is money moving between the owner's accounts.
+  const debits = valued.filter((v) => v.minor < 0);
+  const usedDebits = new Set<number>();
+  const paired = (v: { t: Txn; minor: number }) => {
+    const i = debits.findIndex(
+      (d, k) =>
+        !usedDebits.has(k) &&
+        d.t.account !== v.t.account &&
+        d.t.currency === v.t.currency &&
+        -d.minor === v.minor &&
+        Math.abs(dayNumber(d.t.day) - dayNumber(v.t.day)) <= PAIR_WINDOW_DAYS,
+    );
+    if (i >= 0) usedDebits.add(i);
+    return i >= 0;
+  };
+  for (const { t, minor } of valued) {
     if (minor <= 0) continue;
+    if (t.ownTransfer || paired({ t, minor })) {
+      internalCount++;
+      internal.set(t.currency, (internal.get(t.currency) ?? 0) + minor);
+      continue;
+    }
     const month = t.day.slice(0, 7);
     const key = `${month}|${t.currency}`;
     const m = months.get(key) ?? { month, currency: t.currency, inflow: 0, count: 0 };
@@ -78,7 +128,15 @@ function aggregate(txns: Txn[], skipped: number): StatementSummary {
   const sorted = [...months.values()].sort((a, b) =>
     `${a.currency}${a.month}` < `${b.currency}${b.month}` ? -1 : 1,
   );
-  return { months: sorted, transactions, skipped };
+  const totals = [...internal]
+    .map(([currency, amount]) => ({ currency, amount }))
+    .sort((a, b) => (a.currency < b.currency ? -1 : 1));
+  return {
+    months: sorted,
+    transactions,
+    skipped,
+    ownAccountMoves: { count: internalCount, totals },
+  };
 }
 
 /** Normalised decimal string ("-1234.56") to integer minor units; undefined when not a number. */
@@ -131,6 +189,8 @@ const CREDIT_HEADERS =
 const DEBIT_HEADERS =
   /^(debit|debits|cargo|cargos|withdrawal|withdrawals|retiro|retiros|debe|egreso|egresos|money out|paid out)$/;
 const CURRENCY_HEADERS = /^(currency|moneda|divisa)$/;
+const DESCRIPTION_HEADERS =
+  /^(description|descripci[oó]n|concepto|detalle|details|memo|narrative|movimiento|referencia|reference|hist[oó]rico|descri[cç][aã]o)$/;
 
 function splitCsvLine(line: string, delimiter: string): string[] {
   const out: string[] = [];
@@ -183,6 +243,7 @@ function readCsv(text: string, fallbackCurrency: string): { txns: Txn[]; skipped
   const creditCol = cols.findIndex((h) => CREDIT_HEADERS.test(h));
   const debitCol = cols.findIndex((h) => DEBIT_HEADERS.test(h));
   const currencyCol = cols.findIndex((h) => CURRENCY_HEADERS.test(h));
+  const descCols = cols.flatMap((h, i) => (DESCRIPTION_HEADERS.test(h) ? [i] : []));
   if (amountCol < 0 && creditCol < 0) throw new StatementError("STATEMENT_NO_AMOUNT_COLUMN");
 
   const rows = lines.slice(headerAt + 1).map((l) => splitCsvLine(l, delimiter));
@@ -206,7 +267,8 @@ function readCsv(text: string, fallbackCurrency: string): { txns: Txn[]; skipped
       continue;
     }
     const cur = (currencyCol >= 0 && r[currencyCol]?.toUpperCase()) || fallbackCurrency;
-    txns.push({ day, amount, currency: cur });
+    const ownTransfer = descCols.some((i) => isOwnTransfer(r[i] ?? ""));
+    txns.push({ day, amount, currency: cur, account: 0, ownTransfer });
   }
   return { txns, skipped };
 }
@@ -256,7 +318,7 @@ function readOfx(text: string, fallbackCurrency: string): { txns: Txn[]; skipped
   const txns: Txn[] = [];
   let skipped = 0;
   let count = 0;
-  for (const st of statements) {
+  for (const [account, st] of statements.entries()) {
     const currency = ofxValue(st, "CURDEF")?.toUpperCase() || fallbackCurrency;
     for (const block of st.split(/<STMTTRN>/i).slice(1)) {
       if (++count > MAX_STATEMENT_ROWS) throw new StatementError("STATEMENT_TOO_MANY_ROWS");
@@ -266,7 +328,10 @@ function readOfx(text: string, fallbackCurrency: string): { txns: Txn[]; skipped
         skipped++;
         continue;
       }
-      txns.push({ day, amount, currency });
+      const ownTransfer = ["NAME", "MEMO", "PAYEE"].some((tag) =>
+        isOwnTransfer(ofxValue(block, tag) ?? ""),
+      );
+      txns.push({ day, amount, currency, account, ownTransfer });
     }
   }
   return { txns, skipped };

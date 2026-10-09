@@ -4,6 +4,68 @@
 
 # Memoria — paygent
 
+## 2026-10-07 — Confirmación bancaria: canales elegidos
+
+- Corrige la entrada de abajo: el reenvío no se puede crear por API en cuentas @gmail.com
+  (`forwardingAddresses.create` es solo para Workspace con delegación de dominio).
+- Elegido: Gmail solo lectura para el hackathon (≤ 100 usuarios de prueba), notificación de Nequi en
+  Android y reenvío manual a Resend Inbound en iPhone. Sin Clerk: Paygent no tiene login propio.
+- Muestras reales: solo "Recibiste plata por Bre-B" de Nequi confirma ventas; el comprobante de Banco de
+  Bogotá es de quien envía. Los PDF tienen datos personales: `*.pdf` en `.gitignore`.
+
+## 2026-10-07 — Confirmación bancaria automática (spec, `docs/bank-confirm.md`)
+
+- El usuario pidió confirmar Bre-B sin PIN usando los avisos del banco: correo de Banco de Bogotá
+  ("Comprobante de Transferencia") y de Nequi ("Recibiste plata por Bre-B").
+- Sin fricción: Google sign-in crea el reenvío y el filtro por la API de Gmail; Paygent se autoverifica la
+  dirección. Se descartó leer el buzón entero (más permiso del necesario).
+- En Android, opcional: leer la notificación de la app del banco con `NotificationListenerService`. iOS no
+  lo permite.
+- Estado nuevo `bank_confirmed`, nunca `paid`; solo con una coincidencia única por monto en 30 min.
+- ⏳ Faltan muestras reales de cada banco y confirmar la clasificación de los permisos de Gmail.
+
+## 2026-10-07 — Voz en Firefox (`feat/voice-firefox`)
+
+- Firefox no trae `SpeechRecognition`. Respaldo: `web/src/stt.ts` elige `native` → `record`
+  (`MediaRecorder` + `POST /api/voice/transcribe`) → `none`. El servidor no tenía speech-to-text
+  (Claude no recibe audio), así que se agregó `server/voice/transcribe.ts` como integración
+  opcional `speech-to-text`: `STT_API_KEY` usa un endpoint compatible con Whisper (`STT_URL`,
+  `STT_MODEL`, por defecto OpenAI `whisper-1`); `STT_MOCK_TRANSCRIPT` devuelve un texto fijo (e2e);
+  sin config, 503 `TRANSCRIBE_UNAVAILABLE` y `/api/config` trae `transcribe: false`.
+- Accesibilidad: el botón de mantener ahora responde a Espacio/Enter (antes solo puntero, fallaba
+  WCAG 2.1.1); la nota de estado siempre está montada como `role="status"` para que se anuncie.
+- e2e corre en Chromium ocultando `SpeechRecognition` y con micrófono falso (WebAudio): no hay
+  navegador Firefox de Playwright instalado. ⏳ Probar en Firefox real con micrófono.
+
+## 2026-10-07 — Botones Apple Pay / Google Pay (`feat/wallet-buttons`)
+
+- API del SDK v6 tomada de `paypal-examples/v6-web-sdk-sample-integration` (leído 2026-10-07,
+  `client/components/{applepay,googlepay}Payments/oneTimePayment`): componentes
+  `applepay-payments` / `googlepay-payments`; `createApplePayOneTimePaymentSession()` con
+  `formatConfigForPaymentRequest`, `validateMerchant({ validationUrl })`, `confirmOrder({ orderId,
+  token, billingContact, shippingContact })`; `createGooglePayOneTimePaymentSession()` con
+  `formatConfigForPaymentRequest` y `confirmOrder({ orderId, paymentMethodData })` → `{ status }`.
+  Scripts: `applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js`, `pay.google.com/gp/p/js/pay.js`.
+- Decisión: se reutiliza el pedido que el servidor creó con la venta; tras `confirmOrder` se llama
+  a nuestro `/capture` y el wallet solo da éxito si la venta quedó `paid`. `PAYER_ACTION_REQUIRED`
+  (3DS) no se captura: error y la venta sigue abierta. Sin elegibilidad, sin script o en mock: no
+  hay botón y PayPal sigue.
+- `APPLE_PAY_DOMAIN_ASSOCIATION` se sirve en `/.well-known/apple-developer-merchantid-domain-association`.
+- ⏳ Sin probar en sandbox real ni en dispositivos (Safari/iPhone con Apple Pay, Chrome Android con
+  Google Pay); falta registrar el dominio de Render en PayPal.
+
+## 2026-10-07 — Transferencias entre cuentas propias (`fix/statement-internal-transfers`)
+
+- El import sumaba todo abono como ingreso; mover dinero de ahorro a cheques inflaba la huella.
+- Detector conservador en `server/statement.ts`: (1) concepto/NAME/MEMO con frases de cuenta propia
+  (traspaso, entre cuentas, cuenta propia, entre contas, mesma titularidade, own account, internal
+  transfer…), sin acentos; (2) abono compensado por un cargo del mismo monto y moneda en **otra**
+  cuenta del mismo archivo (bloques STMTRS del OFX) a ≤ 3 días. En una sola cuenta no se emparejan
+  cargo y abono iguales: es común vender y pagar al proveedor el mismo monto.
+- `TRNTYPE XFER` solo no excluye: Pix/SPEI de clientes llegan así. Mejor contar de más un traspaso
+  sin concepto que borrar una venta real. Se reporta `ownAccountMoves {count, totals}`; el concepto
+  se lee y se descarta, nunca se guarda.
+
 ## 2026-10-07 — Ola de PRs #28–#33 y traspaso
 
 - Terceros plug-and-play (#28): un `DATABASE_URL` inalcanzable o un `PASSPORT_SIGNING_KEY` inválido

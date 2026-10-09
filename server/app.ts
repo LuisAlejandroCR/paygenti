@@ -35,6 +35,7 @@ import { PolicyEngine } from "./policy";
 import { type Clock, SaleError, SalesService } from "./sales";
 import { DEFAULT_STALL, MemoryStore } from "./store";
 import { parseVoice, type VoiceEnv } from "./voice";
+import { MAX_AUDIO_BYTES, type Transcriber } from "./voice/transcribe";
 
 export { pickLang };
 
@@ -48,6 +49,8 @@ export interface AppDeps {
   staticRoot?: string;
   /** Env for the voice parser (ANTHROPIC_API_KEY); omitted means rules parser only. */
   voiceEnv?: VoiceEnv;
+  /** Speech-to-text for browsers without SpeechRecognition; omitted means /api/voice/transcribe is 503. */
+  transcriber?: Transcriber;
   /** Back-office lock; defaults to a PolicyEngine with vendorPin (demo "1234"). */
   policy?: PolicyEngine;
   vendorPin?: string;
@@ -65,6 +68,8 @@ export interface AppDeps {
   rails?: RailRegistry;
   /** PIN per stall (STALL_PINS); Rosa falls back to vendorPin, demo stalls to DEMO_STALL_PINS. */
   stallPins?: Record<string, string>;
+  /** APPLE_PAY_DOMAIN_ASSOCIATION: Apple's domain-verification file, served under /.well-known. */
+  applePayDomainAssociation?: string;
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -116,6 +121,12 @@ const statementLimit = bodyLimit({
   onError: (c) => c.json({ error: "STATEMENT_TOO_LARGE" }, 413),
 });
 const STATEMENT_PATH = "/api/backoffice/statement";
+/** Push-to-talk clips recorded with MediaRecorder (Firefox): raw audio body. */
+const audioLimit = bodyLimit({
+  maxSize: MAX_AUDIO_BYTES,
+  onError: (c) => c.json({ error: "AUDIO_TOO_LARGE" }, 413),
+});
+const TRANSCRIBE_PATH = "/api/voice/transcribe";
 
 export function createApp(deps: AppDeps): Hono {
   const { paypal } = deps;
@@ -164,7 +175,9 @@ export function createApp(deps: AppDeps): Hono {
       ? imageLimit
       : c.req.path === STATEMENT_PATH
         ? statementLimit
-        : limit)(c, next),
+        : c.req.path === TRANSCRIBE_PATH
+          ? audioLimit
+          : limit)(c, next),
   );
   app.use("/webhooks/*", limit);
 
@@ -177,7 +190,12 @@ export function createApp(deps: AppDeps): Hono {
   });
 
   app.get("/api/config", (c) =>
-    c.json({ paypal: paypal.mode, clientId: paypal.clientId ?? null, publicUrl: base(c, deps) }),
+    c.json({
+      paypal: paypal.mode,
+      clientId: paypal.clientId ?? null,
+      publicUrl: base(c, deps),
+      transcribe: !!deps.transcriber,
+    }),
   );
 
   app.get("/api/terminals/:id", (c) => {
@@ -343,6 +361,24 @@ export function createApp(deps: AppDeps): Hono {
     return c.json(result);
   });
 
+  // Firefox has no SpeechRecognition: the page records a clip and the server transcribes it.
+  app.post(TRANSCRIBE_PATH, async (c) => {
+    const stt = deps.transcriber;
+    if (!stt) return c.json({ error: "TRANSCRIBE_UNAVAILABLE" }, 503);
+    const mime = c.req.header("Content-Type") ?? "";
+    if (!mime.startsWith("audio/")) return c.json({ error: "UNSUPPORTED_MEDIA_TYPE" }, 415);
+    const audio = new Uint8Array(await c.req.arrayBuffer());
+    if (audio.byteLength === 0) return c.json({ error: "INVALID_BODY" }, 400);
+    const lang = c.req.query("lang") === "en" ? "en" : "es";
+    try {
+      const text = await stt.transcribe(audio, mime, lang);
+      return c.json({ text, source: stt.mode });
+    } catch (err) {
+      console.error(`stt failed: ${err instanceof Error ? err.message.slice(0, 120) : "unknown"}`);
+      return c.json({ error: "TRANSCRIBE_FAILED" }, 502);
+    }
+  });
+
   app.post("/api/mock/orders/:orderId/approve", async (c) => {
     if (!(paypal instanceof MockPayPal)) return c.json({ error: "NOT_FOUND" }, 404);
     const id = orderId.safeParse(c.req.param("orderId"));
@@ -462,6 +498,13 @@ export function createApp(deps: AppDeps): Hono {
   );
 
   app.all("/api/*", (c) => c.json({ error: "NOT_FOUND" }, 404));
+
+  // Apple Pay domain registration (PayPal dashboard) fetches this file; absent -> 404.
+  app.get("/.well-known/apple-developer-merchantid-domain-association", (c) => {
+    const body = deps.applePayDomainAssociation;
+    if (!body) return c.text("not found", 404);
+    return c.text(body, 200, { "Cache-Control": "public, max-age=3600" });
+  });
 
   if (deps.staticRoot) {
     const root = deps.staticRoot;

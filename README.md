@@ -149,6 +149,7 @@ Copy `.env.example` to `.env.local`. Every value is optional.
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | PayPal sandbox app; without them the mock gateway runs |
 | `PAYPAL_WEBHOOK_ID` | Verifies `/webhooks/paypal` signatures |
 | `ANTHROPIC_API_KEY` | Claude for voice-to-cart and the back-office agent; otherwise a rule parser runs |
+| `STT_API_KEY` | Whisper-compatible speech-to-text (`STT_URL`, `STT_MODEL`) for browsers without SpeechRecognition (Firefox); `STT_MOCK_TRANSCRIPT` returns a fixed text instead |
 | `VENDOR_PIN` | PIN that unlocks the back office and refunds (demo default `1234`) |
 | `STALL_PINS` | PIN per extra stall, e.g. `beto:5678` (demo stall "Don Beto — Tacos" defaults to `5678`) |
 | `DATABASE_URL` | Postgres connection string; sales, catalog, suppliers, payouts, audit log, PIN lockouts and daily refund/payout caps then survive restarts. Unset: everything lives in memory |
