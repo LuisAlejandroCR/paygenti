@@ -45,6 +45,8 @@ function Navigator() {
         <Stack.Screen name="soundbox" options={{ title: t("nav.soundbox") }} />
         <Stack.Screen name="nfc" options={{ title: t("nav.nfc") }} />
         <Stack.Screen name="backoffice" options={{ title: t("nav.backoffice") }} />
+        <Stack.Screen name="resumen" options={{ title: t("nav.summary") }} />
+        <Stack.Screen name="perfil" options={{ title: t("nav.profile") }} />
       </Stack>
     </>
   );

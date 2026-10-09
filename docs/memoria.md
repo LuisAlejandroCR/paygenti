@@ -24,6 +24,24 @@
 - Estado nuevo `bank_confirmed`, nunca `paid`; solo con una coincidencia única por monto en 30 min.
 - ⏳ Faltan muestras reales de cada banco y confirmar la clasificación de los permisos de Gmail.
 
+## 2026-10-07 — Resumen y Perfil en la app móvil (`feat/mobile-dashboard`)
+
+- Del panel web (`paygent-dashboard/`, rama `feat/dashboard`) solo pasa al teléfono lo que la
+  vendedora usa parada en el puesto: `mobile/app/resumen.tsx` (tarjeta vino del mes con verificado
+  grande, autodeclarado y por confirmar aparte, delta vs mes anterior al mismo día, pastillas
+  Cobrar / Confirmar transferencia / Reembolso, tira de días, transferencias por confirmar con PIN)
+  y `mobile/app/perfil.tsx` (cambio de puesto y enlaces a ajustes, configurar puesto y
+  administración). Metas, rieles, AG Grid, gráficas e importar estado de cuenta quedan solo en web.
+- Datos reales, sin endpoints nuevos: el mes se arma con `GET <bo>/ledger?date=` día por día (≤ 62
+  llamadas, 4 a la vez) y confirmar usa `POST /api/sales/:id/vendor-confirm` con el PIN del puesto.
+  Reembolso abre la administración existente (PIN ahí). Matemática pura en `mobile/src/lib/summary.ts`:
+  verificado = PayPal pagado − reembolsado; autodeclarado = efectivo + `vendor_confirmed`;
+  `pending_bank` va a "por confirmar" y nunca suma como pagado. El ledger no trae nombres de pagador.
+- Límite: el día se calcula con el reloj del teléfono, el servidor con la zona del puesto; cerca de
+  medianoche puede faltar o sobrar un día. Un endpoint mensual ahorraría las llamadas (pendiente).
+- jest móvil no encuentra pruebas bajo `.claude/` (worktree): se corrió copiando `mobile/` + `shared/`
+  a un directorio temporal. ⏳ Sin probar en dispositivo real (TalkBack/VoiceOver, texto grande).
+
 ## 2026-10-07 — Dashboard web conectado al servidor (`feat/dashboard`)
 
 - Ventas, Movimientos y Perfil (Rieles, Metas) rediseñados con el lenguaje de Resumen: banda vino
@@ -83,6 +101,18 @@
 - `TRNTYPE XFER` solo no excluye: Pix/SPEI de clientes llegan así. Mejor contar de más un traspaso
   sin concepto que borrar una venta real. Se reporta `ownAccountMoves {count, totals}`; el concepto
   se lee y se descarta, nunca se guarda.
+
+## 2026-10-07 — Ola de PRs #28–#33 y traspaso
+
+- Terceros plug-and-play (#28): un `DATABASE_URL` inalcanzable o un `PASSPORT_SIGNING_KEY` inválido
+  tumbaban el arranque; ahora caen a su respaldo. `/api/health` muestra solo modos, no el error
+  (ruta pública). Costo aceptado: si Postgres cae al arrancar, los topes diarios viven en memoria.
+- Huella financiera (#32): indicadores, nunca un puntaje; el import bancario es "autodeclarado".
+- Al rebasear #31 sobre #30 apareció un hueco: el PIN de cualquier puesto confirmaba ventas SPEI/Pix
+  de otro. Ahora `vendor-confirm` usa el PIN del puesto dueño de la venta (test en `rails.test.ts`).
+- #31 y #32 traían ambos la migración v3: la de puestos pasó a v4.
+- GitHub devolvió 500 en push y en crear PR ~15:06–15:20; se resolvió solo.
+- Estado y pendientes para un chat nuevo: `docs/handoff.md`.
 
 ## 2026-10-07 — Rieles de pago (`feat/payment-rails-v2`)
 

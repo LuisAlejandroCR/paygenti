@@ -329,6 +329,12 @@ export default function SaleScreen() {
 
       {phase === "entry" && (
         <View style={styles.links}>
+          <Link href="/resumen" style={[styles.link, { color: colors.actionText }]}>
+            {t("nav.summary")}
+          </Link>
+          <Link href="/perfil" style={[styles.link, { color: colors.actionText }]}>
+            {t("nav.profile")}
+          </Link>
           <Link href="/soundbox" style={[styles.link, { color: colors.actionText }]}>
             {t("nav.soundbox")}
           </Link>
