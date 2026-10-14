@@ -252,6 +252,15 @@ export const RAIL_COLOR: Record<Rail, string> = {
   breb: "var(--chart-2)",
   bank: "var(--declared)",
 };
+/** Chip style for a rail: its color as background and an icon ink that keeps 3:1 on it
+ *  (cream on the dark chips, dark ink on the light teal/yellow chips and on every dark-mode chip). */
+export function railChip(rail: Rail) {
+  const light = rail === "pix" || rail === "oxxo";
+  return {
+    background: RAIL_COLOR[rail],
+    color: light ? "var(--rail-ink-on-light)" : "var(--rail-ink)",
+  };
+}
 export const RAIL_NAME: Record<Rail, string> = {
   paypal: "PayPal",
   card: "Tarjeta",

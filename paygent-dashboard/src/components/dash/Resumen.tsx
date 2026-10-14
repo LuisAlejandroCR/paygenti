@@ -209,6 +209,14 @@ export function Resumen() {
   const railTot = rails.reduce((a, x) => a + x.verified, 0) || 1;
   const itemMax = Math.max(1, ...items.map((i) => Math.max(i.verified, i.declared)));
 
+  const emptyMonth = !monthTxs.length;
+  const emptyNote = (
+    <div className="flex flex-col items-center gap-2 py-6 text-center" role="status">
+      <p className="font-semibold">{t("empty_month")}</p>
+      <p className="max-w-xs text-sm text-muted-foreground">{t("empty_month_hint")}</p>
+    </div>
+  );
+
   const summary = `${t("sales_of")} ${mName}: ${t("verified")} ${money(s.cur.verified, c)}, ${t("declared")} ${money(s.cur.declared, c)}, ${Math.round(delta)}% ${t("vs")} ${pName}`;
 
   return (
@@ -242,19 +250,15 @@ export function Resumen() {
       {/* Ticket hero: wine band with the month total, 3 KPIs and a day-by-day calendar strip */}
       <section className="lg:col-span-3 overflow-hidden rounded-3xl bg-primary text-primary-foreground shadow-lift">
         <div className="grid gap-5 p-5 sm:p-6 md:grid-cols-[1.4fr_1fr]">
-          <Tap
-            label={summary}
-            onClick={() => nav({ tab: "ventas" })}
-            className="rounded-2xl text-left hover:shadow-none"
-          >
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] opacity-80">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.14em]">
                 {t("sales_of")} {mName}
               </h2>
-              <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+              {s.prevSame.verified > 0 ? (
                 <Popover>
                   <PopoverTrigger
-                    className="cursor-pointer rounded-full"
+                    className="inline-flex min-h-11 cursor-pointer items-center rounded-full"
                     aria-label={t("daybyday")}
                   >
                     <Delta pct={delta} label={`${t("vs")} ${pName}`} />
@@ -284,17 +288,29 @@ export function Resumen() {
                     </div>
                   </PopoverContent>
                 </Popover>
-              </div>
+              ) : (
+                <span className="rounded-full bg-primary-foreground/15 px-2.5 py-1 text-xs font-semibold">
+                  {t("no_prev")}
+                </span>
+              )}
             </div>
-            <Money
-              value={s.cur.verified}
-              currency={c}
-              className="mt-2 block text-5xl font-extrabold tracking-tight sm:text-6xl"
-            />
-            <p className="mt-1 text-sm opacity-85">
-              {t("day_of", { d: s.day, t: s.total })} · {t("pct_of_last", { p: pctV, m: pName })}
-            </p>
-          </Tap>
+            <button
+              type="button"
+              aria-label={summary}
+              onClick={() => nav({ tab: "ventas" })}
+              className="mt-2 block w-full rounded-2xl text-left cursor-pointer"
+            >
+              <Money
+                value={s.cur.verified}
+                currency={c}
+                className="block text-[clamp(2rem,10vw,3.75rem)] font-extrabold leading-tight tracking-tight"
+              />
+              <span className="mt-1 block text-sm opacity-90">
+                {t("day_of", { d: s.day, t: s.total })}
+                {s.prevAll.verified > 0 && ` · ${t("pct_of_last", { p: pctV, m: pName })}`}
+              </span>
+            </button>
+          </div>
           <div className="grid grid-cols-3 divide-x divide-primary-foreground/20 overflow-hidden rounded-2xl bg-primary-foreground/10 md:grid-cols-1 md:divide-x-0 md:divide-y">
             {[
               {
@@ -322,12 +338,11 @@ export function Resumen() {
             ].map((x) => (
               <Tap
                 key={x.k}
-                label={x.label}
                 onClick={() => nav({ tab: "movimientos", filter: x.f as never })}
-                className="rounded-none p-3 text-left hover:bg-primary-foreground/10 hover:shadow-none md:flex md:items-center md:justify-between"
+                className="min-w-0 rounded-none px-2 py-3 text-left sm:p-3 hover:bg-primary-foreground/10 hover:shadow-none md:flex md:items-center md:justify-between"
               >
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide opacity-80">
-                  {x.icon}
+                <span className="flex flex-col items-start gap-1 text-[11px] font-semibold leading-tight [hyphens:auto] [overflow-wrap:anywhere] sm:flex-row sm:items-center sm:gap-1.5 sm:uppercase sm:tracking-wide">
+                  <span className="shrink-0">{x.icon}</span>
                   {x.label}
                 </span>
                 <span className="mt-1 block md:mt-0">
@@ -336,7 +351,7 @@ export function Resumen() {
                     value={x.v}
                     currency={c}
                     compact
-                    className={x.n !== undefined ? "text-xs opacity-80" : "text-lg font-bold"}
+                    className={x.n !== undefined ? "text-xs" : "text-lg font-bold"}
                   />
                 </span>
               </Tap>
@@ -344,30 +359,32 @@ export function Resumen() {
           </div>
         </div>
         {/* Calendar strip: one cell per day, height = that day's sales, future days dotted */}
-        <div className="flex h-16 items-end gap-[3px] bg-primary-foreground/5 px-5 pb-3 pt-2 sm:px-6">
+        <button
+          type="button"
+          onClick={() => nav({ tab: "ventas" })}
+          aria-label={t("see_sales")}
+          className="group flex h-16 w-full items-end gap-[3px] bg-primary-foreground/5 px-5 pb-3 pt-2 cursor-pointer hover:bg-primary-foreground/10 sm:px-6"
+        >
           {cal.map((d) => (
-            <button
+            <span
               key={d.day}
-              type="button"
-              disabled={d.future}
-              onClick={() => nav({ tab: "ventas" })}
+              aria-hidden
               title={`${d.day}: ${money(d.total, c)}`}
-              aria-label={`${t("day")} ${d.day}: ${money(d.total, c)}`}
-              className="group flex h-full flex-1 flex-col justify-end cursor-pointer disabled:cursor-default"
+              className="flex h-full flex-1 flex-col justify-end"
             >
               <span
                 className={
                   d.future
                     ? "mx-auto size-1 rounded-full bg-primary-foreground/30"
-                    : "w-full rounded-t-sm bg-primary-foreground/80 transition-all group-hover:bg-primary-foreground"
+                    : "w-full rounded-t-sm bg-primary-foreground/80 transition-all"
                 }
                 style={
                   d.future ? undefined : { height: `${Math.max(6, (d.total / calMax) * 100)}%` }
                 }
               />
-            </button>
+            </span>
           ))}
-        </div>
+        </button>
       </section>
       {/* Shortcuts as pills, right below the wine sales card */}
       <div className="lg:col-span-3 -mt-1 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
@@ -383,7 +400,7 @@ export function Resumen() {
                   ids: a.flow === "confirmar" ? allPending.map((x) => x.id) : undefined,
                 })
               }
-              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold hover:shadow-none ${i === 0 ? "bg-primary text-primary-foreground shadow-soft" : "border border-border bg-card text-foreground hover:border-primary hover:text-primary"}`}
+              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold hover:shadow-none ${i === 0 ? "bg-primary text-primary-foreground shadow-soft" : "border border-border bg-card text-foreground hover:border-primary hover:text-primary-text"}`}
             >
               <I size={16} />
               {a.label}
@@ -433,7 +450,12 @@ export function Resumen() {
             );
           })}
         </div>
-        <div className="h-52">
+        <div className="relative h-52">
+          {!s.cur.verified && !s.prevAll.verified && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
+              {emptyNote}
+            </div>
+          )}
           <ResponsiveContainer>
             <AreaChart data={cum} margin={{ left: 0, right: 8, top: 4 }}>
               <defs>
@@ -495,7 +517,7 @@ export function Resumen() {
         action={
           <button
             onClick={() => nav({ tab: "perfil", section: "rieles" })}
-            className="min-h-11 px-2 text-sm font-semibold text-primary cursor-pointer"
+            className="min-h-11 px-2 text-sm font-semibold text-primary-text cursor-pointer"
           >
             {t("see_all")}
           </button>
@@ -515,6 +537,7 @@ export function Resumen() {
             ) : null,
           )}
         </div>
+        {emptyMonth && emptyNote}
         <ul className="mt-3 space-y-1">
           {rails.map((r) => (
             <li key={r.rail}>
@@ -556,6 +579,7 @@ export function Resumen() {
       {/* Top products as proportional bars */}
       <section className="tile p-4 sm:p-5 lg:col-span-3">
         <h2 className="mb-3 text-base font-bold">{t("top_items")}</h2>
+        {!items.length && emptyNote}
         <ul className="space-y-2">
           {items.map((it) => {
             const I = itemIcon(it.item);
@@ -567,7 +591,7 @@ export function Resumen() {
                   className="block rounded-xl p-2 hover:bg-muted hover:shadow-none"
                 >
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="text-primary">
+                    <span className="text-primary-text">
                       <I />
                     </span>
                     <span className="truncate font-semibold">{it.item}</span>

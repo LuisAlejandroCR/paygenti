@@ -103,11 +103,10 @@ export function Ventas() {
       <section className="lg:col-span-3 overflow-hidden rounded-3xl bg-primary text-primary-foreground shadow-lift">
         <div className="grid gap-4 p-5 sm:p-6 md:grid-cols-[1fr_2fr]">
           <Tap
-            label={`${t("sales_of")} ${mName}`}
             onClick={() => nav({ tab: "movimientos" })}
             className="rounded-2xl text-left hover:shadow-none"
           >
-            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] opacity-80">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.14em]">
               {t("sales_of")} {mName}
             </h2>
             <p className="mt-2 flex items-baseline gap-2">
@@ -123,41 +122,32 @@ export function Ventas() {
             {kpis.map((k) => (
               <Tap
                 key={k.k}
-                label={k.label}
                 onClick={k.go}
                 className="rounded-none bg-primary p-3 text-left hover:bg-primary-foreground/10 hover:shadow-none"
               >
-                <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
-                  {k.label}
-                </p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide">{k.label}</p>
                 <Money value={k.v} currency={c} compact className="mt-1 block text-xl font-bold" />
-                <span className="flex items-center gap-1 text-xs opacity-80">
+                <span className="flex items-center gap-1 text-xs">
                   <span className="hatch-on-wine size-2.5 rounded-sm" />
                   <Money value={k.d} currency={c} compact />
                 </span>
               </Tap>
             ))}
             <Tap
-              label={t("best_day")}
               onClick={() => setSel([best.day, best.day])}
               className="rounded-none bg-primary p-3 text-left hover:bg-primary-foreground/10 hover:shadow-none"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
-                {t("best_day")}
-              </p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide">{t("best_day")}</p>
               <p className="num mt-1 text-xl font-bold">{best.day || "—"}</p>
-              <Money value={best.verified} currency={c} compact className="text-xs opacity-80" />
+              <Money value={best.verified} currency={c} compact className="text-xs" />
             </Tap>
             <Tap
-              label={t("peak_hour")}
               onClick={() => open({ kind: "heat", dow: peak.d, hour: peak.h })}
               className="rounded-none bg-primary p-3 text-left hover:bg-primary-foreground/10 hover:shadow-none"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
-                {t("peak_hour")}
-              </p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide">{t("peak_hour")}</p>
               <p className="num mt-1 text-xl font-bold">{peak.v ? `${peak.h}:00` : "—"}</p>
-              <p className="text-xs capitalize opacity-80">
+              <p className="text-xs capitalize">
                 {peak.v ? `${dows[peak.d]} · ${t("count", { n: peak.v })}` : ""}
               </p>
             </Tap>
@@ -179,7 +169,7 @@ export function Ventas() {
           sel && (
             <button
               onClick={() => setSel(null)}
-              className="min-h-11 rounded-xl px-3 text-sm font-semibold text-primary hover:bg-muted cursor-pointer"
+              className="min-h-11 rounded-xl px-3 text-sm font-semibold text-primary-text hover:bg-muted cursor-pointer"
             >
               {t("reset_zoom")}
             </button>

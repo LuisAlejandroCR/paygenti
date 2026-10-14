@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ux:audit": "npx tsx scripts/ux-audit.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"

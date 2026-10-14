@@ -23,6 +23,24 @@ const PrefsCtx = createContext<Ctx | null>(null);
 
 export const PREFIX: Record<string, string> = { MXN: "MX$", BRL: "R$", USD: "US$" };
 
+/** "−MX$170.00", not "MX$-170.00": the sign goes before the currency prefix. */
+export function formatMoney(
+  n: number,
+  c: Currency,
+  locale: string,
+  opts?: { compact?: boolean; privacy?: boolean },
+) {
+  const prefix = PREFIX[c] ?? `${c} `;
+  if (opts?.privacy) return `${prefix} •••••`;
+  const digits = opts?.compact ? 0 : 2;
+  const f = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(Math.abs(n));
+  const negative = n < 0 && f.replace(/[^1-9]/g, "") !== "";
+  return `${negative ? "−" : ""}${prefix}${f}`;
+}
+
 export function PrefsProvider({ children }: { children: ReactNode }) {
   const [p, setP] = useState<Prefs>(DEFAULT);
   useEffect(() => {
@@ -51,14 +69,8 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
     [p.lang],
   );
   const money = useCallback(
-    (n: number, c: Currency, opts?: { compact?: boolean }) => {
-      if (p.privacy) return `${PREFIX[c] ?? `${c} `} •••••`;
-      const f = new Intl.NumberFormat(locale, {
-        minimumFractionDigits: opts?.compact ? 0 : 2,
-        maximumFractionDigits: opts?.compact ? 0 : 2,
-      }).format(n);
-      return `${PREFIX[c] ?? `${c} `}${f}`;
-    },
+    (n: number, c: Currency, opts?: { compact?: boolean }) =>
+      formatMoney(n, c, locale, { ...opts, privacy: p.privacy }),
     [p.privacy, locale],
   );
   return <PrefsCtx.Provider value={{ ...p, set, t, money, locale }}>{children}</PrefsCtx.Provider>;

@@ -2,7 +2,9 @@
 // (Hono: /api/stalls, /api/stalls/:id/backoffice/*, /api/sales/:id/vendor-confirm) through a PIN
 // session; without it, it serves the seeded mock data in mock.ts and the header shows "Sandbox".
 import {
+  chargeState,
   daysBetween,
+  pinOutcome,
   goalBody,
   mapApprovals,
   mapGoal,
@@ -16,6 +18,8 @@ import {
   type SLedger,
   type SStall,
   type SStatementMonth,
+  type ChargeState,
+  type PinOutcome,
 } from "./adapter";
 import { db, STALLS, TODAY } from "./mock";
 import type { Goal, Notification, RailInfo, Stall, Tx, TxQuery } from "./types";
@@ -87,9 +91,10 @@ async function call<T>(path: string, init: RequestInit & { stall?: string } = {}
   return body as T;
 }
 
-/** Checks the PIN. Live: POST /session, which also opens the stall's 8 h session. */
-export async function verifyPin(pin: string, stallId = active): Promise<boolean> {
-  if (SANDBOX) return pin === "1234";
+/** Checks the PIN. Live: POST /session, which also opens the stall's 8 h session. Tells a wrong
+ *  PIN apart from a lockout (429) and from a server that cannot be reached. */
+export async function checkPin(pin: string, stallId = active): Promise<PinOutcome> {
+  if (SANDBOX) return pin === "1234" ? "ok" : "wrong";
   try {
     const r = await call<{ token: string }>(`${office(stallId)}/session`, {
       method: "POST",
@@ -101,10 +106,46 @@ export async function verifyPin(pin: string, stallId = active): Promise<boolean>
     } catch {
       /* ignore */
     }
-    return true;
-  } catch {
-    return false;
+    return "ok";
+  } catch (e) {
+    if (e instanceof ApiError) return pinOutcome(e.status, e.code);
+    if (e instanceof SessionRequired) return "wrong";
+    return "offline";
   }
+}
+export async function verifyPin(pin: string, stallId = active): Promise<boolean> {
+  return (await checkPin(pin, stallId)) === "ok";
+}
+
+// ---- live charge: a sale on the stall's terminal; the customer pays on /t/<terminal> ----
+export interface LiveCharge {
+  saleId: string;
+  payUrl: string;
+  qrUrl: string;
+}
+/** Live only. POST /api/terminals/:id/sales with the amount in minor units. */
+export async function createCharge(
+  terminalId: string,
+  amount: number,
+  currency: string,
+): Promise<LiveCharge> {
+  const t = encodeURIComponent(terminalId);
+  const r = await call<{ sale: { id: string } }>(`/api/terminals/${t}/sales`, {
+    method: "POST",
+    body: JSON.stringify({ amount: toMinor(amount, currency) }),
+  });
+  const info = await call<{ payUrl: string }>(`/api/terminals/${t}`);
+  return { saleId: r.sale.id, payUrl: info.payUrl, qrUrl: `${BASE}/api/terminals/${t}/qr.svg` };
+}
+/** Live only. Reads the sale back; "paid" only after the server recorded the PayPal capture. */
+export async function chargeStatus(saleId: string): Promise<ChargeState> {
+  const r = await call<{ sale: { status: string } }>(`/api/sales/${encodeURIComponent(saleId)}`);
+  return chargeState(r.sale.status);
+}
+export async function cancelCharge(saleId: string) {
+  await call(`/api/sales/${encodeURIComponent(saleId)}/cancel`, { method: "POST" }).catch(
+    () => undefined,
+  );
 }
 
 /** Split a date range into ≤31-day windows (kept for the grid datasource). */

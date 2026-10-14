@@ -2,7 +2,7 @@
 // transaction queries, the PIN unlock gate for live mode, desktop tabs and the mobile bottom bar.
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/icons";
@@ -112,7 +112,12 @@ function Dashboard() {
   const raw = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
   const { t } = usePrefs();
-  const { data: stallList } = useQuery({ queryKey: ["stalls"], queryFn: getStalls });
+  const {
+    data: stallList,
+    error: stallsError,
+    isLoading: stallsLoading,
+    refetch: refetchStalls,
+  } = useQuery({ queryKey: ["stalls"], queryFn: getStalls, retry: 1 });
   const stalls = stallList?.length ? stallList : LIVE ? [] : STALLS;
   const search = {
     ...raw,
@@ -125,6 +130,20 @@ function Dashboard() {
   setActiveStall(stall.id);
   const pin = usePin();
   const [overlay, setOverlay] = useState<Overlay>(null);
+  // Overlays unmount on close, so focus is handed back to whatever opened them by hand.
+  const opener = useRef<HTMLElement | null>(null);
+  const openOverlay = (o: Overlay) => {
+    if (o && !overlay) opener.current = document.activeElement as HTMLElement | null;
+    setOverlay(o);
+  };
+  const closeOverlay = () => {
+    setOverlay(null);
+    const el = opener.current;
+    opener.current = null;
+    setTimeout(() => {
+      if (el?.isConnected) el.focus();
+    }, 0);
+  };
 
   // remember last stall per device
   useEffect(() => {
@@ -167,7 +186,7 @@ function Dashboard() {
     [allTxs, search.rail],
   );
 
-  const ctx = { search, stall, stalls, txs, allTxs: allTxs ?? [], nav, open: setOverlay };
+  const ctx = { search, stall, stalls, txs, allTxs: allTxs ?? [], nav, open: openOverlay };
 
   return (
     <DashCtx.Provider value={ctx}>
@@ -175,7 +194,7 @@ function Dashboard() {
         <Header />
         <nav
           className="mx-auto hidden max-w-6xl items-end justify-between gap-4 border-b px-4 pt-3 md:flex"
-          aria-label="Secciones"
+          aria-label={t("sections")}
         >
           <div role="tablist" className="flex gap-1">
             {TABS.map((tb) => {
@@ -190,7 +209,7 @@ function Dashboard() {
                   className={cn(
                     "relative inline-flex min-h-12 items-center gap-2 rounded-t-xl px-4 text-sm font-semibold transition-colors cursor-pointer",
                     on
-                      ? "text-primary"
+                      ? "text-primary-text"
                       : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                   )}
                 >
@@ -209,7 +228,24 @@ function Dashboard() {
           {search.tab !== "perfil" && <MonthSwitcher className="mb-2" />}
         </nav>
         <main className="mx-auto max-w-6xl px-4 pt-4" role="tabpanel">
-          {locked ? (
+          {LIVE && stallsError ? (
+            <div
+              className="tile mx-auto mt-6 flex max-w-md flex-col items-center gap-3 p-8 text-center"
+              role="alert"
+            >
+              <Icon.alert size={32} className="text-destructive" />
+              <p className="font-semibold">{t("server_down")}</p>
+              <p className="text-sm text-muted-foreground">{t("server_down_hint")}</p>
+              <BigButton className="w-auto" onClick={() => refetchStalls()}>
+                <Icon.refresh size={18} />
+                {t("retry")}
+              </BigButton>
+            </div>
+          ) : LIVE && !stallsLoading && !stalls.length ? (
+            <div className="tile mx-auto mt-6 max-w-md p-8 text-center" role="status">
+              <p className="font-semibold">{t("no_stalls")}</p>
+            </div>
+          ) : locked ? (
             <section className="mx-auto mt-6 max-w-md overflow-hidden rounded-3xl bg-primary p-6 text-center text-primary-foreground shadow-lift">
               <span className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary-foreground/15">
                 <Icon.lock size={28} />
@@ -228,13 +264,21 @@ function Dashboard() {
             <div className="tile flex flex-col items-center gap-3 p-8 text-center" role="alert">
               <Icon.alert size={32} className="text-destructive" />
               <p className="font-semibold">{t("error")}</p>
+              {error instanceof TypeError && (
+                <p className="text-sm text-muted-foreground">{t("server_down_hint")}</p>
+              )}
               <BigButton className="w-auto" onClick={() => refetch()}>
                 <Icon.refresh size={18} />
                 {t("retry")}
               </BigButton>
             </div>
           ) : isLoading || !allTxs ? (
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div
+              className="grid gap-4 lg:grid-cols-3"
+              role="status"
+              aria-busy="true"
+              aria-label={t("loading")}
+            >
               <Skeleton className="h-56 rounded-2xl lg:col-span-2" />
               <Skeleton className="h-56 rounded-2xl" />
               <Skeleton className="h-72 rounded-2xl" />
@@ -251,7 +295,7 @@ function Dashboard() {
         </main>
         <nav
           className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 backdrop-blur md:hidden"
-          aria-label="Secciones"
+          aria-label={t("sections")}
         >
           <div className="grid grid-cols-4" role="tablist">
             {TABS.map((tb) => {
@@ -268,7 +312,7 @@ function Dashboard() {
                   }}
                   className={cn(
                     "flex min-h-16 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold cursor-pointer",
-                    on ? "text-primary" : "text-muted-foreground",
+                    on ? "text-primary-text" : "text-muted-foreground",
                   )}
                 >
                   <I size={22} />
@@ -279,7 +323,7 @@ function Dashboard() {
           </div>
         </nav>
       </div>
-      <Overlays overlay={overlay} close={() => setOverlay(null)} />
+      <Overlays overlay={overlay} close={closeOverlay} />
     </DashCtx.Provider>
   );
 }
