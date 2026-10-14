@@ -1,12 +1,12 @@
 <!-- docs/submission.md: BORRADOR en inglés de la entrega al PayPal AI Hackathon — texto para Devpost, guion
      del video (< 3 min) con lista de tomas y checklist previa al envío. Lo edita el dueño antes de enviar.
      No es la portada pública (README.md) ni el estado del proyecto (docs/handoff.md); cada afirmación sale
-     de README, docs/plan.md o docs/memoria.md. -->
+     de README, docs/plan.md, docs/memoria.md o docs/handoff.md. -->
 
 # paygent — hackathon submission (DRAFT)
 
-> **DRAFT for the owner to edit.** Written 2026-10-14 from `README.md`, `docs/plan.md` and
-> `docs/memoria.md`; nothing here claims more than those say. Lines marked **[OWNER]** need your
+> **DRAFT for the owner to edit.** Written 2026-10-14 from `README.md`, `docs/plan.md`,
+> `docs/memoria.md` and `docs/handoff.md`; nothing here claims more than those say. Lines marked **[OWNER]** need your
 > input. Deadline: **2026-11-12 12:00 PT** (PST, UTC−8: 20:00 UTC, 15:00 in Bogotá).
 
 ## Devpost text
@@ -65,7 +65,7 @@ publish a quote before then.
   after 4 s); Sonnet 5.5 for the back-office agent and for reading a photo of the menu board, whose text
   is treated as data and never saved without the vendor's review.
 - **Clients:** Preact + Vite web app; Expo SDK 57 app for iOS and Android; a TanStack Start dashboard for
-  the month view.
+  the month view (not deployed yet).
 - **Tests:** Vitest (348 tests at the last merge, PR #40), Playwright end-to-end with an axe
   accessibility gate, and prompt-injection batteries against the lock and the agent where no money may
   move.

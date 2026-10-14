@@ -96,8 +96,11 @@ Radio: web `--radius: 1rem` (16 px), dashboard `--radius: 0.75rem` (12 px) con e
 
 - Web: `--touch: 56px` como alto o ancho mínimo de botones, teclas del teclado y pasos del carrito.
 - Móvil: `TOUCH = 56` (pt).
-- Dashboard: mínimo 44 px (`min-h-11`), la mayoría 48–56 px (`min-h-12`, `h-12`, `h-14`).
-- Todo supera el mínimo AA de WCAG 2.2 (2.5.8, 24 px); las acciones de dinero usan 56.
+- Dashboard: botones de ícono de 44 px (`size-11`) y la mayoría de los botones entre 44 y 56 px
+  (`min-h-11`, `min-h-12`, `h-12`, `h-14`); hay controles secundarios más chicos (`min-h-9`, `h-7`,
+  `size-6`) sin auditar.
+- Web y móvil superan con margen el mínimo AA de WCAG 2.2 (2.5.8, 24 px). En el dashboard falta revisar
+  esos controles chicos contra 2.5.8.
 
 ## Movimiento reducido
 
