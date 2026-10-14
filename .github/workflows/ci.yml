@@ -1,6 +1,7 @@
 # .github/workflows/ci.yml: runs lint, typecheck, tests and the web build (check job) and the
 # Playwright end-to-end suite in Chromium (e2e job) on every push and PR; the mobile job checks
-# the Expo app in mobile/ (typecheck, lint, jest) with its own lockfile.
+# the Expo app in mobile/ (typecheck, lint, jest) and the dashboard job checks the payments
+# dashboard in paygent-dashboard/ (lint, vitest, build), each with its own lockfile.
 name: ci
 on:
   push:
@@ -45,3 +46,19 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test -- --ci
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: paygent-dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: paygent-dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
