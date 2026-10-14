@@ -30,8 +30,8 @@
     El repo sigue privado.
 - Pendiente del dueño (detalle en `docs/handoff.md`): `DATABASE_URL` en Render, decisión de paleta, qué
   docs salen del repo público, video y entrevistas, pruebas en dispositivos.
-- `LEARNINGS.md` (raíz del checkout principal, sin seguimiento en git) se llenó desde esta memoria y
-  `git log`.
+- El contenido de `LEARNINGS.md` (privado, raíz del checkout principal, sin seguimiento en git) se
+  redactó desde esta memoria y `git log`; nunca se versiona.
 
 ## 2026-10-07 — Confirmación bancaria: canales elegidos
 
