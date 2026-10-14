@@ -1,15 +1,31 @@
-<!-- mobile/README.md: guía de la app nativa (Expo, iOS + Android) — cómo correrla, compilar con EAS,
-probar NFC/HCE y sus límites. Primero en inglés, luego sección en español.
+<!-- mobile/README.md: guía de la app nativa (Expo, iOS + Android) — pantallas, cómo correrla, compilar con
+EAS, probar NFC/HCE y sus límites. Primero en inglés, luego sección en español.
 No confundir con README.md de la raíz (servidor + web) ni con docs/plan.md (estado y pendientes). -->
 
 # paygent mobile (iOS + Android)
 
 React Native + Expo SDK 57 vendor app: push-to-talk sale, QR, live PAID (haptics + spoken amount),
-soundbox mode, NFC sticker writer, Android phone-to-phone tap (HCE) and a PIN back office. It talks
-to the existing paygent server API; money, currency and types come from the repo's `shared/`
-(Metro `watchFolders` + the `@shared/*` alias), never copied.
+soundbox mode, NFC sticker writer, Android phone-to-phone tap (HCE), a PIN back office and a month
+summary. It talks to the existing paygent server API; money, currency and types come from the repo's
+`shared/` (Metro `watchFolders` + the `@shared/*` alias), never copied.
 
 Needs a **dev client** (not Expo Go): NFC, HCE and speech recognition are native modules.
+
+## Screens (`app/`)
+
+| Screen | What it does |
+| --- | --- |
+| `index.tsx` | Sale: push-to-talk or typed cart, keypad, Charge → QR of `PUBLIC_URL/t/:terminal`, countdown, live status, PAID flood; first run goes to onboarding |
+| `resumen.tsx` | Month at a glance (#39): verified big, self-declared and "to confirm" apart (never summed), delta vs last month, day strip, bank transfers to confirm with the stall PIN |
+| `perfil.tsx` | Stall switcher (#31) and links to settings, stall setup and back office. Goals, rails and statement import stay on the web |
+| `backoffice.tsx` | PIN login, today's sales, refund with the PIN re-entered, today's ledger; with 2+ stalls: switcher, "All my paygents" and Claude's proposals to approve |
+| `soundbox.tsx` | Kiosk mode: screen awake, one big state, each paid sale announced once even across reconnects |
+| `nfc.tsx` | Write the sticker; Android tap mode (HCE) |
+| `onboarding.tsx` | Stall name, country and charge currency |
+| `settings.tsx` | Server URL, terminal id, language |
+
+The month summary is built from the per-day back-office ledger (up to 62 calls, 4 at a time) and uses
+the phone's clock for "today"; near midnight it can differ by a day from the stall's time zone.
 
 ## Commands
 
@@ -19,6 +35,10 @@ cd mobile && npm run check            # typecheck + lint + jest
 cd mobile && npx expo-doctor
 cd mobile && npx expo export --platform android   # JS bundle builds
 ```
+
+CI runs typecheck, lint and jest for this folder (job `mobile` in `.github/workflows/ci.yml`). Known
+local quirk: jest finds no tests when the repo sits under a `.claude/` folder (agent worktrees on
+Windows); copy `mobile/` and `shared/` to a plain directory to run them there.
 
 Server URL: `EXPO_PUBLIC_API_URL` (default `https://paygent-rirl.onrender.com`), also editable in the
 app under **Settings** — for local dev use your computer's LAN IP, e.g. `http://192.168.1.20:8787`
@@ -47,7 +67,7 @@ cd mobile && npx eas-cli build -p android --profile development   # dev client A
 cd mobile && npx eas-cli build -p android --profile preview       # internal APK
 cd mobile && npx eas-cli build -p ios --profile development       # needs Apple Developer account
 cd mobile && npx eas-cli build -p ios --profile production
-cd mobile && npx eas-cli submit -p ios --profile production       # fill ascAppId/appleTeamId first
+cd mobile && npx eas-cli submit -p ios --profile production       # ascAppId/appleTeamId already in eas.json (#25)
 ```
 
 - Profiles (`eas.json`): `development` (dev client, internal), `preview` (internal; Android APK),
@@ -81,10 +101,14 @@ HCE limits:
 ## Español
 
 App de la vendedora en Expo SDK 57 (iOS + Android): venta por voz, QR, PAGADO en vivo con vibración
-y voz, modo bocina, grabado de stickers NFC, tap teléfono a teléfono en Android (HCE) y
-administración con PIN. Usa la API existente y el código de `shared/` (dinero, monedas, tipos).
+y voz, modo bocina, grabado de stickers NFC, tap teléfono a teléfono en Android (HCE),
+administración con PIN, Resumen del mes (verificado, autodeclarado y por confirmar, nunca sumados) y
+Perfil con cambio de puesto. Usa la API existente y el código de `shared/` (dinero, monedas, tipos).
 
 - Requiere **dev client**, no Expo Go.
+- Pruebas: `cd mobile && npm run check`. Jest no encuentra pruebas si el repo está bajo `.claude/`
+  (worktrees de agentes); en ese caso copiar `mobile/` y `shared/` a otra carpeta.
+- ⏳ No hay registro de pruebas en un dispositivo real (NFC, HCE, TalkBack/VoiceOver, texto grande).
 - Android en Windows: `cd mobile && npx expo run:android` con el teléfono conectado por USB.
 - iOS: solo con EAS en la nube y una cuenta de Apple Developer; aquí no hay Mac.
 - Antes de compilar: `git status --short && git log --oneline -1` debe coincidir con `origin/main`.

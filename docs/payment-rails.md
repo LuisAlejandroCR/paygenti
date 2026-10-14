@@ -41,7 +41,7 @@ from a party other than the vendor, that the money arrived.
 - **Not implemented** (research only): Yape/Plin, SINPE Móvil, Transferencias 3.0, FedNow/RTP,
   Zelle, Cash App. Each would be a push rail with the same "not verified" treatment until a
   provider integration exists.
-- Apple Pay / Google Pay buttons (sandbox only, `web/src/wallet-buttons.ts`): SDK v6 components
+- Apple Pay / Google Pay buttons (PR #36; sandbox only, `web/src/wallet-buttons.ts`): SDK v6 components
   `applepay-payments` / `googlepay-payments`. Each button mounts only when its `RAIL_*` is on, the
   browser can pay (`ApplePaySession.canMakePayments()` / Google `isReadyToPay`) and PayPal's
   `findEligibleMethods` says eligible; otherwise nothing renders. The button confirms the order the
@@ -53,16 +53,24 @@ from a party other than the vendor, that the money arrived.
   `APPLE_PAY_DOMAIN_ASSOCIATION` to that file's content (downloaded from PayPal) and the server
   serves it as text (404 when unset). Google Pay needs no file, but live requires enabling it on the
   PayPal app and Google's production approval.
-- Known gaps: OXXO is listed on the checkout as "through PayPal" with no native button. Bre-B is wired but never offered today: sales are in PayPal currencies and COP is
-  not one, so a COP sale cannot exist yet.
+- Known gaps (reviewed 2026-10-14):
+  - The wallet logic has unit tests (eligibility, Apple/Google payment requests, the `.well-known`
+    route) and e2e checks that mock mode renders no wallets, but the buttons have not been tried in
+    the real sandbox or on devices (Safari on iPhone, Chrome on Android), and the Render domain is
+    not registered with PayPal for Apple Pay yet.
+  - OXXO is listed on the checkout as "through PayPal" with no native button.
+  - Bre-B is wired but never offered today: sales are in PayPal currencies and COP is not one, so a
+    COP sale cannot exist yet. Confirming Bre-B from the bank's notice instead of the PIN is a spec
+    only: [bank-confirm.md](bank-confirm.md).
+  - The rails panel on the checkout has not been tried in a browser with real rail config.
 - Rails are a registry (`shared/rails.ts`): each one is enabled by config; missing config hides it.
 
 | Env var | Enables |
 |---|---|
-| `PIX_KEY` (+ `PIX_MERCHANT_NAME`, `PIX_MERCHANT_CITY`) | Pix static BR Code with amount |
-| `SPEI_CLABE` (+ `SPEI_BENEFICIARY`) | SPEI transfer data (CLABE, amount, reference) |
-| `BREB_KEY` | Bre-B key + amount |
-| `RAIL_APPLE_PAY=1`, `RAIL_GOOGLE_PAY=1` | Wallets through the PayPal flow; native buttons in sandbox when eligible |
+| `PIX_KEY` (+ `PIX_MERCHANT_NAME`, `PIX_MERCHANT_CITY`) | Pix static BR Code with amount (BRL sales) |
+| `SPEI_CLABE` (+ `SPEI_BENEFICIARY`) | SPEI transfer data (CLABE, amount, reference) for MXN sales; an invalid CLABE hides the rail |
+| `BREB_KEY` | Bre-B key + amount (COP sales) |
+| `RAIL_APPLE_PAY=1`, `RAIL_GOOGLE_PAY=1` (`1` or `true`) | Wallets through the PayPal flow; native buttons in sandbox when eligible |
 | `APPLE_PAY_DOMAIN_ASSOCIATION` | Content served at `/.well-known/apple-developer-merchantid-domain-association` |
 | `RAIL_OXXO=1` | OXXO through PayPal, only for MXN sales up to 10,000 MXN |
 

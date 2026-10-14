@@ -55,3 +55,13 @@ these keep the existing hand-written fetch:
 | `paypal:typescript-error-handling` | `ApiError` caught, payload read from raw `body` and mapped to `PayPalError` |
 | `paypal:typescript-configuration-resilience` | timeout default `0` noticed, retries left off on purpose, no free-form base URL handled in the adapter |
 | `paypal:typescript-testing` | `unstable_httpClientOptions.adapter` as the transport seam; token stub must satisfy `OAuthToken` schema |
+
+## Status (reviewed 2026-10-14)
+
+- Tests stub the SDK transport. Since the switch (PR #29) there is no recorded real payment through
+  the SDK path in the sandbox; the hosted demo runs in sandbox mode, so one captured and refunded
+  sandbox sale would close this.
+- The transport seam is `unstable_httpClientOptions`, which the SDK marks unstable: keep the exact
+  pin (2.5.0) and re-check the adapter on every upgrade.
+- `@paypal/agent-toolkit` ships its own nested copy of the SDK (1.1.0, see `package-lock.json`); it
+  is not the copy `RestPayPal` uses.
