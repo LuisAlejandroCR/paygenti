@@ -4,6 +4,35 @@
 
 # Memoria — paygent
 
+## 2026-10-14 — Revisión de documentación
+
+- Desactualizado: `docs/handoff.md` era del 2026-10-07 y no tenía #34–#40; la tabla Pendiente de
+  `docs/plan.md` decía "hecho en <rama>" para trabajo ya mergeado, saltaba la fila 10 y la arquitectura
+  decía persistencia en memoria, sin dashboard ni móvil. El README no tenía arquitectura, ni cómo correr
+  dashboard y móvil, y a su tabla de variables le faltaban `PAYPAL_API_URL`, `STT_URL`, `STT_MODEL`,
+  `STT_MOCK_TRANSCRIPT` como filas, los rieles, `APPLE_PAY_DOMAIN_ASSOCIATION`, `VITE_PAYGENT_API` y
+  `EXPO_PUBLIC_API_URL`. `paygent-dashboard/README.md` era el texto de Lovable. `mobile/README.md` pedía
+  llenar `ascAppId`/`appleTeamId` (ya están desde #25). `docs/accessibility.md` decía que Firefox no
+  tenía dictado (#37 lo resolvió).
+- Agregado: `docs/design.md` (tokens "Merlot Dream" de las tres copias, reglas de color, tamaños táctiles,
+  movimiento, texto grande) y `docs/submission.md` (borrador en inglés: Devpost, guion del video,
+  checklist). Plan: filas 11→10, 12→11, 13→12 sin tocar criterios; `docs/bank-confirm.md` apunta a la
+  #11. `paygent-dashboard/roadmap.md` (dos casillas marcadas) se fusionó en su README y se borró.
+- Hallazgos al leer el código:
+  - En el dashboard, "Cobrar" es una simulación también en modo real: marca "pagado" a los 3,5 s sin
+    llamar al servidor (`Overlays.tsx`). Contradice "nada queda pagado sin PayPal" en pantalla; no se
+    tocó el código.
+  - `--primary` significa cosas distintas en la web (texto) y en el dashboard (vino). Los tokens
+    verificado/autodeclarado solo existen en el dashboard. `--warning` difiere entre web y dashboard.
+  - `render.yaml` y `.env.example` no declaran `STALL_PINS` ni `STT_*`. No se tocaron: esta revisión
+    solo cambia `.md`.
+  - `/api/health` del deploy (2026-10-14): `database: off`, `speech-to-text: off`, `passport: on`.
+    El repo sigue privado.
+- Pendiente del dueño (detalle en `docs/handoff.md`): `DATABASE_URL` en Render, decisión de paleta, qué
+  docs salen del repo público, video y entrevistas, pruebas en dispositivos.
+- El contenido de `LEARNINGS.md` (privado, raíz del checkout principal, sin seguimiento en git) se
+  redactó desde esta memoria y `git log`; nunca se versiona.
+
 ## 2026-10-07 — Confirmación bancaria: canales elegidos
 
 - Corrige la entrada de abajo: el reenvío no se puede crear por API en cuentas @gmail.com
