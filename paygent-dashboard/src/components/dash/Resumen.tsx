@@ -339,10 +339,10 @@ export function Resumen() {
               <Tap
                 key={x.k}
                 onClick={() => nav({ tab: "movimientos", filter: x.f as never })}
-                className="min-w-0 rounded-none p-3 text-left hover:bg-primary-foreground/10 hover:shadow-none md:flex md:items-center md:justify-between"
+                className="min-w-0 rounded-none px-2 py-3 text-left sm:p-3 hover:bg-primary-foreground/10 hover:shadow-none md:flex md:items-center md:justify-between"
               >
-                <span className="flex items-start gap-1.5 text-[11px] font-semibold leading-tight [overflow-wrap:anywhere] sm:items-center sm:uppercase sm:tracking-wide">
-                  <span className="mt-px shrink-0 sm:mt-0">{x.icon}</span>
+                <span className="flex flex-col items-start gap-1 text-[11px] font-semibold leading-tight [hyphens:auto] [overflow-wrap:anywhere] sm:flex-row sm:items-center sm:gap-1.5 sm:uppercase sm:tracking-wide">
+                  <span className="shrink-0">{x.icon}</span>
                   {x.label}
                 </span>
                 <span className="mt-1 block md:mt-0">
