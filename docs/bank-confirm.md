@@ -1,11 +1,11 @@
 <!-- docs/bank-confirm.md: spec para confirmar ventas Bre-B sin PIN usando el aviso del banco — Gmail de solo
      lectura (hackathon), notificación en Android (producción) y reenvío manual (iPhone). Formatos reales,
      criterios de aceptación y riesgos. No es la investigación de rieles (docs/payment-rails.md) ni la
-     bitácora (docs/memoria.md); la fila resumida vive en docs/plan.md → Pendiente #12. -->
+     bitácora (docs/memoria.md); la fila resumida vive en docs/plan.md → Pendiente #11. -->
 
 # Confirmación bancaria automática (Bre-B)
 
-Estado: **spec, sin implementar** (revisado 2026-10-07).
+Estado: **spec, sin implementar** (spec en main con #38; revisado 2026-10-14).
 
 ## Problema
 
