@@ -5,7 +5,14 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { GridApi } from "ag-grid-community";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Icon, RAIL_COLOR, RAIL_NAME, RailIcon, EmptyIllustration } from "@/components/icons";
+import {
+  Icon,
+  RAIL_COLOR,
+  railChip,
+  RAIL_NAME,
+  RailIcon,
+  EmptyIllustration,
+} from "@/components/icons";
 import { getTransactions } from "@/lib/api";
 import { usePrefs } from "@/lib/prefs";
 import {
@@ -44,7 +51,9 @@ export function Movimientos() {
   useEffect(() => setMounted(true), []);
   const [text, setText] = useState(search.q ?? "");
   const q = useDebounced(text);
-  useEffect(() => { if ((search.q ?? "") !== q) nav({ q: q || undefined }); }, [q]); // eslint-disable-line
+  useEffect(() => {
+    if ((search.q ?? "") !== q) nav({ q: q || undefined });
+  }, [q]); // eslint-disable-line
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState(false);
   const [nonce, setNonce] = useState(0);
@@ -121,7 +130,10 @@ export function Movimientos() {
       .then((r) => setList(r.rows))
       .catch(() => setError(true));
   }, [load]);
-  useEffect(() => { if (mobile) refresh(); else gridRef.current?.purgeInfiniteCache(); }, [load, mobile]); // eslint-disable-line
+  useEffect(() => {
+    if (mobile) refresh();
+    else gridRef.current?.purgeInfiniteCache();
+  }, [load, mobile]); // eslint-disable-line
 
   const reload = () => {
     setNonce((n) => n + 1);
@@ -375,7 +387,7 @@ function MobileList({
           className="flex justify-center py-2 text-xs text-muted-foreground"
           style={{ height: pull }}
         >
-          <Icon.refresh className={pull > 60 ? "text-primary" : ""} /> {t("pull")}
+          <Icon.refresh className={pull > 60 ? "text-primary-text" : ""} /> {t("pull")}
         </div>
       )}
       <ul className="space-y-2">
@@ -426,6 +438,8 @@ function SwipeCard({
         {tx.status === "pending_bank" && (
           <button
             onClick={onConfirm}
+            tabIndex={dx ? 0 : -1}
+            aria-hidden={!dx}
             className="w-24 bg-success text-xs font-bold text-background cursor-pointer"
           >
             {t("confirm")}
@@ -434,6 +448,8 @@ function SwipeCard({
         {tx.status === "COMPLETED" && tx.type === "venta" && (
           <button
             onClick={onRefund}
+            tabIndex={dx ? 0 : -1}
+            aria-hidden={!dx}
             className="w-24 bg-destructive text-xs font-bold text-destructive-foreground cursor-pointer"
           >
             {t("a_refund")}
@@ -444,7 +460,12 @@ function SwipeCard({
         role="button"
         tabIndex={0}
         onClick={() => (dx ? setDx(0) : onOpen())}
-        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpen();
+          }
+        }}
         onTouchStart={(e) => {
           sx.current = e.touches[0].clientX;
         }}
@@ -460,8 +481,8 @@ function SwipeCard({
         className="tile relative flex min-h-20 items-center gap-3 p-3 transition-transform cursor-pointer"
       >
         <span
-          className="flex size-11 items-center justify-center rounded-xl text-primary-foreground"
-          style={{ background: RAIL_COLOR[tx.rail] }}
+          className="flex size-11 items-center justify-center rounded-xl"
+          style={railChip(tx.rail)}
         >
           <RailIcon rail={tx.rail} />
         </span>
@@ -545,7 +566,7 @@ function MonthKpis() {
           return (
             <Tap
               key={x.k}
-              label={x.label}
+              pressed={on}
               onClick={() => nav({ filter: on ? undefined : x.k })}
               className={cn("tile p-3 sm:p-4", on && "ring-2 ring-primary")}
             >
@@ -565,11 +586,7 @@ function MonthKpis() {
             </Tap>
           );
         })}
-        <Tap
-          label={t("money_out")}
-          onClick={() => open({ kind: "flow", flow: "payout" })}
-          className="tile p-3 sm:p-4"
-        >
+        <Tap onClick={() => open({ kind: "flow", flow: "payout" })} className="tile p-3 sm:p-4">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
             <Icon.refund size={16} />
             {t("money_out")}

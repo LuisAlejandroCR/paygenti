@@ -318,7 +318,12 @@ async function runMode(browser: Browser, mode: Mode) {
     for (let i = 0; i < 60; i++) {
       await page.keyboard.press("Tab");
       const label = await page.evaluate(() => document.activeElement?.getAttribute("aria-label"));
-      if (label === t.money_in) {
+      if (
+        (label ?? "").startsWith(t.money_in) ||
+        (await page.evaluate(() => document.activeElement?.textContent ?? "")).startsWith(
+          t.money_in,
+        )
+      ) {
         reached = i + 1;
         break;
       }
@@ -368,7 +373,7 @@ async function runMode(browser: Browser, mode: Mode) {
   await go(page, "tab=perfil&section=rieles");
   await capture(page, mode, "perfil-rieles");
   await step("rail", async () => {
-    const tile = page.locator("main [role=button].tile");
+    const tile = page.locator("main .tile button[data-detail]");
     if (await tile.count()) await dialog(page, mode, "rail", tile.first());
   });
   await go(page, "tab=perfil&section=metas");
