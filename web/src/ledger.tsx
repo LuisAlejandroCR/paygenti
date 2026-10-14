@@ -94,7 +94,12 @@ const theme = themeQuartz.withParams({
   wrapperBorderRadius: "1rem",
   fontFamily: "inherit",
   headerFontFamily: "var(--font-display)",
+  // Tighter cells so amounts are not cut to "$78…" on phones and in the 10-column desktop view.
+  cellHorizontalPaddingScale: 0.6,
 });
+
+/** "$78.00" without the currency code; the page says which currency the whole ledger is in. */
+const shortMoney = (m: Money) => formatMoney(m).replace(/ [A-Z]{3}$/, "");
 
 function readToken(): string | null {
   try {
@@ -178,14 +183,15 @@ export function LedgerApp() {
       colId: field,
       headerName: t(key),
       valueGetter: (p) => minor(p.data?.[field]),
+      // One currency per ledger (named above the grid), so cells drop the code to stay readable.
       valueFormatter: (p) =>
-        formatMoney(
+        shortMoney(
           money(toMinorUnits(Number(p.value) || 0, currencyRef.current), currencyRef.current),
         ),
       filter: "agNumberColumnFilter",
       type: "rightAligned",
       flex: 1,
-      minWidth: 72,
+      minWidth: 80,
       cellClass: (p) => (field === "net" && (p.value as number) < 0 ? "neg" : undefined),
     });
     const columnDefs: ColDef<Row>[] = [
@@ -203,7 +209,7 @@ export function LedgerApp() {
         sort: "desc",
         width: 100,
       },
-      { field: "terminalId", headerName: t("ledger.col.terminal"), width: 120 },
+      { field: "terminalId", headerName: t("ledger.col.terminal"), width: 100 },
       {
         colId: "method",
         headerName: t("ledger.col.method"),
@@ -218,7 +224,7 @@ export function LedgerApp() {
           p.data && !p.data.isTotal ? pill(p.value, STATUS_TONE[p.data.status] ?? "muted") : "",
         width: 120,
       },
-      { field: "items", headerName: t("ledger.col.items"), flex: 2, minWidth: 96 },
+      { field: "items", headerName: t("ledger.col.items"), flex: 2, minWidth: 80 },
       moneyCol("paid", "ledger.col.paid"),
       moneyCol("refunded", "ledger.col.refunded"),
       moneyCol("net", "ledger.col.net"),
@@ -232,7 +238,7 @@ export function LedgerApp() {
             : "",
         width: 160,
       },
-      { field: "captureId", headerName: t("ledger.col.captureId"), width: 170, hide: false },
+      { field: "captureId", headerName: t("ledger.col.captureId"), width: 150, hide: false },
     ];
     const api = createGrid<Row>(host.current, {
       theme,
@@ -309,11 +315,20 @@ export function LedgerApp() {
   if (!token)
     return (
       <main class="backoffice">
-        <h1>
-          {t("ledger.title")} <LangToggle />
-        </h1>
-        <p class="error">{t("bo.sessionRequired")}</p>
-        <a href="/backoffice">{t("ledger.back")}</a>
+        <header class="bar">
+          <h1 class="stall">{t("ledger.title")}</h1>
+          <nav class="bar-actions">
+            <LangToggle />
+          </nav>
+        </header>
+        <section class="panel login-card">
+          <p class="error" role="alert">
+            {t("bo.sessionRequired")}
+          </p>
+          <a class="bar-btn" href="/backoffice">
+            {t("owner.signIn")}
+          </a>
+        </section>
       </main>
     );
 
@@ -341,21 +356,26 @@ export function LedgerApp() {
           value={search}
           onInput={(e) => setSearch(e.currentTarget.value)}
         />
-        <button type="button" class="secondary" onClick={exportCsv}>
+        <button type="button" class="secondary row-btn" onClick={exportCsv}>
           {t("ledger.export")}
         </button>
         <span class="ledger-live" aria-live="polite">
           <span class="dot" /> {t("ledger.live")}
           {updated &&
             ` · ${t("ledger.updated", { time: updated.toLocaleTimeString(locale === "es" ? "es-MX" : "en-US") })}`}
+          {ledger && ` · ${t("ledger.amountsIn", { currency: currencyRef.current })}`}
         </span>
       </div>
-      {error && <p class="error">{error}</p>}
+      {error && (
+        <p class="error" role="alert">
+          {error}
+        </p>
+      )}
       <div ref={host} class="ledger-grid" />
       <section class="panel ledger-payouts" aria-labelledby="ledger-payouts-title">
         <h2 id="ledger-payouts-title">{t("ledger.payouts")}</h2>
         {!ledger?.payouts?.length ? (
-          <p class="muted">{t("ledger.payoutsEmpty")}</p>
+          <p class="empty-state">{t("ledger.payoutsEmpty")}</p>
         ) : (
           <table class="ledger-lines">
             <thead>
@@ -377,7 +397,7 @@ export function LedgerApp() {
                   </td>
                   <td>{p.supplierName}</td>
                   <td>{t(`pay.status.${p.status}` as Key)}</td>
-                  <td>−{tm(p.amount)}</td>
+                  <td class="num">−{shortMoney(p.amount)}</td>
                 </tr>
               ))}
             </tbody>
@@ -394,7 +414,7 @@ export function LedgerApp() {
       <section class="panel">
         <h2>{t("ledger.detail")}</h2>
         {!selected ? (
-          <p class="muted">{t("ledger.detailHint")}</p>
+          <p class="empty-state">{t("ledger.detailHint")}</p>
         ) : (
           <table class="ledger-lines">
             <thead>

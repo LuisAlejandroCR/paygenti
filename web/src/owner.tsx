@@ -1,10 +1,12 @@
 // web/src/owner.tsx: the owner's multi-paygent UI — the stall switcher (only with 2+ stalls), the
 // "All my paygents" page at /backoffice/all (totals per currency, never mixed), the approvals inbox
-// for Claude's proposals (approved with this stall's PIN) and the Claude (MCP) token panel.
+// for Claude's proposals (approved with this stall's PIN) and the Claude (MCP) token panel, where
+// revoking takes a second tap on an outlined destructive button.
 import { useEffect, useState } from "preact/hooks";
 import { formatMoney, type Money } from "../../shared/money";
 import type { Approval, McpToken, StallSummary } from "../../shared/types";
 import { reasonText, useT } from "./i18n";
+import { TrashIcon } from "./icons";
 import { LangToggle } from "./lang-toggle";
 import { boUrl, currentStall, fetchStalls, sessionsHeader } from "./stall";
 
@@ -83,6 +85,8 @@ export function OwnerOverviewApp() {
   }, []);
 
   const signedIn = new Set(data?.stalls.map((s) => s.id));
+  const salesCount = (count: number) =>
+    count === 1 ? t("bo.salesCountOne") : t("bo.salesCount", { count });
   return (
     <main class="backoffice owner">
       <header class="bar">
@@ -92,27 +96,30 @@ export function OwnerOverviewApp() {
           <LangToggle />
         </nav>
       </header>
-      {error && <p class="error">{error}</p>}
+      {error && (
+        <p class="error" role="alert">
+          {error}
+        </p>
+      )}
       <section class="panel" data-testid="owner-totals">
         <h2>{t("owner.totals")}</h2>
         {data && data.totals.length > 0 ? (
-          <table class="lines">
-            <tbody>
-              {data.totals.map((c) => (
-                <tr key={c.currency} data-currency={c.currency}>
-                  <td>
-                    <strong>{c.currency}</strong> · {t("owner.stallsCount", { count: c.stalls })}
-                  </td>
-                  <td>{t("bo.salesCount", { count: c.count })}</td>
-                  <td class="num">
-                    <strong>{formatMoney(c.net)}</strong>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ul class="kv-list">
+            {data.totals.map((c) => (
+              <li key={c.currency} data-currency={c.currency}>
+                <span class="kv-label">
+                  <strong>{c.currency}</strong> ·{" "}
+                  {c.stalls === 1
+                    ? t("owner.stallsCountOne")
+                    : t("owner.stallsCount", { count: c.stalls })}{" "}
+                  · {salesCount(c.count)}
+                </span>
+                <strong class="num kv-value">{formatMoney(c.net)}</strong>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <p class="hint">{t("owner.signInHint")}</p>
+          <p class="empty-state">{t("owner.signInHint")}</p>
         )}
         <p class="hint">{t("owner.noFx")}</p>
       </section>
@@ -124,10 +131,14 @@ export function OwnerOverviewApp() {
             {o ? (
               <>
                 <p class="total">
-                  {formatMoney(o.net)} · {t("bo.salesCount", { count: o.count })}
+                  {formatMoney(o.net)} · {salesCount(o.count)}
                 </p>
                 {o.pendingApprovals > 0 && (
-                  <p class="hint">{t("owner.pending", { count: o.pendingApprovals })}</p>
+                  <p class="hint">
+                    {o.pendingApprovals === 1
+                      ? t("owner.pendingOne")
+                      : t("owner.pending", { count: o.pendingApprovals })}
+                  </p>
                 )}
               </>
             ) : null}
@@ -224,6 +235,8 @@ export function ClaudeAccessPanel() {
   const [tokens, setTokens] = useState<Omit<McpToken, "tokenHash">[]>([]);
   const [secret, setSecret] = useState("");
   const [ids, setIds] = useState<string[]>([currentStall()]);
+  /** Token id waiting for a second tap on "Revoke now". */
+  const [confirming, setConfirming] = useState("");
 
   const headers = () => ({
     "X-Paygent-Sessions": sessionsHeader(ids),
@@ -263,7 +276,7 @@ export function ClaudeAccessPanel() {
 
   const live = tokens.filter((x) => !x.revokedAt);
   return (
-    <section class="panel" data-testid="claude-access">
+    <section class="panel" id="claude" data-testid="claude-access">
       <h2>{t("owner.claudeTitle")}</h2>
       <p class="hint">{t("owner.claudeHint", { url: `${location.origin}/mcp` })}</p>
       {secret && (
@@ -271,16 +284,47 @@ export function ClaudeAccessPanel() {
           {t("owner.secretOnce")} <code data-testid="mcp-secret">{secret}</code>
         </p>
       )}
-      <ul>
-        {live.map((x) => (
-          <li key={x.id}>
-            {x.label} · {x.stalls.join(", ")}{" "}
-            <button type="button" class="secondary" onClick={() => void revoke(x.id)}>
-              {t("owner.revoke")}
-            </button>
-          </li>
-        ))}
-      </ul>
+      {live.length === 0 ? (
+        <p class="empty-state">{t("owner.noTokens")}</p>
+      ) : (
+        <ul class="kv-list">
+          {live.map((x) => (
+            <li key={x.id}>
+              <span class="kv-label">
+                {x.label} · {x.stalls.join(", ")}
+              </span>
+              {confirming === x.id ? (
+                <span class="confirm-actions">
+                  <button
+                    type="button"
+                    class="danger row-btn"
+                    onClick={() => {
+                      setConfirming("");
+                      void revoke(x.id);
+                    }}
+                  >
+                    <TrashIcon size={18} />
+                    {t("owner.revokeConfirm")}
+                  </button>
+                  <button type="button" class="secondary row-btn" onClick={() => setConfirming("")}>
+                    {t("bo.cancel")}
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  class="danger row-btn"
+                  aria-label={t("owner.revokeLabel", { label: x.label })}
+                  onClick={() => setConfirming(x.id)}
+                >
+                  <TrashIcon size={18} />
+                  {t("owner.revoke")}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
       <button type="button" class="secondary" onClick={() => void create()}>
         {t("owner.newToken")}
       </button>

@@ -35,7 +35,7 @@ test("switcher moves to Don Beto, and All my paygents sums per currency", async 
   await page.getByTestId("stall-switcher").selectOption("__all");
   await expect(page).toHaveURL(/\/backoffice\/all$/);
   const totals = page.getByTestId("owner-totals");
-  await expect(totals.locator('tr[data-currency="MXN"]')).toBeVisible();
+  await expect(totals.locator('[data-currency="MXN"]')).toBeVisible();
   await expect(page.getByTestId("owner-stall-rosa")).toBeVisible();
   await expect(page.getByTestId("owner-stall-beto")).toBeVisible();
   await expectNoOverflow(page);

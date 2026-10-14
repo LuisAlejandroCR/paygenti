@@ -1,10 +1,12 @@
 // web/src/menu-editor.tsx: back-office "Menu" panel — take or upload a menu photo (downscaled on
 // the device), review the items Claude proposes in an editable table, or type them by hand, then
 // save. Nothing is saved until the vendor taps Save; the server validates and assigns SKUs.
+// On phones each row is a card whose fields show their own labels (the table head is hidden).
 
 import { useEffect, useState } from "preact/hooks";
 import { type Currency, money, parseAmount, toPayPalValue } from "../../shared/money";
 import { useT } from "./i18n";
+import { TrashIcon } from "./icons";
 import { boUrl } from "./stall";
 
 interface Row {
@@ -132,7 +134,7 @@ export function MenuEditor({ token, onAuthLost }: { token: string; onAuthLost: (
   }
 
   return (
-    <form class="panel menu-panel" onSubmit={save}>
+    <form class="panel menu-panel" id="menu" onSubmit={save}>
       <h2>{t("menu.title")}</h2>
       <label class="menu-photo">
         {t("menu.photo")}
@@ -163,44 +165,57 @@ export function MenuEditor({ token, onAuthLost }: { token: string; onAuthLost: (
           {rows.map((r, i) => (
             <tr key={i}>
               <td>
-                <input
-                  aria-label={t("menu.nameEn")}
-                  value={r.en}
-                  maxLength={60}
-                  onInput={(e) => edit(i, { en: e.currentTarget.value })}
-                />
+                <label>
+                  <span class="cell-label">{t("menu.nameEn")}</span>
+                  <input
+                    aria-label={t("menu.nameEn")}
+                    value={r.en}
+                    maxLength={60}
+                    onInput={(e) => edit(i, { en: e.currentTarget.value })}
+                  />
+                </label>
               </td>
               <td>
-                <input
-                  aria-label={t("menu.nameEs")}
-                  value={r.es}
-                  maxLength={60}
-                  onInput={(e) => edit(i, { es: e.currentTarget.value })}
-                />
+                <label>
+                  <span class="cell-label">{t("menu.nameEs")}</span>
+                  <input
+                    aria-label={t("menu.nameEs")}
+                    value={r.es}
+                    maxLength={60}
+                    onInput={(e) => edit(i, { es: e.currentTarget.value })}
+                  />
+                </label>
               </td>
               <td>
-                <input
-                  aria-label={t("menu.price")}
-                  inputMode="decimal"
-                  value={r.price}
-                  onInput={(e) => edit(i, { price: e.currentTarget.value })}
-                />
+                <label>
+                  <span class="cell-label">{t("menu.price")}</span>
+                  <input
+                    aria-label={t("menu.price")}
+                    inputMode="decimal"
+                    value={r.price}
+                    onInput={(e) => edit(i, { price: e.currentTarget.value })}
+                  />
+                </label>
               </td>
               <td>
-                <input
-                  aria-label={t("menu.aliases")}
-                  value={r.aliases}
-                  onInput={(e) => edit(i, { aliases: e.currentTarget.value })}
-                />
+                <label>
+                  <span class="cell-label">{t("menu.aliases")}</span>
+                  <input
+                    aria-label={t("menu.aliases")}
+                    value={r.aliases}
+                    onInput={(e) => edit(i, { aliases: e.currentTarget.value })}
+                  />
+                </label>
               </td>
               <td>
                 <button
                   type="button"
-                  class="secondary"
+                  class="danger row-btn row-remove"
                   aria-label={t("menu.remove", { n: i + 1 })}
                   onClick={() => setRows(rows.filter((_, k) => k !== i))}
                 >
-                  ×
+                  <TrashIcon size={18} />
+                  <span class="row-remove-text">{t("menu.removeShort")}</span>
                 </button>
               </td>
             </tr>

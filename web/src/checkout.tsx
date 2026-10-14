@@ -4,7 +4,8 @@
 // Mock: "Pagar (simulado)" / "Simular rechazo" drive the mock gateway through the same capture.
 // Extra rails (Pix, SPEI, Bre-B, wallets via PayPal) come from RailsPanel when configured; in
 // sandbox, eligible Apple Pay / Google Pay buttons mount above PayPal's (wallet-buttons.ts).
-// Listens to the terminal's SSE feed so a vendor cancel (or paid/expired) shows up live.
+// Listens to the terminal's SSE feed so a vendor cancel (or paid/expired) shows up live. A sale that
+// can no longer be paid always says what to do next (nothing was charged; ask for a new charge).
 import { useEffect, useId, useRef, useState } from "preact/hooks";
 import { type FundingSource, fundingCandidates, sandboxBuyerCountry } from "../../shared/funding";
 import { formatMoney, money, toPayPalValue } from "../../shared/money";
@@ -12,6 +13,7 @@ import type { Sale, TerminalEvent } from "../../shared/types";
 import { type WalletId, walletCandidates } from "../../shared/wallets";
 import { ApiError, type AppConfig, api } from "./api";
 import { type Key, lineName, useT } from "./i18n";
+import { XCircleIcon } from "./icons";
 import { LangToggle } from "./lang-toggle";
 import { mountCheckout, prepareCheckout } from "./paypal-sdk";
 import { RailsPanel } from "./rails-panel";
@@ -21,7 +23,7 @@ function prefersDark(): boolean {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
 }
 
-export function Checkout({ saleId }: { saleId: string }) {
+export function Checkout({ saleId, embedded = false }: { saleId: string; embedded?: boolean }) {
   const { t, locale } = useT();
   const [sale, setSale] = useState<Sale>();
   const [stall, setStall] = useState("");
@@ -210,6 +212,8 @@ export function Checkout({ saleId }: { saleId: string }) {
   }
 
   const sandbox = payable && config?.paypal === "sandbox";
+  const Title = embedded ? "h2" : "h1";
+  const dead = sale.status === "expired" || sale.status === "cancelled" || sale.status === "failed";
 
   return (
     <main
@@ -217,9 +221,13 @@ export function Checkout({ saleId }: { saleId: string }) {
       data-funding={candidates.join(" ")}
       data-funding-shown={shown?.join(" ")}
     >
-      <h1 class="stall">
-        {stall} <LangToggle />
-      </h1>
+      <header class="bar">
+        <div class="bar-title">
+          <p class="eyebrow">{t("checkout.payTo")}</p>
+          <Title class="stall">{stall}</Title>
+        </div>
+        <LangToggle />
+      </header>
       <table class="lines">
         <caption class="sr-only">{t("checkout.items")}</caption>
         <tbody>
@@ -273,6 +281,7 @@ export function Checkout({ saleId }: { saleId: string }) {
           {t("checkout.declined")}
         </p>
       )}
+      {dead && <p class="hint">{t("checkout.nextStep")}</p>}
 
       {sandbox && (
         <div class="pay-with" role="group" aria-labelledby={payWithId}>
@@ -303,7 +312,8 @@ export function Checkout({ saleId }: { saleId: string }) {
           <button type="button" class="primary" disabled={busy} onClick={() => simulate(false)}>
             {busy ? t("checkout.processing") : t("checkout.payMock")}
           </button>
-          <button type="button" class="secondary" disabled={busy} onClick={() => simulate(true)}>
+          <button type="button" class="danger block" disabled={busy} onClick={() => simulate(true)}>
+            <XCircleIcon size={20} />
             {t("checkout.declineMock")}
           </button>
           <p class="hint">{t("checkout.demoNote")}</p>
