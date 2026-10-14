@@ -1,12 +1,20 @@
 // web/src/backoffice.tsx: the vendor's back office at /backoffice — PIN login, today's sales,
 // cash reconcile, invoice with QR, refunds (PIN asked again each time), suppliers and payouts, and
 // the optional agent (whose payout proposals prefill the payouts panel for PIN confirmation).
-// All numbers come from the server; this page only renders them.
+// All numbers come from the server; this page only renders them. Jump links reach each panel; a
+// refund is confirmed inline under its own sale, in an outlined (never filled) destructive panel.
 
 import { useEffect, useState } from "preact/hooks";
-import { type Currency, formatMoney, type Money, parseAmount } from "../../shared/money";
+import {
+  type Currency,
+  formatMoney,
+  type Money,
+  parseAmount,
+  toPayPalValue,
+} from "../../shared/money";
 import { FootprintPanel } from "./footprint";
 import { type Key, reasonText, useT } from "./i18n";
+import { AlertIcon, UndoIcon } from "./icons";
 import { LangToggle } from "./lang-toggle";
 import { MenuEditor } from "./menu-editor";
 import { ApprovalsPanel, ClaudeAccessPanel, StallSwitcher } from "./owner";
@@ -54,6 +62,9 @@ interface Invoice {
   qr: string;
 }
 
+/** Sales shown before "Show all": the full day lives in the ledger. */
+const SALES_PREVIEW = 5;
+
 const ERRORS: Record<string, Key> = {
   PIN_WRONG: "bo.pinWrong",
   PIN_LOCKED: "bo.pinLocked",
@@ -90,6 +101,11 @@ export function BackOfficeApp() {
   const [answer, setAnswer] = useState("");
   const [ran, setRan] = useState<AgentToolRun[]>([]);
   const [proposal, setProposal] = useState<PayoutProposal | null>(null);
+  const [allSales, setAllSales] = useState(false);
+  const salesCount = (count: number) =>
+    count === 1 ? t("bo.salesCountOne") : t("bo.salesCount", { count });
+  const time = (iso: string) =>
+    new Date(iso).toLocaleTimeString(locale === "es" ? "es-MX" : "en-US", { timeStyle: "short" });
 
   async function call<T>(path: string, body?: unknown): Promise<T | undefined> {
     setError("");
@@ -173,6 +189,7 @@ export function BackOfficeApp() {
   async function doRefund(e: Event) {
     e.preventDefault();
     if (!refund) return;
+    setNotice("");
     const minor = toMinor(refund.amount);
     if (!minor) return setError(t("bo.refundFormat"));
     const r = await call<{
@@ -216,11 +233,15 @@ export function BackOfficeApp() {
   if (!token)
     return (
       <main class="backoffice">
-        <h1>
-          {t("bo.title")} <LangToggle />
-        </h1>
-        <StallSwitcher />
-        <form onSubmit={login} class="panel">
+        <header class="bar">
+          <h1 class="stall">{t("bo.title")}</h1>
+          <nav class="bar-actions">
+            <StallSwitcher />
+            <LangToggle />
+          </nav>
+        </header>
+        <form onSubmit={login} class="panel login-card">
+          <p class="hint">{t("bo.loginHint")}</p>
           <label>
             {t("bo.pin")}
             <input
@@ -234,10 +255,29 @@ export function BackOfficeApp() {
           <button type="submit" class="primary" disabled={pin.length < 4}>
             {t("bo.enter")}
           </button>
+          {error && (
+            <p class="error" role="alert">
+              {error}
+            </p>
+          )}
         </form>
-        {error && <p class="error">{error}</p>}
+        <a class="link back-link" href="/">
+          {t("bo.backToRegister")}
+        </a>
       </main>
     );
+
+  const sections: [string, Key][] = [
+    ["sales", "bo.today"],
+    ["reconcile", "bo.reconcileTitle"],
+    ["invoice", "bo.invoiceTitle"],
+    ["payouts", "pay.title"],
+    ["passport", "passport.title"],
+    ["footprint", "footprint.manage"],
+    ["menu", "menu.title"],
+    ["claude", "owner.claudeTitle"],
+  ];
+  const shown = today ? (allSales ? today.sales : today.sales.slice(0, SALES_PREVIEW)) : [];
 
   return (
     <main class="backoffice">
@@ -257,16 +297,26 @@ export function BackOfficeApp() {
           </button>
         </nav>
       </header>
-      {error && (
-        <p class="error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && (
-        <p class="hint" role="status">
-          {notice}
-        </p>
-      )}
+      <nav class="section-nav" aria-label={t("bo.sections")}>
+        {sections.map(([id, key]) => (
+          <a key={id} href={`#${id}`}>
+            {t(key)}
+          </a>
+        ))}
+      </nav>
+      {/* Sticky, so a refund result or an error stays in view wherever the vendor scrolled. */}
+      <div class="bo-messages">
+        {error && (
+          <p class="error" role="alert">
+            {error}
+          </p>
+        )}
+        {notice && (
+          <p class="hint" role="status">
+            {notice}
+          </p>
+        )}
+      </div>
 
       {agent && (
         <form class="panel" onSubmit={askAgent}>
@@ -311,79 +361,99 @@ export function BackOfficeApp() {
 
       <ApprovalsPanel token={token} onDone={() => void loadToday()} />
 
-      <section class="panel">
+      <section class="panel" id="sales">
         <h2>{t("bo.today")}</h2>
         {today && (
-          <>
-            <p class="total">
-              {formatMoney(today.total)} · {t("bo.salesCount", { count: today.count })}
-            </p>
-            <table class="lines">
-              <tbody>
-                {today.sales.map((s) => (
-                  <tr key={s.id}>
-                    <td>
-                      {new Date(s.paidAt).toLocaleTimeString(locale === "es" ? "es-MX" : "en-US", {
-                        timeStyle: "short",
-                      })}
-                    </td>
-                    <td>{s.items}</td>
-                    <td class="num">{formatMoney(s.total)}</td>
-                    <td>
-                      {s.status === "paid" ? (
-                        <button
-                          type="button"
-                          class="secondary"
-                          onClick={() => setRefund({ saleId: s.id, amount: "", pin: "" })}
-                        >
-                          {t("bo.refund")}
-                        </button>
-                      ) : (
-                        t("bo.refunded")
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
+          <p class="total today-total">
+            {formatMoney(today.total)} · {salesCount(today.count)}
+          </p>
+        )}
+        {today && today.sales.length === 0 && <p class="empty-state">{t("bo.noSales")}</p>}
+        {shown.length > 0 && (
+          <ul class="sale-list">
+            {shown.map((s) => (
+              <li key={s.id}>
+                <div class="sale-main">
+                  <span class="sale-items">{s.items}</span>
+                  <span class="num sale-amount">{formatMoney(s.total)}</span>
+                </div>
+                <div class="sale-meta">
+                  <span>{time(s.paidAt)}</span>
+                  {s.refunded.minor > 0 && (
+                    <span class="ledger-pill tone-warn">
+                      {s.status === "paid"
+                        ? t("bo.refundedAmount", { amount: formatMoney(s.refunded) })
+                        : t("bo.refunded")}
+                    </span>
+                  )}
+                  {s.status === "paid" && refund?.saleId !== s.id && (
+                    <button
+                      type="button"
+                      class="danger row-btn"
+                      onClick={() => setRefund({ saleId: s.id, amount: "", pin: "" })}
+                    >
+                      <UndoIcon size={18} />
+                      {t("bo.refund")}
+                    </button>
+                  )}
+                </div>
+                {refund?.saleId === s.id && (
+                  <form class="panel confirm-panel" onSubmit={doRefund}>
+                    <h3 class="confirm-title">
+                      <AlertIcon size={20} />
+                      {t("bo.refundOf")}
+                    </h3>
+                    <p class="hint">{t("bo.refundHint")}</p>
+                    <label>
+                      {t("bo.refundAmount")}
+                      <input
+                        inputMode="decimal"
+                        placeholder={toPayPalValue(s.total)}
+                        value={refund.amount}
+                        onInput={(e) => setRefund({ ...refund, amount: e.currentTarget.value })}
+                      />
+                    </label>
+                    <label>
+                      {t("bo.confirmPin")}
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={refund.pin}
+                        onInput={(e) => setRefund({ ...refund, pin: e.currentTarget.value })}
+                      />
+                    </label>
+                    <div class="confirm-actions">
+                      <button type="submit" class="danger block">
+                        <UndoIcon size={20} />
+                        {t("bo.refund")}
+                      </button>
+                      <button type="button" class="secondary" onClick={() => setRefund(null)}>
+                        {t("bo.cancel")}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {today && today.sales.length > SALES_PREVIEW && (
+          <button
+            type="button"
+            class="link"
+            aria-expanded={allSales}
+            onClick={() => setAllSales((v) => !v)}
+          >
+            {allSales ? t("bo.showFewer") : t("bo.showAll", { count: today.sales.length })}
+          </button>
         )}
         <button type="button" class="secondary" onClick={() => void loadToday()}>
           {t("bo.refresh")}
         </button>
       </section>
 
-      {refund && (
-        <form class="panel" onSubmit={doRefund}>
-          <h2>{t("bo.refundTitle")}</h2>
-          <label>
-            {t("bo.refundAmount")}
-            <input
-              inputMode="decimal"
-              value={refund.amount}
-              onInput={(e) => setRefund({ ...refund, amount: e.currentTarget.value })}
-            />
-          </label>
-          <label>
-            {t("bo.confirmPin")}
-            <input
-              type="password"
-              inputMode="numeric"
-              autoComplete="off"
-              value={refund.pin}
-              onInput={(e) => setRefund({ ...refund, pin: e.currentTarget.value })}
-            />
-          </label>
-          <button type="submit" class="primary">
-            {t("bo.refund")}
-          </button>
-          <button type="button" class="secondary" onClick={() => setRefund(null)}>
-            {t("bo.cancel")}
-          </button>
-        </form>
-      )}
-
-      <form class="panel" onSubmit={reconcile}>
+      <form class="panel" id="reconcile" onSubmit={reconcile}>
         <h2>{t("bo.reconcileTitle")}</h2>
         <label>
           {t("bo.cash")}
@@ -420,7 +490,7 @@ export function BackOfficeApp() {
         )}
       </form>
 
-      <form class="panel" onSubmit={makeInvoice}>
+      <form class="panel" id="invoice" onSubmit={makeInvoice}>
         <h2>{t("bo.invoiceTitle")}</h2>
         <label>
           {t("bo.amount")}

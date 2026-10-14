@@ -1,8 +1,9 @@
 // web/src/onboarding.tsx: first-run / settings screen — stall name, country (auto-detected from the
 // browser locale, searchable, LATAM first) and charge currency (pre-selected from the country; an
 // unsupported local currency is explained). Saves with PUT /api/backoffice/vendor (vendor session).
+// The PIN field says why it is asked; settings (not first run) link back to the register in the header.
 
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useId, useMemo, useState } from "preact/hooks";
 import {
   COUNTRIES,
   type Country,
@@ -72,6 +73,7 @@ export function Onboarding({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const pinHintId = useId();
 
   useEffect(() => {
     fetch(`/api/terminals/${terminal}`)
@@ -169,6 +171,11 @@ export function Onboarding({
         <h1 class="stall">{firstRun ? t("onb.welcome") : t("onb.title")}</h1>
         <nav class="bar-actions">
           <LangToggle />
+          {!firstRun && (
+            <a class="bar-btn" href={`/?terminal=${encodeURIComponent(terminal)}`}>
+              {t("onb.back")}
+            </a>
+          )}
         </nav>
       </header>
       <form class="panel" onSubmit={save}>
@@ -246,11 +253,18 @@ export function Onboarding({
               type="password"
               inputMode="numeric"
               autoComplete="off"
+              aria-describedby={pinHintId}
               value={pin}
               onInput={(e) => setPin(e.currentTarget.value)}
             />
           </label>
         )}
+        {!token && (
+          <p class="hint" id={pinHintId}>
+            {t("onb.pinHint")}
+          </p>
+        )}
+        {firstRun && <p class="hint">{t("onb.next")}</p>}
         <button
           type="submit"
           class="primary"
@@ -269,7 +283,6 @@ export function Onboarding({
           </p>
         )}
       </form>
-      {!firstRun && <a href={`/?terminal=${encodeURIComponent(terminal)}`}>{t("onb.back")}</a>}
     </main>
   );
 }

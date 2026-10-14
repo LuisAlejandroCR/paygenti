@@ -1,12 +1,13 @@
 // web/src/soundbox.tsx: /soundbox?terminal=rosa-01 — full-screen kiosk for an old phone on the counter.
 // Shows the terminal QR when idle, the open amount, then a big PAID and says it out loud, but only for
 // a server-confirmed capture (a fake screenshot makes no sound). Wake Lock, fullscreen, SSE backoff.
+// An unknown terminal is detected on load (its event stream never opens) and gets an error card.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { formatMoney } from "../../shared/money";
 import type { Sale, TerminalEvent } from "../../shared/types";
 import { announcePaid, unlockAudio } from "./announce";
 import { useT } from "./i18n";
-import { PaidCheck } from "./icons";
+import { PaidCheck, XCircleIcon } from "./icons";
 import { LangToggle } from "./lang-toggle";
 import {
   AnnouncedSales,
@@ -83,6 +84,8 @@ export function SoundboxApp({ terminal }: { terminal: string }) {
       }
     };
     connect();
+    // Look the terminal up right away too: an unknown one never opens its stream.
+    void sync();
     return () => {
       stopped = true;
       clearTimeout(timer);
@@ -121,13 +124,28 @@ export function SoundboxApp({ terminal }: { terminal: string }) {
     else void el.requestFullscreen?.().catch(() => {});
   };
 
-  if (missing) return <main class="soundbox">{t("soundbox.notFound")}</main>;
+  if (missing)
+    return (
+      <main class="soundbox sb-missing" data-state="missing">
+        <header class="sb-bar">
+          <h1 class="sb-stall">{t("soundbox.title")}</h1>
+          <LangToggle />
+        </header>
+        <section class="sb-body" role="alert">
+          <span class="bad-icon">
+            <XCircleIcon size={72} />
+          </span>
+          <p class="sb-label">{t("soundbox.notFound")}</p>
+          <p class="sb-trust">{t("vendor.terminalNotFoundHint")}</p>
+        </section>
+      </main>
+    );
 
   const amount = "sale" in view ? formatMoney(view.sale.total) : "";
   return (
     <main class={`soundbox sb-${view.kind}`} data-state={view.kind}>
       <header class="sb-bar">
-        <span class="sb-stall">{stall || t("soundbox.title")}</span>
+        <h1 class="sb-stall">{stall || t("soundbox.title")}</h1>
         <span class={`sb-net ${online ? "on" : "off"}`} role="status">
           {online ? t("app.online") : t("soundbox.offline")}
         </span>

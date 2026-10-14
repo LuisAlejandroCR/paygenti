@@ -1,7 +1,9 @@
 // web/src/a11y-toggles.tsx: the header switches for voice mode (blind vendors) and the high-contrast
-// theme; both are toggle buttons (aria-pressed) and persist through a11y.ts.
+// theme; both are toggle buttons (aria-pressed) with SVG icons (no emoji, which render in color
+// and differ per platform) and persist through a11y.ts.
 import { playSound, speak, usePref } from "./a11y";
 import { useT } from "./i18n";
+import { ContrastIcon, SpeakerIcon } from "./icons";
 
 export function A11yToggles({ voice = true }: { voice?: boolean }) {
   const { t } = useT();
@@ -16,7 +18,7 @@ export function A11yToggles({ voice = true }: { voice?: boolean }) {
         title={t("a11y.contrast")}
         onClick={() => setContrast(!contrast)}
       >
-        <span aria-hidden="true">◐</span>
+        <ContrastIcon size={20} />
         <span class="sr-only">{t("a11y.contrast")}</span>
       </button>
       {voice && (
@@ -32,7 +34,7 @@ export function A11yToggles({ voice = true }: { voice?: boolean }) {
             speak(t(next ? "a11y.voiceModeOn" : "a11y.voiceModeOff"));
           }}
         >
-          <span aria-hidden="true">🔊</span>
+          <SpeakerIcon size={20} />
           <span class="sr-only">{t("a11y.voiceMode")}</span>
         </button>
       )}

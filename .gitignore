@@ -23,3 +23,6 @@ lovable/
 
 # Real bank receipts (PII); tests use fictional samples
 *.pdf
+
+# UX audit output (npm run ux:audit): screenshots and report, regenerated on every run
+ux-shots/
