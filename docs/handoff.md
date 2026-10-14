@@ -16,7 +16,8 @@ Entrega del hackathon: **12-nov-2026 12:00 PT** (15:00 en Bogotá; en noviembre 
 
 ## Estado de `main` (último merge: #40)
 
-Todo está mergeado con CI verde (jobs `check`, `e2e`, `mobile`). Números y títulos verificados con `gh pr list` el 2026-10-14.
+Todo está mergeado; la corrida de CI de `main` en #40 está verde (jobs `check`, `e2e`, `mobile`). Números y
+títulos verificados con `gh pr list` el 2026-10-14. #38, #34, #39 y #40 entraron a `main` el 2026-10-08.
 
 | PR | Qué |
 |---|---|
@@ -105,7 +106,10 @@ Antes de tocar estilos, espera a que esas ramas se mergeen o se cierren: tocan l
     la web y el móvil no los tienen. `--primary` no significa lo mismo en web y dashboard (`docs/design.md`).
 21. Varios: un `XFER` sin concepto sigue contando como ingreso (decisión de #35); el libro del día mezcla montos
     si ese día cambió la moneda; `render.yaml` no declara `STALL_PINS`, `STT_*`, rieles ni
-    `APPLE_PAY_DOMAIN_ASSOCIATION` (se agregan a mano en Render).
+    `APPLE_PAY_DOMAIN_ASSOCIATION` (se agregan a mano en Render). CI: la corrida de `main` tras #39 falló por
+    un timeout de `page.goto` en `e2e/onboarding.spec.ts` ("Mexico selects MXN", phone-es) y la de #40 pasó
+    (inestable, sin investigar); GitHub avisa que `actions/checkout@v4` y `setup-node@v4` corren sobre Node 20
+    (obsoleto) y que `ubuntu-latest` pasa a Ubuntu 26 desde el 19-oct-2026.
 
 ### Del plan (sin cambios de criterio)
 
