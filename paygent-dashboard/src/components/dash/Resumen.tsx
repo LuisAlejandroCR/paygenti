@@ -258,7 +258,7 @@ export function Resumen() {
               {s.prevSame.verified > 0 ? (
                 <Popover>
                   <PopoverTrigger
-                    className="cursor-pointer rounded-full"
+                    className="inline-flex min-h-11 cursor-pointer items-center rounded-full"
                     aria-label={t("daybyday")}
                   >
                     <Delta pct={delta} label={`${t("vs")} ${pName}`} />

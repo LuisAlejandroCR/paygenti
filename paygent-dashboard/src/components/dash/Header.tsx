@@ -153,7 +153,7 @@ export function Header() {
                       nav({ tab: "movimientos", filter: "pending_bank" });
                     if (n.text === "notif_goal") nav({ tab: "perfil", section: "metas" });
                   }}
-                  className="flex w-full items-start gap-2 rounded-lg px-2 py-2.5 text-left text-sm hover:bg-muted cursor-pointer"
+                  className="flex min-h-11 w-full items-start gap-2 rounded-lg px-2 py-2.5 text-left text-sm hover:bg-muted cursor-pointer"
                 >
                   <span
                     className={cn(

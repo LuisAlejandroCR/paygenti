@@ -119,7 +119,7 @@ export function Perfil() {
                     onClick={() => p.set({ lang: l })}
                     aria-pressed={p.lang === l}
                     className={cn(
-                      "min-h-10 min-w-11 rounded-lg text-sm font-semibold uppercase cursor-pointer",
+                      "min-h-11 min-w-11 rounded-lg text-sm font-semibold uppercase cursor-pointer",
                       p.lang === l ? "bg-primary text-primary-foreground" : "bg-muted",
                     )}
                   >
