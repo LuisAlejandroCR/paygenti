@@ -1,3 +1,6 @@
+# .gitignore: files git skips in the dashboard: deps, build output, editor files and the
+# local UX audit output (screenshots and reports from scripts/ux-audit.ts).
+
 # Logs
 logs
 *.log
@@ -31,3 +34,6 @@ dist-ssr
 *.sln
 *.sw?
 *.tsbuildinfo
+
+# UX audit output (scripts/ux-audit.ts)
+ux-audit/

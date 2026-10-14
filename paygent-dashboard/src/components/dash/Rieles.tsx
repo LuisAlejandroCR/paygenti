@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Icon, RAIL_COLOR, RAIL_NAME, RailIcon } from "@/components/icons";
+import { Icon, RAIL_COLOR, railChip, RAIL_NAME, RailIcon } from "@/components/icons";
 import { getRails, LIVE, setRailEnabled } from "@/lib/api";
 import { usePrefs } from "@/lib/prefs";
 import { inMonth, isSale, toStall } from "@/lib/stats";
@@ -116,18 +116,18 @@ export function Rieles() {
           </p>
         </div>
         <div className="mt-4 space-y-2">
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide opacity-80">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide">
             <Icon.check size={14} />
             {t("verified")}
           </div>
           {strip("verified", st.totV)}
-          <div className="flex items-center gap-2 pt-1 text-[11px] font-semibold uppercase tracking-wide opacity-80">
+          <div className="flex items-center gap-2 pt-1 text-[11px] font-semibold uppercase tracking-wide">
             <span className="hatch-on-wine size-3 rounded-sm" />
             {t("declared")}
           </div>
           {strip("declared", st.totD)}
         </div>
-        {LIVE && <p className="mt-3 text-xs opacity-80">{t("live_rails")}</p>}
+        {LIVE && <p className="mt-3 text-xs opacity-90">{t("live_rails")}</p>}
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -136,34 +136,37 @@ export function Rieles() {
           const s = st.by.get(r.rail);
           const on = search.rail === r.rail;
           return (
-            <Tap
+            <div
               key={r.rail}
-              label={RAIL_NAME[r.rail]}
-              onClick={() => open({ kind: "rail", rail: r.rail })}
               className={cn(
-                "tile flex flex-col p-4",
-                (disabled || !r.enabled) && "opacity-60 grayscale",
+                "tile pressable relative flex flex-col p-4",
+                (disabled || !r.enabled) && "border-dashed bg-muted/40 [&_[data-chip]]:grayscale",
                 on && "ring-2 ring-primary",
               )}
             >
               <div className="flex items-center gap-3">
                 <span
-                  className="flex size-11 shrink-0 items-center justify-center rounded-xl text-primary-foreground"
-                  style={{ background: RAIL_COLOR[r.rail] }}
+                  data-chip
+                  className="flex size-11 shrink-0 items-center justify-center rounded-xl"
+                  style={railChip(r.rail)}
                 >
                   <RailIcon rail={r.rail} size={22} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-bold">{RAIL_NAME[r.rail]}</p>
+                  {/* Stretched button: the whole tile opens the detail without nesting controls */}
+                  <button
+                    type="button"
+                    data-detail
+                    onClick={() => open({ kind: "rail", rail: r.rail })}
+                    className="block max-w-full truncate text-left font-bold cursor-pointer after:absolute after:inset-0 after:rounded-[inherit] after:content-['']"
+                  >
+                    {RAIL_NAME[r.rail]}
+                  </button>
                   <p className="text-xs text-muted-foreground">
                     {disabled ? t(r.reason as TKey) : r.enabled ? t("on") : t("off")}
                   </p>
                 </div>
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  className="flex min-h-11 items-center"
-                >
+                <div className="relative z-10 flex min-h-11 items-center">
                   <Switch
                     checked={r.enabled && !disabled}
                     disabled={disabled || LIVE}
@@ -202,7 +205,7 @@ export function Rieles() {
                   </div>
                   <div className="mt-3 flex items-end gap-3">
                     <div className="min-w-0 flex-1">
-                      <Sparkline data={s?.days ?? []} className="text-primary" />
+                      <Sparkline data={s?.days ?? []} className="text-primary-text" />
                     </div>
                     <p className="num shrink-0 text-xs text-muted-foreground">
                       {t("count", { n: s?.count ?? 0 })}
@@ -223,7 +226,7 @@ export function Rieles() {
                               : `${r.avgConfirmMin / 60}h`}
                         </b>
                       </span>
-                      <span className="opacity-70">· {t("stats_mock")}</span>
+                      <span>· {t("stats_mock")}</span>
                     </p>
                   )}
                   <button
@@ -232,14 +235,14 @@ export function Rieles() {
                       nav({ rail: on ? undefined : r.rail });
                     }}
                     aria-pressed={on}
-                    className="mt-3 inline-flex min-h-10 items-center gap-1.5 self-start rounded-full border px-3 text-xs font-semibold hover:border-primary hover:text-primary cursor-pointer"
+                    className="relative z-10 mt-3 inline-flex min-h-11 items-center gap-1.5 self-start rounded-full border px-3 text-xs font-semibold hover:border-primary hover:text-primary-text cursor-pointer"
                   >
                     <Icon.filter size={14} />
                     {on ? t("all") : t("filter_chip", { r: RAIL_NAME[r.rail] })}
                   </button>
                 </>
               )}
-            </Tap>
+            </div>
           );
         })}
       </div>

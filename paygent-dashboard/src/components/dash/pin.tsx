@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { usePrefs, haptic } from "@/lib/prefs";
-import { SANDBOX, verifyPin } from "@/lib/api";
+import { SANDBOX, checkPin } from "@/lib/api";
+import type { PinOutcome } from "@/lib/adapter";
 import { Icon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,7 @@ export function PinProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [pin, setPin] = useState("");
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<Exclude<PinOutcome, "ok"> | null>(null);
   const resolver = useRef<(v: string | null) => void>(() => {});
   // Refs, not state: fast typing fires several keydowns before React re-renders.
   const cur = useRef("");
@@ -26,7 +27,7 @@ export function PinProvider({ children }: { children: ReactNode }) {
     setTitle(ttl);
     cur.current = "";
     setPin("");
-    setErr(false);
+    setErr(null);
     setOpen(true);
     return new Promise((res) => {
       resolver.current = res;
@@ -43,7 +44,7 @@ export function PinProvider({ children }: { children: ReactNode }) {
     if (d === "del") {
       cur.current = cur.current.slice(0, -1);
       setPin(cur.current);
-      setErr(false);
+      setErr(null);
       return;
     }
     const next = (cur.current + d).slice(0, 4);
@@ -51,11 +52,11 @@ export function PinProvider({ children }: { children: ReactNode }) {
     setPin(next);
     if (next.length === 4) {
       busy.current = true;
-      void verifyPin(next).then((ok) => {
+      void checkPin(next).then((r) => {
         busy.current = false;
-        if (ok) setTimeout(() => close(next), 150);
+        if (r === "ok") setTimeout(() => close(next), 150);
         else {
-          setErr(true);
+          setErr(r);
           cur.current = "";
           setTimeout(() => setPin(""), 400);
         }
@@ -80,7 +81,11 @@ export function PinProvider({ children }: { children: ReactNode }) {
             </div>
             <DialogTitle className="text-center text-base">{t("pin_title")}</DialogTitle>
             <DialogDescription className="text-center text-sm">{title}</DialogDescription>
-            <div className={cn("flex gap-3", err && "animate-pulse")} aria-live="polite">
+            <div
+              className={cn("flex gap-3", err && "animate-pulse")}
+              role="img"
+              aria-label={`${pin.length}/4`}
+            >
               {[0, 1, 2, 3].map((i) => (
                 <span
                   key={i}
@@ -95,8 +100,22 @@ export function PinProvider({ children }: { children: ReactNode }) {
                 />
               ))}
             </div>
-            <p className={cn("text-xs", err ? "text-destructive" : "text-muted-foreground")}>
-              {err ? t("pin_wrong") : SANDBOX ? t("pin_hint") : t("pin_live")}
+            <p
+              role={err ? "alert" : undefined}
+              className={cn(
+                "min-h-8 text-center text-xs",
+                err ? "font-semibold text-destructive" : "text-muted-foreground",
+              )}
+            >
+              {err === "wrong"
+                ? t("pin_wrong")
+                : err === "locked"
+                  ? t("pin_locked")
+                  : err === "offline"
+                    ? t("pin_offline")
+                    : SANDBOX
+                      ? t("pin_hint")
+                      : t("pin_live")}
             </p>
             <div className="grid w-full grid-cols-3 gap-2">
               {["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "del"].map((k) =>
@@ -106,7 +125,7 @@ export function PinProvider({ children }: { children: ReactNode }) {
                   <button
                     key={k}
                     onClick={() => press(k)}
-                    aria-label={k === "del" ? "Borrar" : k}
+                    aria-label={k === "del" ? t("del_digit") : k}
                     className="pressable flex h-14 items-center justify-center rounded-2xl bg-muted text-xl font-semibold num"
                   >
                     {k === "del" ? <Icon.backspace /> : k}

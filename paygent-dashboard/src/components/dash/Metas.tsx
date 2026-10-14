@@ -75,9 +75,7 @@ export function Metas() {
       <section className="flex flex-wrap items-center gap-5 rounded-3xl bg-primary p-5 text-primary-foreground shadow-lift">
         <Ring pct={target ? (saved / target) * 100 : 0} size={96} onWine />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] opacity-80">
-            {t("goals_total")}
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em]">{t("goals_total")}</p>
           <Money
             value={saved}
             currency={c}
@@ -87,7 +85,7 @@ export function Metas() {
             {t("target")} <Money value={target} currency={c} compact /> · {t("remaining")}{" "}
             <Money value={Math.max(0, target - saved)} currency={c} compact />
           </p>
-          {LIVE && <p className="mt-1 text-xs opacity-75">{t("one_goal")}</p>}
+          {LIVE && <p className="mt-1 text-xs opacity-90">{t("one_goal")}</p>}
         </div>
         <Tap
           onClick={() => open({ kind: "goal" })}
@@ -114,7 +112,6 @@ export function Metas() {
           return (
             <Tap
               key={g.id}
-              label={g.name}
               onClick={() => open({ kind: "goal", id: g.id })}
               className="tile flex flex-col gap-3 p-4"
             >
@@ -136,7 +133,7 @@ export function Metas() {
                       : t("saved_of", { p: Math.round(pct) })}
                   </p>
                 </div>
-                <span className="num text-lg font-bold text-primary">{Math.round(pct)}%</span>
+                <span className="num text-lg font-bold text-primary-text">{Math.round(pct)}%</span>
               </div>
               <div className="h-2.5 overflow-hidden rounded-full bg-muted">
                 <span

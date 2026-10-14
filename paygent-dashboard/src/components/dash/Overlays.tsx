@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Icon, RAIL_COLOR, RAIL_NAME, RailIcon, itemIcon } from "@/components/icons";
+import { Icon, RAIL_COLOR, railChip, RAIL_NAME, RailIcon, itemIcon } from "@/components/icons";
 import * as api from "@/lib/api";
 import { usePrefs } from "@/lib/prefs";
 import { db, TODAY } from "@/lib/mock";
@@ -19,6 +19,7 @@ import {
   isSale,
 } from "@/lib/stats";
 import type { Goal, Rail, Tx } from "@/lib/types";
+import type { ChargeState } from "@/lib/adapter";
 import { useDash, type Overlay } from "./context";
 import { usePin } from "./pin";
 import { BigButton, Money, OriginBadge, Panel, Sparkline, StatusChip } from "./shared";
@@ -82,8 +83,16 @@ function useTxKey() {
 }
 
 function Steps({ n, of = 3 }: { n: number; of?: number }) {
+  const { t } = usePrefs();
   return (
-    <div className="mb-4 flex gap-1.5" aria-label={`${n}/${of}`}>
+    <div
+      className="mb-4 flex gap-1.5"
+      role="progressbar"
+      aria-valuemin={1}
+      aria-valuemax={of}
+      aria-valuenow={n}
+      aria-label={t("step_of", { n, t: of })}
+    >
       {Array.from({ length: of }, (_, i) => (
         <span
           key={i}
@@ -95,6 +104,7 @@ function Steps({ n, of = 3 }: { n: number; of?: number }) {
 }
 
 function Keypad({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = usePrefs();
   const press = (k: string) => {
     if (k === "del") return onChange(value.slice(0, -1));
     if (k === "." && value.includes(".")) return;
@@ -107,7 +117,7 @@ function Keypad({ value, onChange }: { value: string; onChange: (v: string) => v
         <button
           key={k}
           onClick={() => press(k)}
-          aria-label={k === "del" ? "Borrar" : k}
+          aria-label={k === "del" ? t("del_digit") : k}
           className="pressable flex h-14 items-center justify-center rounded-2xl bg-muted text-xl font-semibold num"
         >
           {k === "del" ? <Icon.backspace /> : k}
@@ -164,26 +174,88 @@ function FakeQr({ seed }: { seed: string }) {
   );
 }
 
+/** Sheet status line for a charge. "paid" only ever comes from a PayPal capture (live) or the
+ *  Sandbox simulation, which says so on screen. */
+function ChargeStatus({ state }: { state: ChargeState }) {
+  const { t } = usePrefs();
+  const tone =
+    state === "paid"
+      ? "bg-success-soft text-success"
+      : state === "failed" || state === "expired" || state === "cancelled"
+        ? "bg-danger-soft text-destructive"
+        : state === "self_declared"
+          ? "border border-declared/40 text-declared hatch-soft"
+          : "bg-warning-soft text-warning-foreground";
+  return (
+    <div
+      role="status"
+      className={cn("flex items-center justify-center gap-2 rounded-2xl p-3 font-semibold", tone)}
+    >
+      {state === "waiting" && (
+        <>
+          <Icon.clock className="animate-spin" style={{ animationDuration: "3s" }} />
+          {t("waiting")}
+        </>
+      )}
+      {state === "paid" && (
+        <>
+          <Icon.check />
+          {t("paid")}
+        </>
+      )}
+      {state === "pending_bank" && (
+        <>
+          <Icon.clock />
+          {t("pending_bank")}
+        </>
+      )}
+      {state === "self_declared" && t("vendor_confirmed")}
+      {(state === "failed" || state === "expired" || state === "cancelled") && (
+        <>
+          <Icon.x />
+          {state === "expired"
+            ? t("charge_expired")
+            : state === "cancelled"
+              ? t("charge_cancelled")
+              : t("failed")}
+        </>
+      )}
+    </div>
+  );
+}
+
 function Cobrar({ close }: { close: () => void }) {
   const { stall } = useDash();
   const { t, money } = usePrefs();
   const qc = useQueryClient();
   const key = useTxKey();
+  const live = api.LIVE;
   const [step, setStep] = useState(1);
   const [amt, setAmt] = useState("");
   const [rail, setRail] = useState<Rail | null>(null);
-  const [state, setState] = useState<"waiting" | "paid" | "failed">("waiting");
-  const link = useMemo(() => `https://pay.paygent.app/${stall.id}/${Date.now().toString(36)}`, [stall.id, rail]); // eslint-disable-line
+  const [state, setState] = useState<ChargeState>("waiting");
+  const [charge, setCharge] = useState<api.LiveCharge | null>(null);
+  const [error, setError] = useState(false);
+  // Sandbox only: a fake link, new for every rail picked.
+  const link = useMemo(
+    () => `https://pay.paygent.app/${stall.id}/${Date.now().toString(36)}`,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stall.id, rail],
+  );
+  const n = Number(amt || 0);
+  const terminal = stall.terminals?.[0];
+
+  // Sandbox: simulated payment after 3.5 s, labelled as a simulation on screen.
   useEffect(() => {
-    if (step !== 3) return;
+    if (live || step !== 3) return;
     setState("waiting");
     const id = setTimeout(() => {
-      setState("paid");
       const self = rail === "pix" || rail === "spei";
+      setState(self ? "pending_bank" : "paid");
       db.txs.unshift({
         id: `${stall.id}-c${Date.now()}`,
         date: new Date().toISOString(),
-        amount: Number(amt),
+        amount: n,
         currency: stall.currency,
         rail: rail!,
         status: self ? "pending_bank" : "COMPLETED",
@@ -197,22 +269,64 @@ function Cobrar({ close }: { close: () => void }) {
     }, 3500);
     return () => clearTimeout(id);
   }, [step]); // eslint-disable-line
-  const n = Number(amt || 0);
+
+  // Live: create the sale on the stall's terminal, then poll it until the server settles it.
+  const start = async () => {
+    setError(false);
+    if (!terminal) return setError(true);
+    try {
+      setCharge(await api.createCharge(terminal, n, stall.currency));
+      setState("waiting");
+      setStep(2);
+    } catch {
+      setError(true);
+    }
+  };
+  useEffect(() => {
+    if (!live || !charge || state !== "waiting") return;
+    const id = setInterval(async () => {
+      const next = await api.chargeStatus(charge.saleId).catch(() => "waiting" as const);
+      if (next !== "waiting") {
+        setState(next);
+        qc.invalidateQueries({ queryKey: key });
+      }
+    }, 2000);
+    return () => clearInterval(id);
+  }, [charge, state]); // eslint-disable-line
+  const cancel = () => {
+    if (live && charge && state === "waiting") void api.cancelCharge(charge.saleId);
+    close();
+  };
+  const settled = state !== "waiting";
+  const showQr = live ? step === 2 && !!charge : step === 3 && !!rail;
+  const payLink = live && charge ? charge.payUrl : link;
+
   return (
     <div>
-      <Steps n={step} />
+      <Steps n={step} of={live ? 2 : 3} />
+      {!live && (
+        <p className="mb-3 flex items-start gap-2 rounded-xl bg-warning-soft px-3 py-2 text-xs font-semibold text-warning-foreground">
+          <Icon.alert size={16} className="mt-px shrink-0" />
+          {t("sim_note")}
+        </p>
+      )}
       {step === 1 && (
         <div className="space-y-4">
           <p className="num text-center text-4xl font-bold">
             {money(n, stall.currency).replace("•••••", amt || "0")}
           </p>
           <Keypad value={amt} onChange={setAmt} />
-          <BigButton disabled={!n} onClick={() => setStep(2)}>
+          {error && (
+            <p role="alert" className="text-center text-sm font-semibold text-destructive">
+              {t("charge_error")}
+            </p>
+          )}
+          <BigButton disabled={!n} onClick={() => (live ? void start() : setStep(2))}>
             {t("next")}
           </BigButton>
         </div>
       )}
-      {step === 2 && (
+      {!live && step === 2 && (
         <div className="space-y-3">
           <p className="text-sm font-semibold">{t("choose_rail")}</p>
           <div className="grid grid-cols-2 gap-2">
@@ -226,8 +340,8 @@ function Cobrar({ close }: { close: () => void }) {
                 className="pressable flex min-h-16 items-center gap-2 rounded-2xl border-2 bg-card p-3 text-sm font-semibold hover:border-primary"
               >
                 <span
-                  className="flex size-9 items-center justify-center rounded-lg text-primary-foreground"
-                  style={{ background: RAIL_COLOR[r] }}
+                  className="flex size-9 items-center justify-center rounded-lg"
+                  style={railChip(r)}
                 >
                   <RailIcon rail={r} size={18} />
                 </span>
@@ -240,52 +354,32 @@ function Cobrar({ close }: { close: () => void }) {
           </BigButton>
         </div>
       )}
-      {step === 3 && rail && (
+      {showQr && (
         <div className="space-y-4 text-center">
           <p className="num text-2xl font-bold">{money(n, stall.currency)}</p>
           <p className="text-sm text-muted-foreground">{t("share_link")}</p>
-          <FakeQr seed={link} />
+          {live && charge ? (
+            <img
+              src={charge.qrUrl}
+              alt={`QR · ${charge.payUrl}`}
+              className="mx-auto size-48 rounded-xl bg-white p-2"
+            />
+          ) : (
+            <FakeQr seed={link} />
+          )}
           <button
             onClick={() => {
-              navigator.clipboard?.writeText(link);
+              navigator.clipboard?.writeText(payLink);
               toast.success(t("done"));
             }}
-            className="w-full truncate rounded-xl bg-muted px-3 py-3 text-xs num cursor-pointer"
+            className="min-h-11 w-full truncate rounded-xl bg-muted px-3 py-3 text-xs num cursor-pointer"
           >
-            {link}
+            {payLink}
           </button>
-          <div
-            aria-live="polite"
-            className={cn(
-              "flex items-center justify-center gap-2 rounded-2xl p-3 font-semibold",
-              state === "paid"
-                ? "bg-success-soft text-success"
-                : state === "failed"
-                  ? "bg-danger-soft text-destructive"
-                  : "bg-warning-soft text-warning-foreground",
-            )}
-          >
-            {state === "waiting" && (
-              <>
-                <Icon.clock className="animate-spin" style={{ animationDuration: "3s" }} />
-                {t("waiting")}
-              </>
-            )}
-            {state === "paid" && (
-              <>
-                <Icon.check />
-                {rail === "pix" || rail === "spei" ? t("pending_bank") : t("paid")}
-              </>
-            )}
-            {state === "failed" && (
-              <>
-                <Icon.x />
-                {t("failed")}
-              </>
-            )}
-          </div>
-          <BigButton variant={state === "paid" ? "primary" : "outline"} onClick={close}>
-            {state === "paid" ? t("done") : t("cancel")}
+          <ChargeStatus state={state} />
+          {live && <p className="text-xs text-muted-foreground">{t("charge_live_note")}</p>}
+          <BigButton variant={settled ? "primary" : "outline"} onClick={settled ? close : cancel}>
+            {settled ? t("done") : t("cancel")}
           </BigButton>
         </div>
       )}
@@ -463,9 +557,10 @@ function Reembolso({ txId, ai, close }: { txId?: string; ai?: boolean; close: ()
           </p>
         </div>
       )}
-      <BigButton disabled={!tx} onClick={go}>
-        <Icon.lock size={18} />
+      <BigButton variant="danger" disabled={!tx} onClick={go}>
+        <Icon.refund size={18} />
         {t("refund_with_pin")}
+        <Icon.lock size={16} />
       </BigButton>
     </div>
   );
@@ -837,7 +932,7 @@ function ItemDetail({ item }: { item: string }) {
       </div>
       <div>
         <p className="text-sm font-semibold">{t("last6")}</p>
-        <Sparkline data={trend} className="h-14 text-primary" />
+        <Sparkline data={trend} className="h-14 text-primary-text" />
       </div>
       <div>
         <p className="mb-2 text-sm font-semibold">{t("rails_used")}</p>
@@ -882,7 +977,10 @@ function TxDetail({ id }: { id: string }) {
       ? [{ label: t("pending_bank"), at, done: false }]
       : [
           {
-            label: t(tx.status),
+            label:
+              tx.status === "COMPLETED" && tx.origin === "autodeclarado"
+                ? t("vendor_confirmed")
+                : t(tx.status),
             at: new Date(at.getTime() + (tx.origin === "verificado" ? 15000 : 1800000)),
             done: true,
           },
@@ -892,8 +990,8 @@ function TxDetail({ id }: { id: string }) {
     <div className="space-y-5">
       <div className="flex items-center gap-3">
         <span
-          className="flex size-12 items-center justify-center rounded-xl text-primary-foreground"
-          style={{ background: RAIL_COLOR[tx.rail] }}
+          className="flex size-12 items-center justify-center rounded-xl"
+          style={railChip(tx.rail)}
         >
           <RailIcon rail={tx.rail} />
         </span>
@@ -950,9 +1048,9 @@ function TxDetail({ id }: { id: string }) {
           {t("confirm_pin")}
         </BigButton>
       )}
-      {tx.status === "COMPLETED" && tx.type === "venta" && (
+      {tx.status === "COMPLETED" && tx.type === "venta" && tx.origin === "verificado" && (
         <BigButton
-          variant="outline"
+          variant="danger"
           onClick={() => open({ kind: "flow", flow: "reembolso", txId: tx.id })}
         >
           <Icon.refund size={18} />
@@ -1049,7 +1147,9 @@ function GoalEdit({ id, close }: { id?: string; close: () => void }) {
       icon: "piggy",
     },
   );
-  useEffect(() => { if (existing) setG(existing); }, [existing?.id]); // eslint-disable-line
+  useEffect(() => {
+    if (existing) setG(existing);
+  }, [existing?.id]); // eslint-disable-line
   const [step, setStep] = useState(1);
   const [move, setMove] = useState("");
   const save = async (next: Goal) => {
@@ -1144,9 +1244,10 @@ function GoalEdit({ id, close }: { id?: string; close: () => void }) {
                   key={ic}
                   onClick={() => setG({ ...g, icon: ic })}
                   aria-pressed={g.icon === ic}
+                  aria-label={t(`icon_${ic}`)}
                   className={cn(
                     "pressable flex h-16 items-center justify-center rounded-2xl border-2 bg-card",
-                    g.icon === ic ? "border-primary text-primary" : "border-border",
+                    g.icon === ic ? "border-primary text-primary-text" : "border-border",
                   )}
                 >
                   <I size={28} />

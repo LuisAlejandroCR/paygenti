@@ -28,12 +28,10 @@ export function Perfil() {
       <aside className="space-y-4">
         <section className="tile overflow-hidden">
           <div className="bg-primary px-5 pb-10 pt-5 text-primary-foreground">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] opacity-80">
-              {p.t("profile")}
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em]">{p.t("profile")}</p>
           </div>
           <div className="-mt-8 px-5 pb-5">
-            <div className="flex size-16 items-center justify-center rounded-2xl border-4 border-card bg-accent font-mono text-2xl font-extrabold text-primary">
+            <div className="flex size-16 items-center justify-center rounded-2xl border-4 border-card bg-accent font-mono text-2xl font-extrabold text-primary-text">
               {stall.name.slice(0, 1)}
             </div>
             <h2 className="mt-2 text-lg font-bold">{stall.name}</h2>
@@ -48,7 +46,7 @@ export function Perfil() {
                     onClick={() => nav({ stall: s.id, rail: undefined })}
                     aria-pressed={s.id === stall.id}
                     className={cn(
-                      "min-h-9 rounded-full border px-3 text-xs font-semibold cursor-pointer",
+                      "min-h-11 rounded-full border px-3 text-xs font-semibold cursor-pointer",
                       s.id === stall.id
                         ? "border-primary bg-accent text-accent-foreground"
                         : "hover:bg-muted",
@@ -79,7 +77,7 @@ export function Perfil() {
                   on ? "bg-accent text-accent-foreground" : "hover:bg-muted",
                 )}
               >
-                <I size={18} className="text-primary" />
+                <I size={18} className="text-primary-text" />
                 {p.t(s.label)}
                 <Icon.chevR size={16} className="ml-auto text-muted-foreground" />
               </button>
@@ -121,7 +119,7 @@ export function Perfil() {
                     onClick={() => p.set({ lang: l })}
                     aria-pressed={p.lang === l}
                     className={cn(
-                      "min-h-10 min-w-11 rounded-lg text-sm font-semibold uppercase cursor-pointer",
+                      "min-h-11 min-w-11 rounded-lg text-sm font-semibold uppercase cursor-pointer",
                       p.lang === l ? "bg-primary text-primary-foreground" : "bg-muted",
                     )}
                   >
@@ -149,7 +147,7 @@ function Row({
   const I = Icon[icon];
   return (
     <div className="flex min-h-16 items-center gap-3 px-4">
-      <I size={20} className="text-primary" />
+      <I size={20} className="text-primary-text" />
       <span className="flex-1 text-sm font-semibold">{label}</span>
       {children}
     </div>

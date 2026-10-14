@@ -89,7 +89,41 @@ export function mapStall(s: SStall): Stall {
     name: s.displayName,
     currency: s.currency as Currency,
     rails: railsFor(s.currency),
+    ...(s.terminals?.length ? { terminals: s.terminals } : {}),
   };
+}
+
+/** What the charge sheet may show for a server sale status. Only a PayPal capture ("paid") is
+ *  "paid"; a push-rail transfer stays "pending_bank" and a vendor confirmation stays self-declared. */
+export type ChargeState =
+  "waiting" | "paid" | "pending_bank" | "self_declared" | "expired" | "cancelled" | "failed";
+export function chargeState(status: string): ChargeState {
+  switch (status) {
+    case "paid":
+      return "paid";
+    case "pending_bank":
+      return "pending_bank";
+    case "vendor_confirmed":
+      return "self_declared";
+    case "expired":
+      return "expired";
+    case "cancelled":
+      return "cancelled";
+    case "failed":
+    case "refunded":
+      return "failed";
+    default:
+      return "waiting"; // open, approved: the customer has not finished paying yet
+  }
+}
+
+/** Outcome of a PIN check from the HTTP status the server answered (0 = network error). */
+export type PinOutcome = "ok" | "wrong" | "locked" | "offline";
+export function pinOutcome(status: number, code?: string): PinOutcome {
+  if (status >= 200 && status < 300) return "ok";
+  if (status === 429 || code === "PIN_LOCKED") return "locked";
+  if (status === 0 || status >= 500) return "offline";
+  return "wrong";
 }
 
 /** Item label from the sale lines; never a payer name (the ledger carries none). */
