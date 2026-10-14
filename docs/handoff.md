@@ -85,8 +85,10 @@ Antes de tocar estilos, espera a que esas ramas se mergeen o se cierren: tocan l
 
 ### Huecos conocidos de lo ya mergeado
 
-14. Dashboard (#40): sin probar con ventas reales; métricas por riel, interruptor de rieles y nombre/fecha de
-    metas siguen en mock; sus tests (vitest) no corren en CI.
+14. Dashboard (#40): **"Cobrar" sigue simulado también en modo real** — muestra un enlace inventado y marca
+    "pagado" a los 3,5 s sin llamar al servidor ni a PayPal (`Overlays.tsx`, `Cobrar`); no usarlo en la demo
+    y conectarlo o esconderlo en modo real. Además: sin probar con ventas reales; métricas por riel,
+    interruptor de rieles y nombre/fecha de metas siguen en mock; sus tests (vitest) no corren en CI.
 15. Móvil (#39): el mes se arma con hasta 62 llamadas al ledger; el día usa el reloj del teléfono (cerca de
     medianoche puede sobrar o faltar un día); sin probar con TalkBack/VoiceOver ni texto grande. Jest de
     `mobile/` no encuentra tests cuando el repo está bajo `.claude/` (worktrees).
