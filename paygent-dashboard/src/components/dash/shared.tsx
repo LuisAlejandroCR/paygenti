@@ -1,3 +1,5 @@
+// shared.tsx: small dashboard building blocks (animated Money, Tap, origin/status chips, Delta,
+// ChartCard with table/export, Panel sheet, Sparkline, BigButton incl. the outlined danger variant).
 import { useEffect, useRef, useState, type ReactNode, type KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
 import { usePrefs, haptic } from "@/lib/prefs";
@@ -55,12 +57,15 @@ export function Tap({
   className,
   children,
   label,
+  pressed,
   onContextMenu,
 }: {
   onClick: () => void;
   className?: string;
   children: ReactNode;
   label?: string;
+  /** Set for toggles (filter tiles): exposes aria-pressed. */
+  pressed?: boolean;
   onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const onKey = (e: KeyboardEvent) => {
@@ -74,6 +79,7 @@ export function Tap({
       role="button"
       tabIndex={0}
       aria-label={label}
+      aria-pressed={pressed}
       onKeyDown={onKey}
       onContextMenu={onContextMenu}
       onClick={() => {
@@ -283,10 +289,21 @@ export function Panel({
   children: ReactNode;
 }) {
   const mobile = useIsMobile();
+  // No SheetTrigger here, so Radix cannot hand focus back on close: remember the opener ourselves.
+  const opener = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (open) opener.current = document.activeElement as HTMLElement | null;
+  }, [open]);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={mobile ? "bottom" : "right"}
+        onCloseAutoFocus={(e) => {
+          if (opener.current?.isConnected) {
+            e.preventDefault();
+            opener.current.focus();
+          }
+        }}
         className={cn(
           "overflow-y-auto bg-background",
           mobile ? "max-h-[92vh] rounded-t-3xl" : "w-full sm:max-w-md",
@@ -334,7 +351,8 @@ export function BigButton({
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
-  variant?: "primary" | "outline";
+  /** danger: outlined red with a label/icon from the caller, so it never reads as the wine action. */
+  variant?: "primary" | "outline" | "danger";
   className?: string;
 }) {
   return (
@@ -348,7 +366,9 @@ export function BigButton({
         "pressable inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl px-5 font-semibold disabled:opacity-50 disabled:cursor-not-allowed",
         variant === "primary"
           ? "bg-primary text-primary-foreground"
-          : "border-2 border-border bg-card text-foreground",
+          : variant === "danger"
+            ? "border-2 border-dashed border-destructive bg-danger-soft text-destructive"
+            : "border-2 border-border bg-card text-foreground",
         className,
       )}
     >

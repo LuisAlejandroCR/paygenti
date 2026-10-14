@@ -26,6 +26,8 @@ export interface Stall {
   name: string;
   currency: Currency;
   rails: Rail[];
+  /** Live only: the stall's terminal ids (a charge is a sale created on a terminal). */
+  terminals?: string[];
 }
 
 export interface RailInfo {
