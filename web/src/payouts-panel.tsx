@@ -1,12 +1,14 @@
 // web/src/payouts-panel.tsx: back-office "Suppliers & payouts" panel — the supplier allowlist (add or
 // remove with the PIN), a pay form with the PIN and today's limits, the payout history with status,
 // and an assistant proposal prefilled for the vendor to confirm. The server decides; this renders.
+// Removing a supplier is confirmed inline under that supplier, with an outlined destructive button.
 
 import { useEffect, useRef, useState } from "preact/hooks";
 import { decimalsOf } from "../../shared/currency";
 import { type Currency, formatMoney, type Money, parseAmount } from "../../shared/money";
 import type { Payout, PayoutStatus, RecipientType, Supplier } from "../../shared/types";
 import { type Key, reasonText, useT } from "./i18n";
+import { TrashIcon } from "./icons";
 import { boUrl } from "./stall";
 
 /** What the assistant's propose_payout returned; the vendor still confirms with her PIN. */
@@ -216,7 +218,7 @@ export function PayoutsPanel({
     });
 
   return (
-    <section class="panel payouts-panel" ref={panel} aria-labelledby="payouts-title">
+    <section class="panel payouts-panel" id="payouts" ref={panel} aria-labelledby="payouts-title">
       <h2 id="payouts-title">{t("pay.title")}</h2>
       <p class="hint">{t("pay.intro")}</p>
       {error && (
@@ -232,7 +234,7 @@ export function PayoutsPanel({
 
       <h3>{t("pay.suppliers")}</h3>
       {suppliers.length === 0 ? (
-        <p class="muted">{t("pay.noSuppliers")}</p>
+        <p class="empty-state">{t("pay.noSuppliers")}</p>
       ) : (
         <ul class="supplier-list">
           {suppliers.map((s) => (
@@ -241,43 +243,47 @@ export function PayoutsPanel({
               <span class="supplier-receiver">
                 {s.receiver} · {s.currency}
               </span>
-              <button
-                type="button"
-                class="secondary"
-                aria-label={t("pay.removeLabel", { name: s.name })}
-                onClick={() => setRemoving({ id: s.id, name: s.name, pin: "" })}
-              >
-                {t("pay.remove")}
-              </button>
+              {removing?.id !== s.id && (
+                <button
+                  type="button"
+                  class="danger row-btn"
+                  aria-label={t("pay.removeLabel", { name: s.name })}
+                  onClick={() => setRemoving({ id: s.id, name: s.name, pin: "" })}
+                >
+                  <TrashIcon size={18} />
+                  {t("pay.remove")}
+                </button>
+              )}
+              {removing?.id === s.id && (
+                <form
+                  class="subform confirm-panel"
+                  onSubmit={remove}
+                  aria-label={t("pay.removeLabel", { name: removing.name })}
+                >
+                  <label>
+                    {t("pay.removeConfirm", { name: removing.name })}
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={removing.pin}
+                      onInput={(e) => setRemoving({ ...removing, pin: e.currentTarget.value })}
+                    />
+                  </label>
+                  <div class="confirm-actions">
+                    <button type="submit" class="danger block" disabled={removing.pin.length < 4}>
+                      <TrashIcon size={20} />
+                      {t("pay.remove")}
+                    </button>
+                    <button type="button" class="secondary" onClick={() => setRemoving(null)}>
+                      {t("bo.cancel")}
+                    </button>
+                  </div>
+                </form>
+              )}
             </li>
           ))}
         </ul>
-      )}
-      {removing && (
-        <form
-          class="subform"
-          onSubmit={remove}
-          aria-label={t("pay.removeLabel", { name: removing.name })}
-        >
-          <label>
-            {t("pay.removeConfirm", { name: removing.name })}
-            <input
-              type="password"
-              inputMode="numeric"
-              autoComplete="off"
-              value={removing.pin}
-              onInput={(e) => setRemoving({ ...removing, pin: e.currentTarget.value })}
-            />
-          </label>
-          <div class="row-actions">
-            <button type="submit" class="primary" disabled={removing.pin.length < 4}>
-              {t("pay.remove")}
-            </button>
-            <button type="button" class="secondary" onClick={() => setRemoving(null)}>
-              {t("bo.cancel")}
-            </button>
-          </div>
-        </form>
       )}
 
       <form class="subform" onSubmit={addSupplier} aria-label={t("pay.addTitle")}>
@@ -399,7 +405,7 @@ export function PayoutsPanel({
 
       <h3>{t("pay.history")}</h3>
       {payouts.length === 0 ? (
-        <p class="muted">{t("pay.noHistory")}</p>
+        <p class="empty-state">{t("pay.noHistory")}</p>
       ) : (
         <ul class="payout-list" data-testid="payout-history">
           {payouts.map((p) => (

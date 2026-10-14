@@ -1,11 +1,13 @@
 // web/src/footprint.tsx: the financial footprint in the browser — FootprintFigures renders the signed
 // indicators (verified and self-reported blocks kept apart, with the "not a credit score" disclaimer);
 // FootprintPanel lets the vendor import a bank statement with her PIN, delete it, and set a savings goal.
+// Deleting data or the goal uses the outlined destructive button (icon + verb), never a filled one.
 import { useEffect, useState } from "preact/hooks";
 import { isPayPalCurrency } from "../../shared/currency";
 import { type Currency, formatMoney, money, parseAmount } from "../../shared/money";
 import type { Footprint, SavingsGoal, StatementMonth } from "../../shared/passport";
 import { DICTIONARIES, type Key, useT } from "./i18n";
+import { TrashIcon } from "./icons";
 
 /** Formats minor units in a row's own currency; never converts between currencies. */
 function fmt(minor: number, currency: string): string {
@@ -239,7 +241,7 @@ export function FootprintPanel({
   }
 
   return (
-    <section class="panel footprint-panel" aria-label={t("footprint.manage")}>
+    <section class="panel footprint-panel" id="footprint" aria-label={t("footprint.manage")}>
       <h2>{t("footprint.manage")}</h2>
       <p>{t("footprint.pitch")}</p>
       <p class="hint">{t("footprint.disclaimer")}</p>
@@ -271,10 +273,11 @@ export function FootprintPanel({
           {statement.length > 0 && (
             <button
               type="button"
-              class="secondary"
+              class="danger block"
               disabled={busy || pin.length < 4}
               onClick={() => void remove()}
             >
+              <TrashIcon size={20} />
               {t("footprint.delete")}
             </button>
           )}
@@ -309,10 +312,11 @@ export function FootprintPanel({
           {goal && (
             <button
               type="button"
-              class="secondary"
+              class="danger block"
               disabled={busy}
               onClick={() => void clearGoal()}
             >
+              <TrashIcon size={20} />
               {t("footprint.goalClear")}
             </button>
           )}
