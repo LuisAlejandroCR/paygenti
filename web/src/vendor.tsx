@@ -4,6 +4,7 @@
 // "Cancel" cancels that sale on the server so the sticker stops pointing at it. Accessibility:
 // "+5 min" extends the timer, keyboard shortcuts (digits/Enter/Escape), and voice mode speaks every
 // state with its own tone and takes spoken commands (charge, cancel, more time, new sale, repeat).
+// An unknown terminal shows an error card instead of a keypad that could never charge.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { currencyInfo, decimalsOf } from "../../shared/currency";
 import { type Currency, formatMoney, fromPayPalValue, type Money } from "../../shared/money";
@@ -46,9 +47,12 @@ export function press(digits: string, key: string, decimals = 2): string {
 export function VendorApp({
   terminal,
   onSale,
+  embedded = false,
 }: {
   terminal: string;
   onSale?: (sale: Sale | undefined) => void;
+  /** Inside /judge the page already has an h1; the stall name becomes an h2 there. */
+  embedded?: boolean;
 }) {
   const { t } = useT();
   const [digits, setDigits] = useState("");
@@ -68,6 +72,7 @@ export function VendorApp({
   const [keypadOpen, setKeypadOpen] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [reviewPrices, setReviewPrices] = useState(false);
+  const [missing, setMissing] = useState(false);
   const saleRef = useRef<Sale | undefined>(undefined);
   saleRef.current = sale;
   const [voiceMode] = usePref("voice");
@@ -137,7 +142,7 @@ export function VendorApp({
           }
         },
       )
-      .catch(() => setError(t("vendor.terminalNotFound")));
+      .catch(() => setMissing(true));
   }, [terminal]);
 
   useEffect(() => {
@@ -320,6 +325,7 @@ export function VendorApp({
       />
     );
 
+  const Title = embedded ? "h2" : "h1";
   const decimals = decimalsOf(currency);
   const symbol = currencyInfo(currency).symbol;
   const mmss = `${Math.floor(left / 60000)}:${String(Math.floor((left % 60000) / 1000)).padStart(2, "0")}`;
@@ -327,12 +333,14 @@ export function VendorApp({
   return (
     <main class={`vendor phase-${phase}`}>
       <header class="bar">
-        <span class="stall">{stall || "paygent"}</span>
-        <span class={online ? "status on" : "status"} role="status">
-          {online ? t("app.online") : t("app.offline")}
-        </span>
-        <A11yToggles />
-        <LangToggle />
+        <Title class="stall">{stall || "paygent"}</Title>
+        <div class="bar-actions">
+          <span class={online ? "status on" : "status"} role="status">
+            {online ? t("app.online") : t("app.offline")}
+          </span>
+          <A11yToggles />
+          <LangToggle />
+        </div>
       </header>
       <p class="sr-only" aria-live="assertive">
         {said}
@@ -353,6 +361,16 @@ export function VendorApp({
         </p>
       )}
 
+      {missing && (
+        <section class="result bad card" role="alert">
+          <span class="bad-icon">
+            <XCircleIcon size={64} />
+          </span>
+          <p class="big">{t("vendor.terminalNotFound")}</p>
+          <p class="hint">{t("vendor.terminalNotFoundHint")}</p>
+        </section>
+      )}
+
       {phase === "entry" && vendorId && (
         <VoiceCart
           vendorId={vendorId}
@@ -365,7 +383,7 @@ export function VendorApp({
         />
       )}
 
-      {phase === "entry" && cart.length === 0 && keypadOpen && (
+      {phase === "entry" && !missing && cart.length === 0 && keypadOpen && (
         <section class="entry card" aria-label={t("vendor.amountEntry")}>
           <output class="amount num" aria-live="polite">
             {symbol}
@@ -462,29 +480,37 @@ export function VendorApp({
         </section>
       )}
 
+      {/* Right under the action that failed, so it is on screen, not below the links. */}
+      {error && (
+        <p class="error" role="alert">
+          {error}
+        </p>
+      )}
+
       {phase === "entry" && reviewPrices && (
         <p class="hint review-prices" role="note">
           {t("onb.reviewBanner", { currency })} <a href="/backoffice">{t("onb.reviewLink")}</a>
         </p>
       )}
 
-      {phase === "entry" && payUrl && (
-        <button type="button" class="link" onClick={() => setShowSticker((v) => !v)}>
-          {showSticker ? t("vendor.hideSticker") : t("vendor.writeSticker")}
-        </button>
+      {phase === "entry" && !missing && (
+        <nav class="vendor-links">
+          {payUrl && (
+            <button
+              type="button"
+              class="link"
+              aria-expanded={showSticker}
+              onClick={() => setShowSticker((v) => !v)}
+            >
+              {showSticker ? t("vendor.hideSticker") : t("vendor.writeSticker")}
+            </button>
+          )}
+          <a class="link settings-link" href={`/setup?terminal=${encodeURIComponent(terminal)}`}>
+            {t("onb.settings")}
+          </a>
+        </nav>
       )}
       {phase === "entry" && showSticker && <StickerPanel terminal={terminal} url={payUrl} />}
-      {phase === "entry" && (
-        <a class="link settings-link" href={`/setup?terminal=${encodeURIComponent(terminal)}`}>
-          {t("onb.settings")}
-        </a>
-      )}
-
-      {error && (
-        <p class="error" role="alert">
-          {error}
-        </p>
-      )}
     </main>
   );
 }

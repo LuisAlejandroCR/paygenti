@@ -1,7 +1,7 @@
 // web/src/judge.tsx: judge mode at /judge — vendor and customer side by side on one screen
 // (stacked on mobile) with a short guided script. Works with zero env vars on the mock gateway.
 // The customer panel follows the vendor panel only: the vendor adopts any open sale on load, so
-// both panels always show the same sale.
+// both panels always show the same sale. The header is the same title bar as every other screen.
 import { useState } from "preact/hooks";
 import { Checkout } from "./checkout";
 import { type Key, useT } from "./i18n";
@@ -17,9 +17,10 @@ export function JudgeApp({ terminal }: { terminal: string }) {
   return (
     <div class="judge">
       <header class="judge-head">
-        <h1>
-          paygent · {t("judge.title")} <LangToggle />
-        </h1>
+        <div class="bar">
+          <h1 class="stall">paygent · {t("judge.title")}</h1>
+          <LangToggle />
+        </div>
         <p>
           {t("judge.intro")}{" "}
           <a
@@ -40,12 +41,12 @@ export function JudgeApp({ terminal }: { terminal: string }) {
       <div class="judge-panels">
         <section class="judge-panel" aria-label={t("judge.vendor")}>
           <h2>{t("judge.vendor")}</h2>
-          <VendorApp terminal={terminal} onSale={(s) => s && setSaleId(s.id)} />
+          <VendorApp terminal={terminal} embedded onSale={(s) => s && setSaleId(s.id)} />
         </section>
         <section class="judge-panel" aria-label={t("judge.customer")}>
           <h2>{t("judge.customer")}</h2>
           {saleId ? (
-            <Checkout key={saleId} saleId={saleId} />
+            <Checkout key={saleId} saleId={saleId} embedded />
           ) : (
             <p class="hint">{t("judge.noSale")}</p>
           )}
