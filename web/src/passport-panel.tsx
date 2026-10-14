@@ -72,7 +72,7 @@ export function PassportPanel({
 
   const cur = isPayPalCurrency(result?.report.currency) ? result.report.currency : currency;
   return (
-    <form class="panel passport-panel" onSubmit={generate}>
+    <form class="panel passport-panel" id="passport" onSubmit={generate}>
       <h2>{t("passport.title")}</h2>
       <p class="hint">{t("passport.intro")}</p>
       <div class="range">

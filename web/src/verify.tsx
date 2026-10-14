@@ -1,6 +1,7 @@
 // web/src/verify.tsx: public /verify page (no login) — reads a sales passport from the URL fragment
 // (never sent to the server) or a pasted link, checks its Ed25519 signature in the browser with
 // WebCrypto against /api/passport/public-key (server fallback) and shows VALID/INVALID with figures.
+// Same title bar as the other screens (title left, language right).
 import { useEffect, useState } from "preact/hooks";
 import { isPayPalCurrency } from "../../shared/currency";
 import { type Currency, formatMoney, money } from "../../shared/money";
@@ -70,9 +71,10 @@ export function VerifyApp() {
 
   return (
     <main class="backoffice verify">
-      <h1>
-        {t("verify.title")} <LangToggle />
-      </h1>
+      <header class="bar">
+        <h1 class="stall">{t("verify.title")}</h1>
+        <LangToggle />
+      </header>
       <p class="hint">{t("verify.intro")}</p>
       <form
         class="panel"
