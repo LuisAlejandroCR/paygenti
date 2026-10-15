@@ -43,14 +43,11 @@ Deploy en Render (`https://paygent-rirl.onrender.com/api/health`, consultado 202
 `passport: on`, `claude: on`, `claude-vision: on`, `paypal-agent-toolkit: on`, **`database: off`**,
 **`speech-to-text: off`**.
 
-## En curso hoy (2026-10-14, sin mergear)
+## Hecho después del traspaso (2026-10-14)
 
-- `feat/web-ux-pass`: pasada de UI/UX sobre la app web (Pendiente #1 del plan).
-- `feat/dashboard-ux-pass`: pasada de UI/UX sobre el dashboard.
-- Revisión de paleta: hay una paleta alternativa a "Merlot Dream" en evaluación (ver `docs/design.md`).
-- `docs/gap-fill`: esta revisión de documentación.
-
-Antes de tocar estilos, espera a que esas ramas se mergeen o se cierren: tocan los mismos archivos de tokens.
+- #41 esta revisión de documentación, #42 pasada de UI/UX web, #43 pasada de UI/UX del dashboard (Cobrar en
+  vivo real + job de CI `dashboard`): mergeadas.
+- Paleta "Cempasúchil" aplicada en web, dashboard y móvil (`feat/palette-cempasuchil`, ver `docs/design.md`).
 
 ## Qué falta (en orden)
 
@@ -71,8 +68,8 @@ Antes de tocar estilos, espera a que esas ramas se mergeen o se cierren: tocan l
 
 ### Decisiones abiertas
 
-9. **Paleta**: ¿se queda "Merlot Dream" o entra la alternativa en revisión? Si cambia, se cambian las tres
-   copias de tokens a la vez (`docs/design.md`).
+9. ~~**Paleta**~~: resuelta el 2026-10-14, "Cempasúchil" (`docs/memoria.md`). Las tres copias de tokens se
+   cambian siempre juntas (`docs/design.md`).
 10. **Repo público**: qué docs salen antes de abrirlo (memoria 2026-10-06 lo dejó pendiente): `docs/memoria.md`,
     `docs/handoff.md`, `docs/bank-confirm.md`. Si salen, quitar los enlaces del README. Borrarlos en un commit
     no los saca del historial de git.

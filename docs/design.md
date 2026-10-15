@@ -1,16 +1,17 @@
-<!-- docs/design.md: el sistema de diseño de paygent tal como está hoy ("Merlot Dream") — tokens claro/oscuro,
+<!-- docs/design.md: el sistema de diseño de paygent tal como está hoy ("Cempasúchil") — tokens claro/oscuro,
      dónde vive cada copia (web, dashboard, móvil), fuentes, reglas de color, tamaños táctiles, movimiento y
      texto grande. No es la guía de accesibilidad (docs/accessibility.md) ni la bitácora (docs/memoria.md);
      si un valor cambia aquí, cambia en las tres copias de código. -->
 
-# Diseño — "Merlot Dream"
+# Diseño — "Cempasúchil"
 
 Estado al 2026-10-14. Origen: PR #17 (diseño vino portado a vendedora, bocina y back office) y PR #40
 (dashboard). Este documento describe el código, no una propuesta.
 
-**Decisión pendiente: paleta alternativa en revisión (2026-10-14).** Hay pasadas de UI/UX en curso en
-`feat/web-ux-pass` y `feat/dashboard-ux-pass` (sin mergear). Si la paleta cambia, se actualiza esta página
-y las tres copias de tokens en el mismo PR.
+**Paleta "Cempasúchil" desde 2026-10-14** (reemplaza a "Merlot Dream"; comparativa con las otras
+alternativas en la memoria del mismo día). Mismos roles que antes; cambian tres cosas: el vino de acción es
+más profundo y se separa del rojo destructivo, PAGADO/verificado pasa de verde a añil (se distingue del vino
+con daltonismo rojo-verde) y el azul PayPal es el de marca (`#0070BA`), dentro de sRGB.
 
 ## Dónde viven los tokens (tres copias)
 
@@ -21,7 +22,7 @@ y las tres copias de tokens en el mismo PR.
 | App móvil (`mobile/`) | `mobile/src/lib/theme.ts` | `LIGHT` / `DARK` en hex sRGB (aproximación de los oklch de la web); `useColorScheme()` sigue al sistema |
 
 No hay generador: **las tres copias se mantienen sincronizadas a mano**. Además, el fondo del ícono
-adaptativo de Android (`#8E1B3A` en `mobile/app.config.ts`) es el vino claro del móvil.
+adaptativo de Android (`#7D1439` en `mobile/app.config.ts`) es el vino claro del móvil.
 
 ## Tokens
 
@@ -30,27 +31,27 @@ Valores de `web/src/styles.css` y `paygent-dashboard/src/styles.css` (oklch) y d
 
 | Rol | Web | Dashboard | Móvil | Claro (oklch) | Oscuro (oklch) | Móvil claro / oscuro |
 |---|---|---|---|---|---|---|
-| Fondo | `--background` | `--background` | `background` | `0.955 0.018 90` | `0.22 0.03 18` | `#F4F0E6` / `#2A1A1B` |
-| Texto | `--foreground` | `--foreground` | `foreground` | `0.28 0.03 20` | `0.94 0.02 60` | `#3A2726` / `#F1E6DC` |
-| Superficie / tarjeta | `--surface`, `--card` | `--card`, `--popover` | `surface` | `0.985 0.012 90` | `0.27 0.03 18` (popover del dashboard: `0.29 0.03 18`) | `#FBF8F0` / `#372526` |
-| Apagado | `--muted` | `--muted` | `muted` | `0.9 0.035 60` | `0.31 0.03 25` | `#EDDCCB` / `#42302F` |
-| Texto apagado | `--muted-foreground` | `--muted-foreground` | `mutedForeground` | `0.47 0.035 30` | `0.78 0.035 50` | `#6E5751` / `#CDB8A9` |
-| Borde | `--border` | `--border` (`--input`: `0.84 0.03 55` / `0.42 0.035 25`) | `border` | `0.86 0.03 55` | `0.4 0.035 25` | `#DCCBBD` / `#5A4442` |
-| Vino: acción | `--action` | `--primary` | `action` | `0.44 0.17 18` | `0.5 0.17 20` | `#8E1B3A` / `#A3284A` |
-| Texto sobre vino | `--action-foreground` | `--primary-foreground` | `actionForeground` | `0.98 0.01 90` | `0.98 0.01 90` | `#FCF9F2` / `#FCF9F2` |
-| Vino como texto (enlaces) | `--action-text` | — (usa `--accent-foreground`: `0.4 0.15 18` / `0.85 0.08 20`) | `actionText` | `0.44 0.17 18` | `0.8 0.1 20` | `#8E1B3A` / `#E8A3A8` |
-| Azul PayPal | `--paypal` | — (solo como serie `--chart-4`) | `paypal` | `0.5 0.19 254` | `0.72 0.14 254` | `#0057C8` / `#6FA5F5` |
-| Texto sobre azul | `--paypal-foreground` | — | `paypalForeground` | `0.99 0 0` | `0.16 0.03 254` | `#FFFFFF` / `#0C1A2E` |
-| Éxito / PAGADO | `--success` | `--success` (`--success-soft`) | `success` | `0.47 0.11 165` | `0.66 0.13 165` | `#0F6F55` / `#3FB58E` |
-| Verificado (PayPal) | — | `--verified` | — (usa `action`) | `0.47 0.11 165` | `0.66 0.13 165` | — |
-| Autodeclarado | — | `--declared` | — (usa `mutedForeground` al 45 %) | `0.5 0.14 300` | `0.74 0.12 300` | — |
-| Destructivo | `--destructive` | `--destructive` (`--danger-soft`) | `destructive` | `0.5 0.19 22` | `0.7 0.17 22` | `#A8262F` / `#F07A78` |
-| Aviso | `--warning` | `--warning` (`--warning-soft`, `--warning-foreground`) | `warning` | web `0.52 0.12 65`, dashboard `0.72 0.15 75` | web `0.8 0.13 75`, dashboard `0.8 0.14 80` | `#8A5A10` / `#F0C060` |
-| Anillo de foco | `--ring` | `--ring` | — | `0.44 0.17 18` | `0.72 0.14 20` | — |
+| Fondo | `--background` | `--background` | `background` | `0.95 0.025 85` | `0.21 0.03 25` | `#F6EEDC` / `#251311` |
+| Texto | `--foreground` | `--foreground` | `foreground` | `0.27 0.03 30` | `0.94 0.025 75` | `#34211E` / `#F5E9D9` |
+| Superficie / tarjeta | `--surface`, `--card` | `--card`, `--popover` | `surface` | `0.985 0.012 85` | `0.26 0.032 25` | `#FEFAF1` / `#321E1C` |
+| Apagado | `--muted` | `--muted` | `muted` | `0.9 0.045 80` | `0.3 0.035 30` | `#EEDBBD` / `#3E2723` |
+| Texto apagado | `--muted-foreground` | `--muted-foreground` | `mutedForeground` | `0.46 0.04 50` | `0.78 0.04 60` | `#6B5244` / `#CBB29E` |
+| Borde | `--border` | `--border` (`--input`: `0.83 0.04 75` / `0.42 0.04 30`) | `border` | `0.85 0.04 75` | `0.4 0.04 30` | `#DECBB1` / `#5B403B` |
+| Vino: acción | `--action` | `--primary` (oscuro: `0.69 0.095 12`, rosa) | `action` | `0.39 0.14 6` | `0.54 0.17 6` | `#7D1439` / `#BA365F` |
+| Texto sobre vino | `--action-foreground` | `--primary-foreground` | `actionForeground` | `0.985 0.006 90` | `0.985 0.006 90` | `#FCFAF6` / `#FCFAF6` |
+| Vino como texto (enlaces) | `--action-text` | `--primary-text` | `actionText` | `0.39 0.14 6` | `0.8 0.1 10` | `#7D1439` / `#F6A3AF` |
+| Azul PayPal | `--paypal` | — (solo como serie `--chart-4`) | `paypal` | `0.532 0.143 248` | `0.72 0.13 252` | `#0170BA` / `#64A9F3` |
+| Texto sobre azul | `--paypal-foreground` | — | `paypalForeground` | `1 0 0` | `0.17 0.03 254` | `#FFFFFF` / `#06101C` |
+| Éxito / PAGADO (añil) | `--success` | `--success` (`--success-soft`) | `success` | `0.51 0.09 185` | `0.78 0.1 190` | `#00766D` / `#60CCC5` |
+| Verificado (PayPal) | — | `--verified` | — (usa `action`) | `0.51 0.09 185` | `0.78 0.1 190` | — |
+| Autodeclarado | — | `--declared` | — (usa `mutedForeground` al 45 %) | `0.42 0.13 300` | `0.68 0.14 315` | — |
+| Destructivo | `--destructive` | `--destructive` (`--danger-soft`) | `destructive` | `0.54 0.2 29` | `0.7 0.17 30` | `#C9241B` / `#F66E5C` |
+| Aviso | `--warning` | `--warning` (`--warning-soft`, `--warning-foreground`) | `warning` | `web 0.53 0.12 62, dashboard 0.78 0.16 70` | `web 0.82 0.15 75, dashboard 0.8 0.15 75` | `#9C5906` / `#FCB442` |
+| Anillo de foco | `--ring` | `--ring` | — | `0.39 0.14 6` | `0.76 0.12 8` | — |
 
 Solo en el dashboard: `--secondary`, `--accent`, la familia `--sidebar-*`, sombras `--shadow-soft-v` /
-`--shadow-lift-v` y siete series de gráfica `--chart-1` … `--chart-7` (vino, verde, tinto, azul PayPal, cian,
-morado, ámbar).
+`--shadow-lift-v` y siete series de gráfica `--chart-1` … `--chart-7` (vino, añil, tinto,
+azul PayPal, verde, magenta, ámbar).
 
 Solo en la web: alto contraste (`data-contrast="high"`): fondo negro, texto blanco, acción, foco y PayPal en
 amarillo `#ffeb3b`, éxito `#00e676`, destructivo `#ff8a80`, todo control con borde de 2 px y enlaces subrayados.
@@ -84,7 +85,7 @@ Radio: web `--radius: 1rem` (16 px), dashboard `--radius: 0.75rem` (12 px) con e
    del dashboard.
 2. **Azul PayPal solo en UI de pago**: venta abierta esperando pago, checkout del cliente y sus botones.
    En el dashboard solo aparece como serie de gráfica.
-3. **Verde = confirmado por el proveedor**: la pantalla PAGADO y lo verificado (captura PayPal).
+3. **Añil = confirmado por el proveedor**: la pantalla PAGADO y lo verificado (captura PayPal).
 4. **Morado con trama = autodeclarado**: efectivo, confirmado por la vendedora e importación de estado de
    cuenta. La trama (`hatch`, `hatch-soft`, `hatch-on-wine`: rayas a 45°) hace que no dependa solo del color
    (WCAG 1.4.1). Verificado y autodeclarado se muestran juntos pero **nunca se suman**.

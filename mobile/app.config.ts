@@ -25,7 +25,7 @@ const config: ExpoConfig = {
   android: {
     package: "com.paygent.app",
     adaptiveIcon: {
-      backgroundColor: "#8E1B3A",
+      backgroundColor: "#7D1439",
       foregroundImage: "./assets/android-icon-foreground.png",
       backgroundImage: "./assets/android-icon-background.png",
       monochromeImage: "./assets/android-icon-monochrome.png",

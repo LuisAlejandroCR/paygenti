@@ -4,6 +4,44 @@
 
 # Memoria — paygent
 
+## 2026-10-14 — Paleta "Cempasúchil" reemplaza a "Merlot Dream"
+
+- Problema: el vino de Cobrar y el rojo destructivo medían ΔE 0.064 (OKLab), es decir, se leían como un solo
+  color; "Pagado rechazado" y "Nueva venta" se veían igual. Además `--success` y `--paypal` caían fuera de sRGB.
+- Se compararon cinco paletas con rojo y vino como núcleo (Merlot Dream, Chile de Árbol, Cempasúchil, Barro
+  Rojo, Pizarra y Vino) sobre capturas reales de la app, con 118 pares de contraste WCAG y simulación de
+  daltonismo (Machado 2009). Elegida: Cempasúchil (ΔE vino/rojo 0.175, 0 fallas de contraste).
+- Cambios: vino de acción más profundo `oklch(0.39 0.14 6)`, rojo destructivo `oklch(0.54 0.2 29)`, PAGADO y
+  verificado en añil `oklch(0.51 0.09 185)` (se distingue del vino con daltonismo rojo-verde), azul PayPal
+  de marca. En el dashboard oscuro la tarjeta del mes pasa de vino a rosa con texto oscuro.
+- Se cambiaron las tres copias en el mismo PR: `web/src/styles.css`, `paygent-dashboard/src/styles.css` y
+  `mobile/src/lib/theme.ts` (hex calculados desde los oklch), más el ícono adaptativo de Android.
+- ⏳ El móvil no se probó en dispositivo con la paleta nueva.
+
+## 2026-10-14 — Pasada de UI/UX del dashboard (#43)
+
+- Cobrar en vivo ya no simula: crea la venta en la terminal del puesto y solo muestra "Pagado" cuando el
+  servidor reporta la captura de PayPal; en Sandbox la simulación queda rotulada. Probado de punta a punta
+  con PayPal mock.
+- Auditoría Playwright + axe (8 modos, mock y vivo): axe serias/críticas 172→0 (mock) y 84→0 (vivo), foco
+  devuelto en todos los diálogos, sin desborde a 375 px.
+- Estados nuevos: servidor caído, sin puestos, mes sin ventas, PIN bloqueado (429) y sin conexión.
+- Token nuevo `--primary-text` y alias `--rail-ink`. CI: job `dashboard` (lint, test, build).
+- Pendiente: la hora del paso "pagado" en el detalle es inventada; el encabezado dice "EN VIVO" con el
+  servidor caído.
+
+## 2026-10-14 — Pasada de UI/UX web (#42)
+
+- Harness `npm run ux:audit` (scripts/ux-audit.ts): 35 pantallas × 8 modos (375/1280 × claro/oscuro ×
+  en/es), axe, overflow, objetivos <44 px y consola; salida en ux-shots/ (no versionada).
+- Acciones destructivas (devolver, quitar proveedor, borrar estado de cuenta, revocar token, simular
+  rechazo) usan botón contorneado + ícono + verbo y se confirman en línea junto a su elemento: la
+  diferencia con Cobrar no depende del color.
+- Ventas de hoy pasa de tabla a lista apilada; cabeceras sin cortes a media palabra; estados vacíos y de
+  error con siguiente paso.
+- Resultado: check y e2e verdes (158/158); 0 axe serias/críticas, 0 overflow a 375 px. ⏳ Sin prueba en
+  dispositivo real ni lector de pantalla.
+
 ## 2026-10-14 — Revisión de documentación
 
 - Desactualizado: `docs/handoff.md` era del 2026-10-07 y no tenía #34–#40; la tabla Pendiente de

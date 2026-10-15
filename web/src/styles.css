@@ -1,4 +1,4 @@
-/* web/src/styles.css: one stylesheet for every page — "Merlot Dream" wine tokens (light/dark),
+/* web/src/styles.css: one stylesheet for every page — "Cempasúchil" wine tokens (light/dark),
    Bricolage Grotesque + Inter, vendor/soundbox PAID flood, big touch targets, reduced motion. */
 
 /* ---------- Tokens ---------- */
@@ -10,29 +10,29 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --touch: 56px;
 
-  --background: oklch(0.955 0.018 90);
-  --foreground: oklch(0.28 0.03 20);
-  --surface: oklch(0.985 0.012 90);
-  --card: oklch(0.985 0.012 90);
-  --muted: oklch(0.9 0.035 60);
-  --muted-foreground: oklch(0.47 0.035 30);
-  --border: oklch(0.86 0.03 55);
-  --primary: oklch(0.28 0.03 20);
-  --primary-foreground: oklch(0.98 0.01 90);
+  --background: oklch(0.95 0.025 85);
+  --foreground: oklch(0.27 0.03 30);
+  --surface: oklch(0.985 0.012 85);
+  --card: oklch(0.985 0.012 85);
+  --muted: oklch(0.9 0.045 80);
+  --muted-foreground: oklch(0.46 0.04 50);
+  --border: oklch(0.85 0.04 75);
+  --primary: oklch(0.27 0.03 30);
+  --primary-foreground: oklch(0.985 0.006 90);
   /* Wine: every vendor action (Charge, mic, keypad toggle). */
-  --action: oklch(0.44 0.17 18);
-  --action-foreground: oklch(0.98 0.01 90);
+  --action: oklch(0.39 0.14 6);
+  --action-foreground: oklch(0.985 0.006 90);
   /* Wine as text on the page background (links, active language). */
-  --action-text: oklch(0.44 0.17 18);
+  --action-text: oklch(0.39 0.14 6);
   /* PayPal blue: only on payment UI (open sale, checkout pay buttons). */
-  --paypal: oklch(0.5 0.19 254);
-  --paypal-foreground: oklch(0.99 0 0);
-  --success: oklch(0.47 0.11 165);
-  --success-foreground: oklch(0.99 0.01 165);
-  --destructive: oklch(0.5 0.19 22);
-  --destructive-foreground: oklch(0.99 0.01 90);
-  --warning: oklch(0.52 0.12 65);
-  --ring: oklch(0.44 0.17 18);
+  --paypal: oklch(0.532 0.143 248);
+  --paypal-foreground: oklch(1 0 0);
+  --success: oklch(0.51 0.09 185);
+  --success-foreground: oklch(0.985 0.006 90);
+  --destructive: oklch(0.54 0.2 29);
+  --destructive-foreground: oklch(0.985 0.006 90);
+  --warning: oklch(0.53 0.12 62);
+  --ring: oklch(0.39 0.14 6);
 
   /* Legacy aliases kept so older rules and inline references keep working. */
   --bg: var(--background);
@@ -47,26 +47,26 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(0.22 0.03 18);
-    --foreground: oklch(0.94 0.02 60);
-    --surface: oklch(0.27 0.03 18);
-    --card: oklch(0.27 0.03 18);
-    --muted: oklch(0.31 0.03 25);
-    --muted-foreground: oklch(0.78 0.035 50);
-    --border: oklch(0.4 0.035 25);
-    --primary: oklch(0.94 0.02 60);
-    --primary-foreground: oklch(0.22 0.03 18);
-    --action: oklch(0.5 0.17 20);
-    --action-foreground: oklch(0.98 0.01 90);
-    --action-text: oklch(0.8 0.1 20);
-    --paypal: oklch(0.72 0.14 254);
-    --paypal-foreground: oklch(0.16 0.03 254);
-    --success: oklch(0.66 0.13 165);
-    --success-foreground: oklch(0.16 0.02 165);
-    --destructive: oklch(0.7 0.17 22);
-    --destructive-foreground: oklch(0.16 0.02 22);
-    --warning: oklch(0.8 0.13 75);
-    --ring: oklch(0.72 0.14 20);
+    --background: oklch(0.21 0.03 25);
+    --foreground: oklch(0.94 0.025 75);
+    --surface: oklch(0.26 0.032 25);
+    --card: oklch(0.26 0.032 25);
+    --muted: oklch(0.3 0.035 30);
+    --muted-foreground: oklch(0.78 0.04 60);
+    --border: oklch(0.4 0.04 30);
+    --primary: oklch(0.94 0.025 75);
+    --primary-foreground: oklch(0.21 0.03 25);
+    --action: oklch(0.54 0.17 6);
+    --action-foreground: oklch(0.985 0.006 90);
+    --action-text: oklch(0.8 0.1 10);
+    --paypal: oklch(0.72 0.13 252);
+    --paypal-foreground: oklch(0.17 0.03 254);
+    --success: oklch(0.78 0.1 190);
+    --success-foreground: oklch(0.18 0.03 190);
+    --destructive: oklch(0.7 0.17 30);
+    --destructive-foreground: oklch(0.17 0.03 30);
+    --warning: oklch(0.82 0.15 75);
+    --ring: oklch(0.76 0.12 8);
   }
 }
 
