@@ -382,7 +382,7 @@ real hardware or real services:
 | [docs/plan.md](docs/plan.md) | Frozen spec, blocks with acceptance criteria, pending table (Spanish) |
 | [docs/memoria.md](docs/memoria.md) | Decision log, newest first, with sources (Spanish) |
 | [docs/handoff.md](docs/handoff.md) | Current state of `main` and the ordered to-do list (Spanish) |
-| [docs/design.md](docs/design.md) | Design system "Merlot Dream": tokens, fonts, colour rules (Spanish) |
+| [docs/design.md](docs/design.md) | Design system "Cempasúchil": tokens, fonts, colour rules (Spanish) |
 | [docs/accessibility.md](docs/accessibility.md) | WCAG 2.2 AA coverage, how to test, known gaps |
 | [docs/payment-rails.md](docs/payment-rails.md) | Payment rails research and what paygent does with each |
 | [docs/paypal-server-sdk.md](docs/paypal-server-sdk.md) | How the PayPal Server SDK is used and which calls still use fetch |
