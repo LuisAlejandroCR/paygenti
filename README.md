@@ -2,7 +2,7 @@
      60 segundos, cómo correr servidor, web, dashboard y móvil, todas las variables de entorno, rieles,
      accesibilidad, el candado de políticas y lo que falta verificar. No es la spec (docs/plan.md) ni
      el razonamiento (docs/memoria.md) ni el estado para un chat nuevo (docs/handoff.md). -->
-# paygent
+# paygenty
 
 **The AI cashier for street vendors.** Say the price, the customer taps or scans, your phone says
 "Received: 95 pesos".
