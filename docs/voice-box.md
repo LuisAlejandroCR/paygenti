@@ -7,7 +7,9 @@
 
 > **Spec, sin construir.** Escrita el 2026-11-05, a siete días del cierre (2026-11-12 12:00 PT). Los
 > precios llevan fuente y fecha de lectura (§12). ⏳ marca lo que no está verificado. Aquí no hay
-> latencias medidas: las que importan (soltar el botón → QR) se miden al construirlo.
+> latencias medidas: las que importan (soltar el botón → QR) se miden al construirlo. Los modelos
+> abiertos y las APIs baratas, comparados con Claude, están en [open-models.md](open-models.md), que
+> también corrige algunas cifras de aquí.
 
 ## 0. Si llegas con prisa
 
@@ -204,9 +206,9 @@ teléfono» y el monto aparece en la app. Rosa puede activar «decir montos en v
 | Siguientes | `pt-BR` y `fr`: el STT (§7) los cubre y solo faltan las plantillas de respuesta y las palabras de números |
 | Lenguas originarias (zapoteco, mixteco…) | **No se prometen**: ningún STT de §7 las lista ⏳. Es honesto decirlo en el video si Rosa es de Oaxaca |
 | Detectar el idioma | Por frase. El STT lo detecta cuando lo ofrece (`whisper-1` con `verbose_json`, `detect_language` en Deepgram) ⏳; si no, se usa el idioma del puesto. La caja **contesta en el idioma en que le hablaron** |
-| Mezcla («cóbrame forty») | Nova-3 Multilingual de Deepgram se anuncia para mezclas es/en ⏳; las reglas aceptan números de los dos idiomas en la misma frase |
+| Mezcla («cóbrame forty») | Es lo más débil del STT: Whisper turbo quedó último en un benchmark de mezcla es/en (jun-2026) ⏳. Nova-3 Multilingual de Deepgram y Muse Voice Transcribe de Meta la anuncian ⏳ ([open-models.md](open-models.md)). Las reglas aceptan números de los dos idiomas en la misma frase |
 | Formato | Montos con el locale del idioma de la respuesta («1.240 pesos» en es-MX, «1,240 pesos» en en-US) y siempre la moneda del puesto |
-| Voz | Teléfono: `speechSynthesis`, con la voz del sistema para ese idioma. Caja con bocina: TTS del servidor (§8) o Piper, que tiene voces `es_MX` y `en_US` ⏳ |
+| Voz | Teléfono: `speechSynthesis`, con la voz del sistema para ese idioma. Caja con bocina: TTS del servidor (§8) o Piper, que tiene voces `es_MX` y `en_US` (el motor ahora es `piper1-gpl`, GPL-3.0; la licencia de cada voz está por leer) |
 
 ## 7. ¿Todo local? Qué se puede y qué no
 
@@ -220,10 +222,10 @@ Dónde puede correr cada pieza:
 | Pieza | ESP32-S3 (la caja) | Teléfono | Raspberry Pi 5 | Nube |
 |---|---|---|---|---|
 | Botón / palabra de activación | ✅ (botón; palabra solo con datos propios en español) | ✅ | ✅ | — |
-| Voz → texto (STT) | ❌ MultiNet solo trae comandos en chino o inglés | ✅ reconocimiento del sistema, sin red si el idioma está descargado ⏳ | ✅ whisper.cpp `base` casi en tiempo real; `small`, más lento que tiempo real; o Vosk con gramática ⏳ | ✅ `gpt-4o-mini-transcribe`, `whisper-1`, Deepgram |
+| Voz → texto (STT) | ❌ MultiNet solo trae comandos en chino o inglés | ✅ reconocimiento del sistema, sin red si el idioma está descargado ⏳ | ✅ Moonshine Spanish Small (MIT); whisper.cpp `base` casi en tiempo real, `small` más lento; o Vosk con gramática ⏳ | ✅ `gpt-4o-mini-transcribe`, `whisper-1`, Deepgram |
 | Intención y monto | ❌ | ✅ reglas en TS (las mismas de `shared/`) | ✅ | ✅ |
 | Ventas y lo más vendido | ❌ | ✅ con el libro en caché | ✅ con su propia copia | ✅ (hoy) |
-| Consejo (LLM) | ❌ | ⏳ modelos en el dispositivo, según el teléfono | ⚠️ Qwen3 1.7B ≈ 8 tokens/s: un consejo tarda de 30 a 60 s. Sirve precalculado de noche | ✅ Claude |
+| Consejo (LLM) | ❌ | ⏳ modelos en el dispositivo, según el teléfono | ⚠️ Lee el prompt a ≈ 26–40 tokens/s y genera a 3–8: un consejo tarda 1,5–5 min. Sirve precalculado de noche; los cobros, solo por reglas | ✅ Claude |
 | Texto → voz (TTS) | ⚠️ solo reproduce audio ya hecho (esp-tts no trae español ⏳) | ✅ `speechSynthesis` | ✅ Piper | ✅ Google, OpenAI |
 | Cobrar con PayPal | ❌ red | ❌ red | ❌ red | ✅ (siempre) |
 
@@ -269,6 +271,10 @@ diez puestos, la capa gratuita de TTS de Google cubriría todo.
 | TTS | OpenAI `gpt-4o-mini-tts` | ≈ US$ 0,015 / min de audio | 2,78 |
 | Servidor | Render Starter (US$ 7) + Postgres básico, ≈ US$ 13 al mes **por todos los puestos** | — | 1,30 con 10 puestos; 0,13 con 100 |
 
+**El STT de esta tabla tiene fecha de apagado.** OpenAI marcó `gpt-4o-mini-transcribe` y `whisper-1`
+como obsoletos y los apaga el 2027-02-26 ⏳. Su reemplazo, `gpt-transcribe`, cuesta ≈ US$ 0,0045/min
+(0,68 al mes) ⏳; Groq, Fireworks y Muse Voice Transcribe cuestan 0,14–0,45 ([open-models.md](open-models.md)).
+
 **El TTS se puede cachear.** «Recibido: 40 pesos» se repite todo el día. Guardar el audio por
 (texto, voz) o armarlo con clips de números lleva el TTS de nube casi a cero después de la primera
 semana ⏳.
@@ -299,8 +305,8 @@ medirlo. En un puesto sin enchufe, esa es la diferencia que más importa.
 |---|---|---|---|---|---|
 | 1. **Nube como está hoy** | Caja → `whisper-1` → Haiku 4.5 en cada frase → Sonnet 5.5 → TTS Neural2 | 15–70 | ≈ **7,50** | No hay código nuevo de IA | Paga modelo en cosas que una regla resuelve |
 | 2. **Nube optimizada** | Caja → `gpt-4o-mini-transcribe` → reglas + Haiku 5.5 si fallan → consejo diario con Sonnet 5.5 → TTS Google Standard | 15–70 | ≈ **1,60** (menos con el caché de TTS) | Calidad de nube, 4–5 veces más barato | Depende de la red para todo |
-| 3. **Híbrido (recomendado)** | Caja → STT en la nube; reglas en el servidor; consejo diario con Claude; **la voz la pone el teléfono** o Piper | 15–70 | ≈ **0,55–1,00** | Lo más barato con buena calidad; voces gratis por idioma | El teléfono tiene que estar cerca y encendido (ya lo está: es la bocina) |
-| 4. **Todo local en una Pi 5** | whisper.cpp o Vosk + reglas + Qwen3 1.7B de noche + Piper, en el puesto | ≈ 220–245 | ≈ 0 (solo PayPal usa la red) | La voz nunca sale del puesto; funciona con señal mala | Cara, más lenta ⏳, consejos más pobres y una batería grande que cargar |
+| 3. **Híbrido (recomendado)** | Caja → STT en la nube; reglas en el servidor; consejo diario con Claude; **la voz la pone el teléfono** o Piper | 15–70 | ≈ **0,37–0,79** con Haiku 5.5 en el consejo (0,81–1,24 con Sonnet 5.5) | Lo más barato con buena calidad; voces gratis por idioma | El teléfono tiene que estar cerca y encendido (ya lo está: es la bocina) |
+| 4. **Todo local en una Pi 5** | Moonshine o Vosk + solo reglas en el cobro + Gemma 4 E2B o Qwen3.5-2B de noche + Piper, en el puesto | ≈ 220–245 | ≈ 0 (solo PayPal usa la red) | La voz nunca sale del puesto; funciona con señal mala | Cara, más lenta ⏳, consejos más pobres y una batería grande que cargar |
 | 5. **Teléfono como cerebro** | Reconocimiento del sistema + reglas + TTS del sistema; consejo en la nube | 0 | ≈ 0–0,50 | Gratis, ya instalado | No es «un hardware»; manos ocupadas con el teléfono |
 
 **Cómo leerlo:**
@@ -361,7 +367,7 @@ de la batería).
 | ¿El Atom VoiceS3R tiene botón y batería? | Si no tiene botón, push-to-talk necesita uno externo |
 | ¿Qué porcentaje de frases resuelven las reglas? | Es el supuesto de §8 (25 % al modelo); se mide con el eval de 10 ventas de S2 |
 | ¿Funciona el reconocimiento sin red de `expo-speech-recognition` en el Android de la demo? | Define si el camino 5 sirve como respaldo sin red |
-| Licencia del motor Piper y de cada voz `es_MX` | Algunas voces no permiten uso comercial; revisar antes de usarlas fuera del hackathon |
+| Licencia de cada voz `es_MX` de Piper | El motor ya es GPL-3.0 (`piper1-gpl`, correrlo como proceso aparte); cada voz trae su licencia en su MODEL_CARD y algunas no permiten uso comercial |
 | ¿La demo tiene una persona en EE. UU. (USD, inglés)? | Define el idioma de la segunda toma |
 
 ## 12. Fuentes (leídas 2026-11-05)
@@ -388,6 +394,6 @@ Voz en el dispositivo y local:
 - ESP-SR (WakeNet / MultiNet, idiomas): [github.com/espressif/esp-sr](https://github.com/espressif/esp-sr) · [README 2.5.0](https://components.espressif.com/components/espressif/esp-sr/versions/2.5.0/readme)
 - microWakeWord en ESPHome: [documentación](https://esphome.io/components/micro_wake_word/) · [hilo sobre entrenarlo en español](https://community.home-assistant.io/t/discussion-esp32-s3-wake-word-strategy-hybrid-dataset-real-voice-applio-rvc-classic-tts-for-spanish/976868)
 - whisper.cpp en la Pi 5: [comparativa 2026](https://www.promptquorum.com/es/power-local-llm/local-whisper-stt-comparison-2026) · [discusión #166](https://github.com/ggml-org/whisper.cpp/discussions/166)
-- LLM en la Pi 5 (Qwen3 1.7B ≈ 8 tok/s; Gemma 3 4B ≈ 8–11 tok/s): [Stratosphere](https://stratospherelinuxips.readthedocs.io/en/develop/immune/research_rpi_llm_performance.html) · [Gemma 3 en la Pi 5](https://www.kunalganglani.com/blog/gemma-3-raspberry-pi-5-benchmark.md)
+- LLM en la Pi 5 (clase 4B: 3–5 tok/s; Gemma 3 1B ≈ 8–12; Qwen3 1.7B ≈ 8): [potato-os, Gemma 4](https://github.com/potato-os/core/blob/main/docs/benchmarks/gemma4-pi-benchmark-2026-04-04.md) · [Jeff Geerling](https://github.com/geerlingguy/ai-benchmarks) · [Stratosphere](https://stratospherelinuxips.readthedocs.io/en/develop/immune/research_rpi_llm_performance.html) · [Gemma 3 en la Pi 5](https://www.kunalganglani.com/blog/gemma-3-raspberry-pi-5-benchmark.md)
 - Vosk: [github.com/alphacep/vosk-api](https://github.com/alphacep/vosk-api)
 - Piper (voces `es_MX`): [voces en Hugging Face](https://huggingface.co/rhasspy/piper-voices)
