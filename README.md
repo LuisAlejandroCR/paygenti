@@ -387,6 +387,7 @@ real hardware or real services:
 | [docs/payment-rails.md](docs/payment-rails.md) | Payment rails research and what paygent does with each |
 | [docs/paypal-server-sdk.md](docs/paypal-server-sdk.md) | How the PayPal Server SDK is used and which calls still use fetch |
 | [docs/bank-confirm.md](docs/bank-confirm.md) | Spec, not built: Bre-B confirmation from the bank's notice (Spanish) |
+| [docs/voice-box.md](docs/voice-box.md) | Spec, not built: the counter voice box ("charge me 40 pesos for tacos", sales, advice, multilingual), local vs cloud and what each costs (Spanish) |
 | [mobile/README.md](mobile/README.md) | Mobile app: run, EAS builds, NFC and HCE testing |
 | [paygent-dashboard/README.md](paygent-dashboard/README.md) | Dashboard: mock vs live, data adapter, invariants |
 
