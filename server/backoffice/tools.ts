@@ -12,11 +12,23 @@ import { type Actor, type DecisionParams, localDay, type PolicyEngine } from "..
 import type { SalesService } from "../sales";
 import { isMoneyOut, PayoutDesk } from "./payouts";
 
+/** A day's sales in a currency other than the stall's current one: listed apart, never summed in. */
+export interface OtherCurrencyTotal {
+  currency: Money["currency"];
+  count: number;
+  paid: Money;
+  refunded: Money;
+  net: Money;
+}
+
 export interface SalesTodayReport {
   day: string;
+  /** count, total and refunded cover only the stall's current currency. */
   count: number;
   total: Money;
   refunded: Money;
+  /** Sales that day in other currencies (the vendor switched currency): never added to total. */
+  others: OtherCurrencyTotal[];
   sales: Array<{
     id: string;
     paidAt: string;
@@ -74,6 +86,8 @@ export interface LedgerReport {
   payouts: Payout[];
   /** Sum of the day's payouts that left the account (excludes denied, failed, returned...). */
   paidOut: Money;
+  /** Settled rows in other currencies (currency switched that day): never mixed into totals. */
+  others: OtherCurrencyTotal[];
 }
 
 export interface CashReconcile {
@@ -171,24 +185,32 @@ export class BackOffice {
     const paid = this.paidToday();
     let total = 0;
     let refunded = 0;
+    let count = 0;
     const rows = paid.map((s) => {
       const r = (s.captureId && this.sales.store.refundedForCapture(s.captureId)) || 0;
-      total += s.total.minor;
-      refunded += r;
+      if (s.total.currency === currency) {
+        total += s.total.minor;
+        refunded += r;
+        count += 1;
+      }
       return {
         id: s.id,
         paidAt: s.paidAt ?? s.createdAt,
         total: s.total,
         status: s.status,
-        refunded: money(r, currency),
+        refunded: money(r, s.total.currency),
         items: s.lines.map((l) => `${l.qty} × ${l.name}`).join(", "),
       };
     });
     return {
       day: this.today(),
-      count: rows.length,
+      count,
       total: money(total, currency),
       refunded: money(refunded, currency),
+      others: otherCurrencies(
+        rows.map((r) => ({ total: r.total, paid: r.total, refunded: r.refunded })),
+        currency,
+      ),
       sales: rows,
     };
   }
@@ -202,7 +224,9 @@ export class BackOffice {
       .filter((s) => localDay(new Date(s.paidAt ?? s.createdAt), tz) === day)
       .map((s) => this.ledgerRow(s))
       .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-    const sum = (f: (r: LedgerRow) => number) => rows.reduce((n, r) => n + f(r), 0);
+    // Totals cover the stall's current currency only; a day with a currency switch lists the rest apart.
+    const sum = (f: (r: LedgerRow) => number) =>
+      rows.reduce((n, r) => n + (r.total.currency === c ? f(r) : 0), 0);
     const paid = sum((r) => (r.method === "paypal" ? r.paid.minor : 0));
     const cash = sum((r) => (r.method === "cash" ? r.paid.minor : 0));
     const refunded = sum((r) => r.refunded.minor);
@@ -221,12 +245,21 @@ export class BackOffice {
         refunded: money(refunded, c),
         net: money(paid + cash - refunded, c),
         cash: money(cash, c),
-        count: rows.filter((r) => r.paid.minor > 0).length,
+        count: rows.filter((r) => r.paid.minor > 0 && r.total.currency === c).length,
         unverified: money(unverified, c),
       },
       payouts,
       paidOut: money(paidOut, c),
+      others: otherCurrencies(
+        rows.filter((r) => r.paid.minor > 0 && r.method !== "cash"),
+        c,
+      ),
     };
+  }
+
+  /** The stall's local day right now (its time zone), so clients never trust the phone's clock. */
+  currentDay(): string {
+    return this.today();
   }
 
   /** Every settled sale reduced to day, method and amounts (sales passport input; no buyer data). */
@@ -388,6 +421,30 @@ export class BackOffice {
       throw err;
     }
   }
+}
+
+/** Per-currency totals of the rows not in `current`, in first-seen order. */
+function otherCurrencies(
+  rows: Array<{ total: Money; paid: Money; refunded: Money }>,
+  current: string,
+): OtherCurrencyTotal[] {
+  const by = new Map<Money["currency"], { count: number; paid: number; refunded: number }>();
+  for (const r of rows) {
+    const cur = r.total.currency;
+    if (cur === current) continue;
+    const t = by.get(cur) ?? { count: 0, paid: 0, refunded: 0 };
+    t.count += 1;
+    t.paid += r.paid.minor;
+    t.refunded += r.refunded.minor;
+    by.set(cur, t);
+  }
+  return [...by].map(([currency, t]) => ({
+    currency,
+    count: t.count,
+    paid: money(t.paid, currency),
+    refunded: money(t.refunded, currency),
+    net: money(t.paid - t.refunded, currency),
+  }));
 }
 
 export class BackOfficeError extends Error {

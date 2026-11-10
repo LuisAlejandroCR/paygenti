@@ -43,6 +43,7 @@ async function setup(model?: ModelClient, proxyTrust?: ProxyTrust) {
   const paypal = new CountingPayPal();
   const toolkit = stubToolkit();
   const app = createApp({
+    chargeAuth: "off",
     paypal,
     proxyTrust,
     vendorPin: PIN,

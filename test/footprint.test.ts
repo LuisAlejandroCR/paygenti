@@ -327,7 +327,12 @@ describe("passport provenance", () => {
 
 async function harness(store: Store = new MemoryStore()) {
   const paypal = new MockPayPal();
-  const app = createApp({ paypal, vendorPin: "4321", sales: new SalesService({ store, paypal }) });
+  const app = createApp({
+    chargeAuth: "off",
+    paypal,
+    vendorPin: "4321",
+    sales: new SalesService({ store, paypal }),
+  });
   const login = await app.request("/api/backoffice/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -55,6 +55,18 @@ export function elapsedDays(month: string, today: Date): number {
   return month === now ? today.getDate() : daysIn(month);
 }
 
+/** Same as elapsedDays, from the stall's own "YYYY-MM-DD" today (the server's, not the phone's). */
+export function elapsedDaysOn(month: string, todayKey: string): number {
+  const now = todayKey.slice(0, 7);
+  if (month > now) return 0;
+  return month === now ? Number(todayKey.slice(8, 10)) : daysIn(month);
+}
+
+/** "YYYY-MM-DD" of a local Date (the phone's guess until the server answers). */
+export function localDayKey(d: Date): string {
+  return dayKey(monthKey(d), d.getDate());
+}
+
 /** "2026-10-07" for day 7 of "2026-10". */
 export function dayKey(month: string, day: number): string {
   return `${month}-${String(day).padStart(2, "0")}`;

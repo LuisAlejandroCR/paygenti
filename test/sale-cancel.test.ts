@@ -15,7 +15,7 @@ const post = (body?: unknown) => ({
 
 function setup(paypal = new MockPayPal()) {
   const sales = new SalesService({ store: new MemoryStore(), paypal });
-  const app = createApp({ paypal, sales });
+  const app = createApp({ chargeAuth: "off", paypal, sales });
   const events: TerminalEvent[] = [];
   sales.subscribe("rosa-01", (e) => events.push(e));
   const create = async () => {

@@ -1,5 +1,7 @@
 // e2e/fixtures.ts: shared Playwright fixtures — fails any test that logs a console error or
 // throws in the page, a per-locale text table, and helpers for the PIN login and API sales.
+// Charging needs a device token: `request` carries rosa-01's, and every page starts with rosa-01 and
+// beto-01 unlocked in localStorage (opt out with test.use({ seedDevice: false })).
 import { type APIRequestContext, test as base, expect, type Page } from "@playwright/test";
 
 export const TEXT = {
@@ -129,7 +131,58 @@ export const TEXT = {
 
 export type Lang = keyof typeof TEXT;
 
-export const test = base.extend<{ lang: Lang; tx: (typeof TEXT)[Lang]; guard: void }>({
+/** Device tokens per terminal, fetched once per worker (the PIN lockout spec locks this client later). */
+const deviceTokens = new Map<string, string>();
+async function deviceToken(
+  request: APIRequestContext,
+  terminal: string,
+  pin: string,
+): Promise<string | undefined> {
+  const cached = deviceTokens.get(terminal);
+  if (cached) return cached;
+  const res = await request.post(`/api/terminals/${terminal}/unlock`, { data: { pin } });
+  if (!res.ok()) return undefined;
+  const { token } = (await res.json()) as { token: string };
+  deviceTokens.set(terminal, token);
+  return token;
+}
+
+export const test = base.extend<{
+  lang: Lang;
+  tx: (typeof TEXT)[Lang];
+  guard: void;
+  seedDevice: boolean;
+  seed: void;
+}>({
+  seedDevice: [true, { option: true }],
+  request: async ({ playwright, baseURL }, use) => {
+    const plain = await playwright.request.newContext({ baseURL });
+    const token = await deviceToken(plain, "rosa-01", "1234");
+    await plain.dispose();
+    const ctx = await playwright.request.newContext({
+      baseURL,
+      extraHTTPHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    await use(ctx);
+    await ctx.dispose();
+  },
+  seed: [
+    async ({ page, request, seedDevice }, use) => {
+      if (seedDevice) {
+        const tokens = {
+          "rosa-01": await deviceToken(request, "rosa-01", "1234"),
+          "beto-01": await deviceToken(request, "beto-01", "5678"),
+        };
+        await page.addInitScript((t: Record<string, string | undefined>) => {
+          for (const [terminal, token] of Object.entries(t))
+            if (token && !localStorage.getItem(`paygent.device.${terminal}`))
+              localStorage.setItem(`paygent.device.${terminal}`, token);
+        }, tokens);
+      }
+      await use();
+    },
+    { auto: true },
+  ],
   lang: async ({ locale }, use) => use(locale?.startsWith("es") ? "es" : "en"),
   tx: async ({ lang }, use) => use(TEXT[lang]),
   guard: [

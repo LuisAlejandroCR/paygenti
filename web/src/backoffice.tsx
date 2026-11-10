@@ -46,6 +46,8 @@ interface SalesToday {
   count: number;
   total: Money;
   refunded: Money;
+  /** Sales today in a currency the stall no longer charges in: shown apart, never summed. */
+  others?: { currency: string; count: number; net: Money }[];
   sales: SaleRow[];
 }
 interface Reconcile {
@@ -368,6 +370,11 @@ export function BackOfficeApp() {
             {formatMoney(today.total)} · {salesCount(today.count)}
           </p>
         )}
+        {today?.others?.map((o) => (
+          <p key={o.currency} class="hint other-currency">
+            {t("bo.otherCurrency", { amount: formatMoney(o.net), count: salesCount(o.count) })}
+          </p>
+        ))}
         {today && today.sales.length === 0 && <p class="empty-state">{t("bo.noSales")}</p>}
         {shown.length > 0 && (
           <ul class="sale-list">

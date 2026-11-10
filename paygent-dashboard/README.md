@@ -73,8 +73,9 @@ npx tsc --noEmit     # typecheck (there is no script for it)
 npm run build        # Nitro build; the Lovable config's default preset is cloudflare-module
 ```
 
-A production build pointed at a server on another origin would need CORS on the server, which it
-does not send today. Serve the dashboard from the same origin as the server, or behind a proxy.
+A production build on another origin needs the server to allow it: set `CORS_ORIGINS` on the server
+to the dashboard's exact origin (e.g. `https://dash.example.com`; comma-separated for several). Without
+it the server sends no CORS headers, so serve the dashboard from the same origin or behind a proxy.
 
 ## Data layer
 

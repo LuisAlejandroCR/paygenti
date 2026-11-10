@@ -111,6 +111,11 @@ export default function BackOfficeScreen() {
             {today.refunded.minor > 0 && (
               <Body muted>{t("bo.refunded", { amount: formatMoney(today.refunded) })}</Body>
             )}
+            {today.others?.map((o) => (
+              <Body key={o.currency} muted>
+                {t("bo.otherCurrency", { amount: formatMoney(o.net), count: o.count })}
+              </Body>
+            ))}
             {today.sales.length === 0 && <Body muted>{t("bo.none")}</Body>}
             {today.sales.map((s) => (
               <View key={s.id} style={[styles.row, { borderColor: colors.border }]}>
