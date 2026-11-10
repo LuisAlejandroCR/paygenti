@@ -168,7 +168,7 @@ describe("onboarding API", () => {
   const PIN = "4321";
   async function setup() {
     const paypal = new MockPayPal();
-    const app = createApp({ paypal, vendorPin: PIN });
+    const app = createApp({ chargeAuth: "off", paypal, vendorPin: PIN });
     const call = async (method: string, path: string, body?: unknown, token?: string) => {
       const res = await app.request(path, {
         method,

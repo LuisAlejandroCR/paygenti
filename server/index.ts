@@ -12,6 +12,7 @@ import { proxyTrustFromEnv } from "./backoffice/routes";
 import { AnthropicVisionClient } from "./catalog/extract";
 import { PostgresStore } from "./db/postgres";
 import { pgClient } from "./db/sql";
+import { DeviceTokens } from "./device-token";
 import { Integrations } from "./integrations";
 import { parseStallPins } from "./owner/stalls";
 import { PassportSigner } from "./passport";
@@ -64,6 +65,21 @@ const transcriber = await integrations.optional("speech-to-text", () =>
 const paypalTools = await integrations.optional("paypal-agent-toolkit", () =>
   createPayPalTools(process.env),
 );
+const deviceTokens = await integrations.plug(
+  "device-tokens",
+  () =>
+    process.env.DEVICE_TOKEN_SECRET?.trim()
+      ? new DeviceTokens({ secret: process.env.DEVICE_TOKEN_SECRET })
+      : undefined,
+  new DeviceTokens(),
+);
+if (deviceTokens.ephemeral)
+  console.warn(
+    "DEVICE_TOKEN_SECRET not set or invalid: vendor devices unlock again after a restart",
+  );
+const chargeAuth = process.env.CHARGE_AUTH?.trim().toLowerCase() === "off" ? "off" : "on";
+if (chargeAuth === "off")
+  console.warn("CHARGE_AUTH=off: anyone can open, cancel or extend a stall's charges");
 const stallPins = parseStallPins(process.env.STALL_PINS);
 for (const v of store.vendors())
   if (v.id !== "rosa" && !stallPins[v.id])
@@ -87,6 +103,8 @@ const app = createApp({
   transcriber,
   // Which proxy header names the caller for the PIN lockout; unset trusts none (socket address).
   proxyTrust: proxyTrustFromEnv(process.env),
+  chargeAuth,
+  deviceTokens,
   staticRoot: existsSync(webRoot) ? webRoot : undefined,
 });
 

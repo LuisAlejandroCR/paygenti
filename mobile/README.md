@@ -44,6 +44,10 @@ Server URL: `EXPO_PUBLIC_API_URL` (default `https://paygent-rirl.onrender.com`),
 app under **Settings** — for local dev use your computer's LAN IP, e.g. `http://192.168.1.20:8787`
 (the phone cannot reach `localhost`). `EXPO_PUBLIC_*` values ship in the bundle: never put secrets there.
 
+Charging: the sale screen asks for the stall PIN once and keeps a 7-day device token per server and
+terminal (AsyncStorage); a back-office session of the same stall also works. Changing the server or
+terminal asks again.
+
 ## Run on an Android device (Windows works)
 
 1. Enable USB debugging, plug the phone in, check `adb devices`.
@@ -113,5 +117,7 @@ Perfil con cambio de puesto. Usa la API existente y el código de `shared/` (din
 - iOS: solo con EAS en la nube y una cuenta de Apple Developer; aquí no hay Mac.
 - Antes de compilar: `git status --short && git log --oneline -1` debe coincidir con `origin/main`.
 - Servidor: `EXPO_PUBLIC_API_URL` o **Ajustes** en la app (para desarrollo local usa la IP de la PC).
+- Cobrar: la pantalla de venta pide el PIN del puesto una vez y guarda un token de dispositivo por 7 días
+  (por servidor y terminal); una sesión del back office del mismo puesto también sirve.
 - NFC: *Grabar sticker* escribe `PUBLIC_URL/t/:terminal` en un NTAG213/215/216. El *modo tap* solo
   existe en Android; el iPhone no puede emular tags (restricción de Apple) y la app ofrece sticker o QR.

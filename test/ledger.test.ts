@@ -9,7 +9,7 @@ const NOW = Date.parse("2026-10-06T18:00:00Z");
 
 async function setup() {
   const paypal = new MockPayPal();
-  const app = createApp({ paypal, vendorPin: PIN, clock: () => NOW });
+  const app = createApp({ chargeAuth: "off", paypal, vendorPin: PIN, clock: () => NOW });
   const json = async (path: string, body?: unknown, token?: string) => {
     const res = await app.request(path, {
       method: body === undefined ? "GET" : "POST",

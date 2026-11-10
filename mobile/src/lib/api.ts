@@ -78,7 +78,13 @@ export interface OwnerOverview {
   totals: { currency: string; net: Money; count: number; stalls: number }[];
 }
 
-export function createApi(baseUrl: string, token?: string, stall: string = DEFAULT_STALL) {
+/**
+ * `device` is this phone's charge token for the terminal (POST /api/terminals/:id/unlock): opening
+ * and cancelling sales send it, falling back to the back-office session.
+ */
+export function createApi(baseUrl: string, token?: string, stall: string = DEFAULT_STALL, device?: string) {
+  const chargeAuth = device ?? token;
+  const charging = chargeAuth ? { Authorization: `Bearer ${chargeAuth}` } : undefined;
   const bo = (path: string) => boPath(stall, path);
   async function request<T>(
     path: string,
@@ -86,7 +92,7 @@ export function createApi(baseUrl: string, token?: string, stall: string = DEFAU
   ): Promise<T> {
     const headers: Record<string, string> = { Accept: "application/json", ...init?.headers };
     if (init?.body !== undefined) headers["Content-Type"] = "application/json";
-    if (token) headers.Authorization = `Bearer ${token}`;
+    if (token && !headers.Authorization) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(`${baseUrl}${path}`, {
       method: init?.method ?? "GET",
       headers,
@@ -100,19 +106,26 @@ export function createApi(baseUrl: string, token?: string, stall: string = DEFAU
   return {
     config: () => request<AppConfig>("/api/config"),
     terminal: (id: string) => request<TerminalInfo>(`/api/terminals/${encodeURIComponent(id)}`),
+    unlock: (terminal: string, pin: string) =>
+      request<{ token: string; expiresInMs: number }>(`/api/terminals/${encodeURIComponent(terminal)}/unlock`, {
+        method: "POST",
+        body: { pin },
+      }),
     createSale: (terminal: string, amountMinor: number) =>
       request<{ sale: Sale }>(`/api/terminals/${terminal}/sales`, {
         method: "POST",
         body: { amount: amountMinor },
+        headers: charging,
       }),
     createSaleFromCart: (terminal: string, lines: CartLine[]) =>
       request<{ sale: Sale }>(`/api/terminals/${terminal}/sales`, {
         method: "POST",
         body: { lines: lines.map((l) => ({ sku: l.sku, qty: l.qty })) },
+        headers: charging,
       }),
     sale: (id: string) => request<{ sale: Sale; stall: string }>(`/api/sales/${id}`),
     cancelSale: (id: string) =>
-      request<{ sale: Sale }>(`/api/sales/${id}/cancel`, { method: "POST" }),
+      request<{ sale: Sale }>(`/api/sales/${id}/cancel`, { method: "POST", headers: charging }),
     parseVoice: (text: string, vendorId: string) =>
       request<{ lines: CartLine[]; unmatched: string[]; source: "llm" | "rules" }>(
         "/api/voice/parse",

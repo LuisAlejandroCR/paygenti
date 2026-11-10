@@ -33,6 +33,9 @@ services:
         sync: false
       - key: TRUST_PROXY_HOPS
         sync: false
+      # Signs vendor device tokens (charging needs an unlocked device); Render generates it once.
+      - key: DEVICE_TOKEN_SECRET
+        generateValue: true
       # PIN per extra stall ("beto:XXXX"); without it Don Beto keeps the demo PIN 5678.
       - key: STALL_PINS
         sync: false
