@@ -197,6 +197,8 @@ with none set, the server runs on the mock PayPal gateway with an in-memory stor
 | `PASSPORT_SIGNING_KEY` | Ed25519 private key (PKCS8 PEM or base64 DER) that signs sales passports; otherwise an ephemeral demo key |
 | `VENDOR_PIN` | PIN of the main stall (Rosa): back office, refunds, payouts (demo default `1234`) |
 | `STALL_PINS` | PIN per extra stall, e.g. `beto:5678,luz:2468` (demo stall "Don Beto — Tacos" defaults to `5678`) |
+| `TRUSTED_IP_HEADER` | Single-IP header your edge overwrites on every request (e.g. `cf-connecting-ip`, `true-client-ip`), used to key the PIN lockout. Unset: not used |
+| `TRUST_PROXY_HOPS` | Proxies in front that append to `X-Forwarded-For`; the client is the entry that many from the right. Default `0`: the header is ignored (its leftmost entry is client-forged) |
 
 **PayPal**
 
@@ -351,8 +353,10 @@ in [docs/accessibility.md](docs/accessibility.md).
 
 `render.yaml` defines a Render Node web service: build `npm ci && npm run build`, start
 `npm start`, health check `/api/health`. Secrets are set in the Render dashboard. The blueprint
-declares the core variables only; add `STALL_PINS`, the `STT_*` and rail variables by hand if you use
-them. `/api/health` reports the mode of each third party (`on`, `off` or `fallback`), never its
+declares every variable the server reads (values stay empty, `sync: false`); on a service created
+before a variable was added to the blueprint, add it by hand. Set `TRUSTED_IP_HEADER` or
+`TRUST_PROXY_HOPS` once verified on your host: without them every caller behind the proxy shares one
+PIN-lockout key. `/api/health` reports the mode of each third party (`on`, `off` or `fallback`), never its
 secrets.
 
 Render's free web service sleeps and restarts, so set `DATABASE_URL` to keep state. Recommended:

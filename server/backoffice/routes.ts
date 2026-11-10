@@ -117,6 +117,8 @@ export interface BackOfficeRouteDeps {
   sessions?: Map<string, number>;
   /** This stall's inbox of Claude proposals (refunds, payouts) awaiting the PIN. */
   approvals?: ApprovalDesk;
+  /** Caller IP for the PIN lockout; defaults to the socket address (no proxy header trusted). */
+  clientIp?: (c: Context) => string;
 }
 
 const imageJson = z.strictObject({
@@ -130,6 +132,7 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
   const { office, model } = deps;
   const clock = deps.clock ?? Date.now;
   const sessions = deps.sessions ?? new Map<string, number>();
+  const clientIp = deps.clientIp ?? defaultClientIp;
   const app = new Hono();
 
   /** Vendor only with a live session token; everybody else is a customer to the policy. */
@@ -579,19 +582,56 @@ function publicLimits(config: PolicyConfig): Omit<PolicyConfig, "payoutAllowlist
 }
 
 /**
- * The caller's IP: first hop of X-Forwarded-For (Render's proxy sets it), else the socket address.
- * X-Forwarded-For can be forged when there is no proxy in front; the PIN guard's global backstop
- * still caps guesses from rotating addresses.
+ * Which proxy headers name the caller. X-Forwarded-For is written by whoever sends the request, and
+ * Render's proxy appends to it instead of replacing it, so its first entry is attacker-controlled:
+ * trusting it let one client rotate fake IPs past the per-client PIN lockout, or lock the vendor
+ * out by naming her IP. Default: trust no header and use the socket address.
  */
-export function clientIp(c: Context): string {
-  const first = c.req.header("x-forwarded-for")?.split(",")[0]?.trim();
-  if (first) return `ip:${first.slice(0, 64)}`;
-  try {
-    return `ip:${getConnInfo(c).remote.address ?? "unknown"}`;
-  } catch {
-    return "ip:unknown";
-  }
+export interface ProxyTrust {
+  /** A single-IP header set by the edge and overwritten on every request (e.g. cf-connecting-ip). */
+  header?: string;
+  /** Proxies in front that append to X-Forwarded-For; the client is the entry `hops` from the right. */
+  hops?: number;
 }
+
+/** TRUSTED_IP_HEADER and TRUST_PROXY_HOPS from env; anything malformed means trust nothing. */
+export function proxyTrustFromEnv(env: Record<string, string | undefined>): ProxyTrust {
+  const header = env.TRUSTED_IP_HEADER?.trim().toLowerCase();
+  const hops = Number(env.TRUST_PROXY_HOPS?.trim() || "0");
+  return {
+    ...(header && /^[a-z0-9-]{1,64}$/.test(header) && { header }),
+    hops: Number.isInteger(hops) && hops >= 0 && hops <= 10 ? hops : 0,
+  };
+}
+
+const IP_TOKEN = /^[0-9a-fA-F:.]{2,45}$/;
+
+/** The caller's IP key for the PIN lockout, reading only the headers `trust` allows. */
+export function clientIpResolver(trust: ProxyTrust = {}): (c: Context) => string {
+  const hops = trust.hops ?? 0;
+  return (c) => {
+    if (trust.header) {
+      const v = c.req.header(trust.header)?.trim();
+      if (v && IP_TOKEN.test(v)) return `ip:${v}`;
+    }
+    if (hops > 0) {
+      const chain = (c.req.header("x-forwarded-for") ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const v = chain[chain.length - hops];
+      if (v && IP_TOKEN.test(v)) return `ip:${v}`;
+    }
+    try {
+      return `ip:${getConnInfo(c).remote.address ?? "unknown"}`;
+    } catch {
+      return "ip:unknown";
+    }
+  };
+}
+
+/** Socket address only: no proxy header is trusted. */
+export const defaultClientIp = clientIpResolver();
 
 function isDay(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
