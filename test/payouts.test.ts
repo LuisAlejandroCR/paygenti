@@ -42,6 +42,7 @@ async function setup(opts: { model?: ModelClient; store?: Store } = {}) {
   const store = opts.store ?? new MemoryStore();
   const clock = { t: NOON };
   const app = createApp({
+    chargeAuth: "off",
     paypal,
     sales: new SalesService({ store, paypal, clock: () => clock.t }),
     clock: () => clock.t,

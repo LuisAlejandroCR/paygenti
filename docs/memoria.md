@@ -4,6 +4,25 @@
 
 # Memoria — paygent
 
+## 2026-11-10 — Cobrar, cancelar y extender piden un dispositivo desbloqueado
+
+- Problema: `POST /api/terminals/:id/sales`, `/api/sales/:id/cancel` y `/extend` eran públicos. Cualquiera
+  con la URL podía abrir un cobro en el sticker de un puesto o cancelar la venta que su cliente estaba por
+  pagar. No desviaba dinero, pero podía sabotear la demo en vivo.
+- Decisión: token de dispositivo firmado (HMAC-SHA256 sobre puesto y vencimiento, 7 días) que se pide con el
+  PIN del puesto en `POST /api/terminals/:id/unlock` (comparte el bloqueo del PIN). Solo cobra para ese
+  puesto: no abre libro, reembolsos ni payouts. Sin estado en servidor, así que sobrevive a un reinicio
+  si `DEVICE_TOKEN_SECRET` existe (`render.yaml` lo genera). También vale una sesión viva del back office
+  del mismo puesto (dashboard, back office del móvil). Por qué no la sesión del back office en el mostrador:
+  dejaría el libro abierto 8 h en un teléfono que ve cualquiera.
+- Clientes: la pantalla web y el móvil muestran una tarjeta de PIN en lugar del teclado; un token rechazado
+  la vuelve a mostrar. Web en `localStorage` (`paygent.device.<terminal>`); móvil en AsyncStorage por
+  servidor y terminal. El dashboard manda su sesión. El cliente (checkout, rieles, captura) sigue público.
+- `CHARGE_AUTH=off` existe solo para pruebas locales. `createApp` lo trae encendido por defecto; los tests
+  viejos que no prueban esto lo apagan, `test/charge-auth.test.ts` y `e2e/unlock.spec.ts` lo prueban encendido.
+- ⏳ `/judge` ahora pide el PIN demo una vez en el panel de la vendedora: decirlo en Devpost (ya está en
+  `docs/submission.md`) y en el video. ⏳ Móvil sin probar en dispositivo.
+
 ## 2026-11-10 — El bloqueo del PIN ya no confía en X-Forwarded-For
 
 - Problema: `clientIp()` tomaba la primera entrada de `X-Forwarded-For`, que escribe el cliente (Render la

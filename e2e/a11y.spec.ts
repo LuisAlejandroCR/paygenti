@@ -2,7 +2,7 @@
 // in light, dark and high-contrast; any serious or critical violation fails. Also checks 200% text,
 // the "+5 min" timer button, keyboard-only charging and the voice-mode toggle.
 import AxeBuilder from "@axe-core/playwright";
-import type { Page } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 import { apiSale, expect, expectNoOverflow, login, test } from "./fixtures";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
@@ -19,17 +19,17 @@ async function audit(page: Page, label: string) {
   expect(bad, `axe violations on ${label}`).toEqual([]);
 }
 
-async function cancelOpen(page: Page) {
-  await page.request.get("/api/terminals/rosa-01").then(async (r) => {
+async function cancelOpen(request: APIRequestContext) {
+  await request.get("/api/terminals/rosa-01").then(async (r) => {
     const d = (await r.json()) as { openSale: { id: string } | null };
-    if (d.openSale) await page.request.post(`/api/sales/${d.openSale.id}/cancel`);
+    if (d.openSale) await request.post(`/api/sales/${d.openSale.id}/cancel`);
   });
 }
 
 for (const scheme of ["light", "dark"] as const) {
   test(`axe: every screen passes in ${scheme}`, async ({ page, request, tx }) => {
     await page.emulateMedia({ colorScheme: scheme });
-    await cancelOpen(page);
+    await cancelOpen(request);
     await page.goto("/");
     await expect(page.getByText(tx.online)).toBeVisible();
     await audit(page, "vendor entry");
@@ -51,7 +51,7 @@ for (const scheme of ["light", "dark"] as const) {
     await page.goto("/");
     await expect(page.locator(".waiting")).toBeVisible();
     await audit(page, "vendor waiting");
-    await page.request.post(`/api/sales/${sale.id}/cancel`);
+    await request.post(`/api/sales/${sale.id}/cancel`);
 
     await apiSale(request, 1800);
     await page.goto("/backoffice");
@@ -65,8 +65,8 @@ for (const scheme of ["light", "dark"] as const) {
   });
 }
 
-test("axe: high-contrast theme passes", async ({ page }) => {
-  await cancelOpen(page);
+test("axe: high-contrast theme passes", async ({ page, request }) => {
+  await cancelOpen(request);
   await page.addInitScript(() => localStorage.setItem("paygent.contrast", "high"));
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("data-contrast", "high");
@@ -75,8 +75,8 @@ test("axe: high-contrast theme passes", async ({ page }) => {
   await audit(page, "verify high contrast");
 });
 
-test("text scales to 200% without horizontal scroll", async ({ page }) => {
-  await cancelOpen(page);
+test("text scales to 200% without horizontal scroll", async ({ page, request }) => {
+  await cancelOpen(request);
   await page.goto("/");
   await page.addStyleTag({ content: "html{font-size:200% !important}" });
   await expectNoOverflow(page);
@@ -85,8 +85,11 @@ test("text scales to 200% without horizontal scroll", async ({ page }) => {
   await expectNoOverflow(page);
 });
 
-test("keyboard only: type an amount, charge, add five minutes, cancel", async ({ page }) => {
-  await cancelOpen(page);
+test("keyboard only: type an amount, charge, add five minutes, cancel", async ({
+  page,
+  request,
+}) => {
+  await cancelOpen(request);
   await page.goto("/");
   await expect(page.locator(".keypad")).toBeVisible();
   await page.keyboard.press("4");
@@ -106,8 +109,8 @@ test("keyboard only: type an amount, charge, add five minutes, cancel", async ({
   await expect(page.locator(".keypad")).toBeVisible();
 });
 
-test("voice mode toggles and persists", async ({ page }) => {
-  await cancelOpen(page);
+test("voice mode toggles and persists", async ({ page, request }) => {
+  await cancelOpen(request);
   await page.goto("/");
   const toggle = page.locator("button.voice-mode-toggle");
   await expect(toggle).toHaveAttribute("aria-pressed", "false");

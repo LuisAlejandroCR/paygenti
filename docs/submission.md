@@ -163,5 +163,5 @@ PINs off camera; blur any real email; do not film the root PDFs or anything with
       60-second flow (plan item 7).
 - [ ] **Video** under 3 minutes, in English, on real devices, uploaded where Devpost accepts it.
 - [ ] **Devpost** text pasted from above, tags checked, screenshots, repo link, demo link, and judge notes
-      (`/judge`, demo PIN `1234`, no keys needed).
+      (`/judge`, demo PIN `1234` — the vendor panel asks for it once to unlock charging — no keys needed).
 - [ ] **Submit before 2026-11-12 12:00 PT.**

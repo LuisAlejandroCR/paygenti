@@ -70,8 +70,9 @@ Orden de trabajo hasta la entrega:
 3. **12-nov antes de 12:00 PT:** video < 3 min en inglés en dispositivos reales, repo público (decidir antes qué
    docs privados salen: `memoria`, `handoff`, `bank-confirm`), texto de Devpost.
 
-Riesgo abierto: crear, cancelar y extender ventas no piden autenticación (cualquiera puede cancelar el cobro
-abierto de un puesto). No desvía dinero; para la demo en vivo conviene un token de dispositivo de la vendedora.
+Crear, cancelar y extender ventas ya piden un dispositivo desbloqueado con el PIN del puesto (PR aparte,
+ver `docs/memoria.md`). En Render: `DEVICE_TOKEN_SECRET` (el blueprint lo genera; en el servicio ya creado
+hay que agregarlo a mano). Con el hardware: desbloquear una vez cada teléfono (vendedora y `/judge`).
 
 ## Qué falta (en orden)
 

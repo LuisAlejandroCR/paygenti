@@ -16,7 +16,7 @@ const post = (body?: unknown) => ({
 async function setup() {
   const paypal = new MockPayPal();
   const sales = new SalesService({ store: new MemoryStore(), paypal });
-  const app = createApp({ paypal, sales });
+  const app = createApp({ chargeAuth: "off", paypal, sales });
   const res = await app.request("/api/terminals/rosa-01/sales", post({ amount: 4200 }));
   const sale = ((await res.json()) as { sale: Sale }).sale;
   const extend = () => app.request(`/api/sales/${sale.id}/extend`, post());

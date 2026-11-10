@@ -38,6 +38,7 @@ type Json = { status: number; data: Record<string, unknown> };
 function setup(store: Store = new MemoryStore()) {
   const paypal = new CountingPayPal();
   const app = createApp({
+    chargeAuth: "off",
     paypal,
     sales: new SalesService({ store, paypal, clock: () => NOON }),
     clock: () => NOON,

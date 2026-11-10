@@ -1,6 +1,7 @@
 // src/app-state.tsx: app-wide React context — server URL and terminal (persisted in AsyncStorage),
 // UI locale (device language by default, EN/ES toggle persisted), light/dark palette from the
-// system scheme, the API client and the in-memory back-office session token.
+// system scheme, the API client, the in-memory back-office session token and this phone's charge token
+// per server and terminal (persisted: it only opens and cancels that stall's sales, for 7 days).
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getLocales } from "expo-localization";
 import {
@@ -28,6 +29,7 @@ const KEYS = {
   terminal: "paygent.terminal",
   locale: "paygent.locale",
   stall: "paygent.stall",
+  devices: "paygent.devices",
 };
 
 interface AppState {
@@ -48,6 +50,9 @@ interface AppState {
   setServer: (url: string, terminal: string) => Promise<void>;
   toggleLocale: () => void;
   setToken: (token: string | undefined) => void;
+  /** Charge token for the current server + terminal, from unlocking with the stall PIN. */
+  deviceToken?: string;
+  setDeviceToken: (token: string | undefined) => void;
 }
 
 const Ctx = createContext<AppState | undefined>(undefined);
@@ -61,6 +66,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [stall, setStallState] = useState(DEFAULT_STALL);
   const [tokens, setTokens] = useState<Record<string, string | undefined>>({});
   const token = tokens[stall];
+  const [devices, setDevices] = useState<Record<string, string>>({});
   const setToken = useCallback(
     (next: string | undefined) => setTokens((m) => ({ ...m, [stall]: next })),
     [stall],
@@ -72,6 +78,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     AsyncStorage.multiSet([[KEYS.stall, id], ...(term ? [[KEYS.terminal, term] as [string, string]] : [])]).catch(
       () => undefined,
     );
+  }, []);
+
+  const deviceKey = `${serverUrl}#${terminal}`;
+  const deviceToken = devices[deviceKey];
+  const setDeviceToken = useCallback(
+    (next: string | undefined) =>
+      setDevices((m) => {
+        const { [deviceKey]: _old, ...rest } = m;
+        const updated = next ? { ...rest, [deviceKey]: next } : rest;
+        AsyncStorage.setItem(KEYS.devices, JSON.stringify(updated)).catch(() => undefined);
+        return updated;
+      }),
+    [deviceKey],
+  );
+
+  useEffect(() => {
+    AsyncStorage.getItem(KEYS.devices)
+      .then((raw) => {
+        const parsed: unknown = raw ? JSON.parse(raw) : {};
+        if (parsed && typeof parsed === "object")
+          setDevices(
+            Object.fromEntries(Object.entries(parsed).filter(([, v]) => typeof v === "string")) as Record<
+              string,
+              string
+            >,
+          );
+      })
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -118,7 +152,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       locale,
       dark,
       colors: dark ? DARK : LIGHT,
-      api: createApi(serverUrl, token, stall),
+      api: createApi(serverUrl, token, stall, deviceToken),
       token,
       t: (key, params) => translate(locale, key, params),
       setServer,
@@ -127,8 +161,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       stall,
       tokens,
       setStall,
+      deviceToken,
+      setDeviceToken,
     };
-  }, [ready, serverUrl, terminal, locale, scheme, token, tokens, stall, setStall, setToken, setServer, toggleLocale]);
+  }, [
+    ready,
+    serverUrl,
+    terminal,
+    locale,
+    scheme,
+    token,
+    tokens,
+    stall,
+    setStall,
+    setToken,
+    setServer,
+    toggleLocale,
+    deviceToken,
+    setDeviceToken,
+  ]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

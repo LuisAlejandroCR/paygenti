@@ -500,6 +500,11 @@ const en = {
   "vendor.terminalNotFoundHint":
     "Check the link or the sticker you opened, or ask whoever set up paygent for the right one.",
   "vendor.goSettings": "Open stall settings",
+  "vendor.unlockTitle": "Unlock this phone to charge",
+  "vendor.unlockHint":
+    "Enter the stall PIN once. This phone can then open and cancel charges for 7 days; nobody else can.",
+  "vendor.unlock": "Unlock",
+  "vendor.unlockAgain": "This phone needs the stall PIN again to charge.",
   "checkout.payTo": "You are paying",
   "checkout.nextStep": "Nothing was charged. Ask the vendor for a new charge and scan again.",
   "bo.loginHint":
@@ -1020,6 +1025,11 @@ const es: Dict = {
   "vendor.terminalNotFoundHint":
     "Revisa el enlace o el sticker que abriste, o pide el correcto a quien configuró paygent.",
   "vendor.goSettings": "Abrir ajustes del puesto",
+  "vendor.unlockTitle": "Desbloquea este teléfono para cobrar",
+  "vendor.unlockHint":
+    "Escribe el PIN del puesto una vez. Este teléfono podrá abrir y cancelar cobros por 7 días; nadie más.",
+  "vendor.unlock": "Desbloquear",
+  "vendor.unlockAgain": "Este teléfono necesita otra vez el PIN del puesto para cobrar.",
   "checkout.payTo": "Le pagas a",
   "checkout.nextStep": "No se cobró nada. Pide a la vendedora un cobro nuevo y vuelve a escanear.",
   "bo.loginHint":

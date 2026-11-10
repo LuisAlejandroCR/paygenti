@@ -94,7 +94,13 @@ function setup(env: Record<string, string> = { SPEI_CLABE: CLABE }) {
   const now = Date.parse("2026-10-06T12:00:00Z");
   const paypal = new MockPayPal();
   const sales = new SalesService({ store: new MemoryStore(), paypal, clock: () => now });
-  const app = createApp({ paypal, sales, rails: buildRailRegistry(env), vendorPin: "4321" });
+  const app = createApp({
+    chargeAuth: "off",
+    paypal,
+    sales,
+    rails: buildRailRegistry(env),
+    vendorPin: "4321",
+  });
   const create = async () => {
     const res = await app.request("/api/terminals/rosa-01/sales", json({ amount: 9500 }));
     return ((await res.json()) as { sale: Sale }).sale;

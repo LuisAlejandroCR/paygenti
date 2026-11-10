@@ -109,7 +109,7 @@ describe("signature", () => {
 describe("routes", () => {
   it("issues a passport for a paid sale and verifies it publicly", async () => {
     const paypal = new MockPayPal();
-    const app = createApp({ paypal, vendorPin: "4321" });
+    const app = createApp({ chargeAuth: "off", paypal, vendorPin: "4321" });
     const created = await app.request("/api/terminals/rosa-01/sales", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
