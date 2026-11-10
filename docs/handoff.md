@@ -49,6 +49,30 @@ Deploy en Render (`https://paygent-rirl.onrender.com/api/health`, consultado 202
   vivo real + job de CI `dashboard`): mergeadas.
 - Paleta "Cempasúchil" aplicada en web, dashboard y móvil (`feat/palette-cempasuchil`, ver `docs/design.md`).
 
+## Actualización 2026-11-10 (faltan 2 días; el hardware llega el 11-nov)
+
+Rama `claude/eloquent-brahmagupta-orlw1f`, en PR:
+
+- **Seguridad:** el bloqueo del PIN ya no confía en `X-Forwarded-For` (ver `docs/memoria.md`, 2026-11-10).
+  Variables nuevas `TRUSTED_IP_HEADER` y `TRUST_PROXY_HOPS`; el freno global ahora se duplica.
+- `render.yaml` declara todas las variables que lee el servidor (resuelve la parte de `render.yaml` del #21).
+- CI: `actions/checkout@v5` y `setup-node@v5` (Node 24) y runner fijo en `ubuntu-24.04` (resuelve los avisos
+  del #21). e2e de bloqueo usa un header de prueba confiable.
+
+Orden de trabajo hasta la entrega:
+
+1. **Hoy:** build EAS del dev client Android (NFC y HCE no corren en Expo Go); en Render poner `DATABASE_URL`,
+   `VENDOR_PIN`, `STALL_PINS` y el header de IP verificado (`TRUSTED_IP_HEADER`, probar `true-client-ip` o
+   `cf-connecting-ip`); un pago sandbox real después del Server SDK (#29) con webhook.
+2. **11-nov, con hardware:** sticker NTAG en iPhone y Android → pago sandbox → el teléfono habla; HCE Android
+   → iPhone (si falla, el video usa el sticker); soundbox en el Android viejo (instalar, sonido, pantalla
+   completa, fijar pantalla, corte de red); voz con ruido real.
+3. **12-nov antes de 12:00 PT:** video < 3 min en inglés en dispositivos reales, repo público (decidir antes qué
+   docs privados salen: `memoria`, `handoff`, `bank-confirm`), texto de Devpost.
+
+Riesgo abierto: crear, cancelar y extender ventas no piden autenticación (cualquiera puede cancelar el cobro
+abierto de un puesto). No desvía dinero; para la demo en vivo conviene un token de dispositivo de la vendedora.
+
 ## Qué falta (en orden)
 
 ### Acciones del usuario (no las puede hacer un agente)

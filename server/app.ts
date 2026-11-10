@@ -20,7 +20,7 @@ import {
 import type { Sale } from "../shared/types";
 import type { ModelClient } from "./backoffice/agent";
 import type { PayPalTools } from "./backoffice/paypal-tools";
-import { backofficeRoutes, clientIp } from "./backoffice/routes";
+import { backofficeRoutes, clientIpResolver, type ProxyTrust } from "./backoffice/routes";
 import { BackOffice } from "./backoffice/tools";
 import type { VisionClient } from "./catalog/extract";
 import type { IntegrationStatus } from "./integrations";
@@ -70,6 +70,8 @@ export interface AppDeps {
   stallPins?: Record<string, string>;
   /** APPLE_PAY_DOMAIN_ASSOCIATION: Apple's domain-verification file, served under /.well-known. */
   applePayDomainAssociation?: string;
+  /** Proxy headers trusted to name the caller (PIN lockout); omitted means the socket address. */
+  proxyTrust?: ProxyTrust;
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -133,6 +135,7 @@ export function createApp(deps: AppDeps): Hono {
   const sales =
     deps.sales ?? new SalesService({ store: new MemoryStore(), paypal, clock: deps.clock });
   const app = new Hono();
+  const clientIp = clientIpResolver(deps.proxyTrust);
 
   // One stall per vendor, each with its own PIN, caps, sessions and inbox. The lock follows each
   // stall's charge currency (caps per currency; MXN keeps its defaults).
@@ -484,6 +487,7 @@ export function createApp(deps: AppDeps): Hono {
       publicUrl: deps.publicUrl,
       sessions: s.sessions,
       approvals: s.approvals,
+      clientIp,
     });
     app.route(`/api/stalls/${s.id}/backoffice`, routes);
     if (s === main) app.route("/api/backoffice", routes);

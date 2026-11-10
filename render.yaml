@@ -27,3 +27,40 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      # PIN lockout keys on the caller IP. Render appends to X-Forwarded-For, so its leftmost entry
+      # is forged by the client: set TRUSTED_IP_HEADER or TRUST_PROXY_HOPS once verified on Render.
+      - key: TRUSTED_IP_HEADER
+        sync: false
+      - key: TRUST_PROXY_HOPS
+        sync: false
+      # PIN per extra stall ("beto:XXXX"); without it Don Beto keeps the demo PIN 5678.
+      - key: STALL_PINS
+        sync: false
+      # Server speech-to-text for browsers without SpeechRecognition (Firefox).
+      - key: STT_API_KEY
+        sync: false
+      - key: STT_URL
+        sync: false
+      - key: STT_MODEL
+        sync: false
+      # Payment rails: each appears only when its config is present.
+      - key: RAIL_APPLE_PAY
+        sync: false
+      - key: RAIL_GOOGLE_PAY
+        sync: false
+      - key: RAIL_OXXO
+        sync: false
+      - key: APPLE_PAY_DOMAIN_ASSOCIATION
+        sync: false
+      - key: PIX_KEY
+        sync: false
+      - key: PIX_MERCHANT_NAME
+        sync: false
+      - key: PIX_MERCHANT_CITY
+        sync: false
+      - key: SPEI_CLABE
+        sync: false
+      - key: SPEI_BENEFICIARY
+        sync: false
+      - key: BREB_KEY
+        sync: false
