@@ -5,6 +5,8 @@
 // "+5 min" extends the timer, keyboard shortcuts (digits/Enter/Escape), and voice mode speaks every
 // state with its own tone and takes spoken commands (charge, cancel, more time, new sale, repeat).
 // An unknown terminal shows an error card instead of a keypad that could never charge.
+// Charging needs this device unlocked once with the stall PIN (token in localStorage, 7 days); until
+// then the keypad is replaced by a PIN card, and a refused token brings the card back.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { currencyInfo, decimalsOf } from "../../shared/currency";
 import { type Currency, formatMoney, fromPayPalValue, type Money } from "../../shared/money";
@@ -12,7 +14,7 @@ import type { CartLine, CatalogItem, Sale, TerminalEvent } from "../../shared/ty
 import { type Command, listenOnce, parseCommand, playSound, speak, usePref } from "./a11y";
 import { A11yToggles } from "./a11y-toggles";
 import { announcePaid, spokenAmount, unlockAudio } from "./announce";
-import { ApiError, api } from "./api";
+import { ApiError, api, deviceToken } from "./api";
 import { useT } from "./i18n";
 import { BackspaceIcon, ClockIcon, PaidCheck, XCircleIcon } from "./icons";
 import { LangToggle } from "./lang-toggle";
@@ -73,6 +75,8 @@ export function VendorApp({
   const [needsSetup, setNeedsSetup] = useState(false);
   const [reviewPrices, setReviewPrices] = useState(false);
   const [missing, setMissing] = useState(false);
+  const [locked, setLocked] = useState(() => !deviceToken.get(terminal));
+  const [pin, setPin] = useState("");
   const saleRef = useRef<Sale | undefined>(undefined);
   saleRef.current = sale;
   const [voiceMode] = usePref("voice");
@@ -110,6 +114,50 @@ export function VendorApp({
     // "paid" is already spoken by announcePaid(); voice mode adds only the tone.
     if (phase !== "paid") say(describe());
   }, [phase, voiceMode]);
+
+  // A server with CHARGE_AUTH=off never asks for the PIN here.
+  useEffect(() => {
+    setLocked(!deviceToken.get(terminal));
+    api
+      .config()
+      .then((cfg) => {
+        if (cfg.chargeAuth === false) setLocked(false);
+      })
+      .catch(() => {});
+  }, [terminal]);
+
+  /** The server refused this device's token: forget it and ask for the PIN again. */
+  function authLost(err: unknown): boolean {
+    if (!(err instanceof ApiError) || err.code !== "CHARGE_AUTH_REQUIRED") return false;
+    deviceToken.set(terminal, null);
+    setLocked(true);
+    setError(t("vendor.unlockAgain"));
+    return true;
+  }
+
+  async function unlock(e: Event) {
+    e.preventDefault();
+    if (busy || pin.length < 4) return;
+    setBusy(true);
+    setError("");
+    try {
+      const { token } = await api.unlock(terminal, pin);
+      deviceToken.set(terminal, token);
+      setLocked(false);
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : "";
+      setError(
+        code === "PIN_LOCKED"
+          ? t("bo.pinLocked")
+          : code === "PIN_WRONG"
+            ? t("bo.pinWrong")
+            : t("vendor.createFailed"),
+      );
+    } finally {
+      setPin("");
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     fetch(`/api/terminals/${terminal}`)
@@ -205,8 +253,8 @@ export function VendorApp({
       setSale(created);
       onSale?.(created);
       setPhase("waiting");
-    } catch {
-      setError(t("vendor.createFailed"));
+    } catch (err) {
+      if (!authLost(err)) setError(t("vendor.createFailed"));
     } finally {
       setBusy(false);
     }
@@ -218,10 +266,11 @@ export function VendorApp({
     setBusy(true);
     setError("");
     try {
-      await api.cancelSale(current.id);
+      await api.cancelSale(current.id, terminal);
       reset();
     } catch (err) {
       const code = err instanceof ApiError ? err.code : "";
+      if (authLost(err)) return;
       if (code === "SALE_ALREADY_PAID") {
         const { sale: paid } = await api.sale(current.id).catch(() => ({ sale: current }));
         setSale(paid);
@@ -241,14 +290,14 @@ export function VendorApp({
     if (!current || busy) return;
     setBusy(true);
     try {
-      const { sale: longer } = await api.extendSale(current.id);
+      const { sale: longer } = await api.extendSale(current.id, terminal);
       setSale(longer);
       warned.current = false;
       const mins = Math.ceil((Date.parse(longer.expiresAt) - Date.now()) / 60000);
       if (voiceMode) playSound("extended");
       say(t("a11y.extended", { left: t("say.minutes", { n: mins }) }));
-    } catch {
-      say(t("a11y.extendMax"));
+    } catch (err) {
+      if (!authLost(err)) say(t("a11y.extendMax"));
     } finally {
       setBusy(false);
     }
@@ -292,7 +341,7 @@ export function VendorApp({
         else if (phase !== "entry") reset();
         return;
       }
-      if (phase !== "entry" || cart.length > 0 || !keypadOpen || typing) return;
+      if (phase !== "entry" || locked || cart.length > 0 || !keypadOpen || typing) return;
       if (/^[0-9.]$/.test(e.key)) setDigits((d) => press(d, e.key, decimalsOf(currency)));
       else if (e.key === "Backspace") setDigits((d) => press(d, "⌫"));
       else if (e.key === "Enter" && !onControl) void charge();
@@ -371,7 +420,29 @@ export function VendorApp({
         </section>
       )}
 
-      {phase === "entry" && vendorId && (
+      {locked && vendorId && !missing && (
+        <form class="panel login-card unlock" onSubmit={unlock} aria-labelledby="unlock-title">
+          <p id="unlock-title" class="big">
+            {t("vendor.unlockTitle")}
+          </p>
+          <p class="hint">{t("vendor.unlockHint")}</p>
+          <label>
+            {t("bo.pin")}
+            <input
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              value={pin}
+              onInput={(e) => setPin(e.currentTarget.value)}
+            />
+          </label>
+          <button type="submit" class="primary" disabled={busy || pin.length < 4}>
+            {t("vendor.unlock")}
+          </button>
+        </form>
+      )}
+
+      {phase === "entry" && !locked && vendorId && (
         <VoiceCart
           vendorId={vendorId}
           cart={cart}
@@ -383,7 +454,7 @@ export function VendorApp({
         />
       )}
 
-      {phase === "entry" && !missing && cart.length === 0 && keypadOpen && (
+      {phase === "entry" && !locked && !missing && cart.length === 0 && keypadOpen && (
         <section class="entry card" aria-label={t("vendor.amountEntry")}>
           <output class="amount num" aria-live="polite">
             {symbol}

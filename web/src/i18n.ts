@@ -500,6 +500,11 @@ const en = {
   "vendor.terminalNotFoundHint":
     "Check the link or the sticker you opened, or ask whoever set up paygent for the right one.",
   "vendor.goSettings": "Open stall settings",
+  "vendor.unlockTitle": "Unlock this phone to charge",
+  "vendor.unlockHint":
+    "Enter the stall PIN once. This phone can then open and cancel charges for 7 days; nobody else can.",
+  "vendor.unlock": "Unlock",
+  "vendor.unlockAgain": "This phone needs the stall PIN again to charge.",
   "checkout.payTo": "You are paying",
   "checkout.nextStep": "Nothing was charged. Ask the vendor for a new charge and scan again.",
   "bo.loginHint":
@@ -507,6 +512,8 @@ const en = {
   "bo.backToRegister": "Back to the register",
   "bo.sections": "Back-office sections",
   "bo.noSales": "No paid sales yet today. They show up here as soon as PayPal confirms them.",
+  "bo.otherCurrency":
+    "Also today, before the currency change: {amount} · {count} (not added to the total).",
   "bo.salesCountOne": "1 sale",
   "bo.refundedAmount": "{amount} refunded",
   "bo.refundHint": "The money goes back to the customer through PayPal. A refund cannot be undone.",
@@ -1020,6 +1027,11 @@ const es: Dict = {
   "vendor.terminalNotFoundHint":
     "Revisa el enlace o el sticker que abriste, o pide el correcto a quien configuró paygent.",
   "vendor.goSettings": "Abrir ajustes del puesto",
+  "vendor.unlockTitle": "Desbloquea este teléfono para cobrar",
+  "vendor.unlockHint":
+    "Escribe el PIN del puesto una vez. Este teléfono podrá abrir y cancelar cobros por 7 días; nadie más.",
+  "vendor.unlock": "Desbloquear",
+  "vendor.unlockAgain": "Este teléfono necesita otra vez el PIN del puesto para cobrar.",
   "checkout.payTo": "Le pagas a",
   "checkout.nextStep": "No se cobró nada. Pide a la vendedora un cobro nuevo y vuelve a escanear.",
   "bo.loginHint":
@@ -1027,6 +1039,8 @@ const es: Dict = {
   "bo.backToRegister": "Volver a la caja",
   "bo.sections": "Secciones del negocio",
   "bo.noSales": "Todavía no hay ventas pagadas hoy. Aparecen aquí en cuanto PayPal las confirma.",
+  "bo.otherCurrency":
+    "También hoy, antes del cambio de moneda: {amount} · {count} (no se suma al total).",
   "bo.salesCountOne": "1 venta",
   "bo.refundedAmount": "{amount} devuelto",
   "bo.refundHint": "El dinero regresa al cliente por PayPal. Una devolución no se puede deshacer.",

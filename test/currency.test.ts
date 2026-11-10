@@ -168,7 +168,7 @@ describe("onboarding API", () => {
   const PIN = "4321";
   async function setup() {
     const paypal = new MockPayPal();
-    const app = createApp({ paypal, vendorPin: PIN });
+    const app = createApp({ chargeAuth: "off", paypal, vendorPin: PIN });
     const call = async (method: string, path: string, body?: unknown, token?: string) => {
       const res = await app.request(path, {
         method,
@@ -212,6 +212,46 @@ describe("onboarding API", () => {
     const bad = await call("PUT", "/api/backoffice/vendor", { ...body, currency: "COP" }, token);
     expect(bad.status).toBe(400);
     expect(bad.data.error).toBe("INVALID_VENDOR");
+  });
+
+  it("a currency switch mid-day never mixes amounts in the day's totals", async () => {
+    const { call, token, paypal } = await setup();
+    const sell = async (amount: number) => {
+      const { data } = await call("POST", "/api/terminals/rosa-01/sales", { amount });
+      const sale = data.sale as { id: string; orderId: string };
+      paypal.approve(sale.orderId);
+      await call("POST", `/api/sales/${sale.id}/capture`);
+    };
+    await sell(10_000); // 100 MXN
+    await call(
+      "PUT",
+      "/api/backoffice/vendor",
+      { displayName: "Rosa", country: "MX", currency: "USD" },
+      token,
+    );
+    await sell(500); // 5 USD
+    const today = (await call("GET", "/api/backoffice/sales-today", undefined, token)).data;
+    expect(today.total).toEqual(money(500, "USD"));
+    expect(today.count).toBe(1);
+    expect(today.others).toEqual([
+      {
+        currency: "MXN",
+        count: 1,
+        paid: money(10_000, "MXN"),
+        refunded: money(0, "MXN"),
+        net: money(10_000, "MXN"),
+      },
+    ]);
+    const ledger = (await call("GET", "/api/backoffice/ledger", undefined, token)).data as {
+      rows: unknown[];
+      totals: { paid: unknown; net: unknown; count: number };
+      others: { currency: string; paid: unknown }[];
+    };
+    expect(ledger.rows).toHaveLength(2);
+    expect(ledger.totals.paid).toEqual(money(500, "USD"));
+    expect(ledger.totals.net).toEqual(money(500, "USD"));
+    expect(ledger.totals.count).toBe(1);
+    expect(ledger.others).toMatchObject([{ currency: "MXN", paid: money(10_000, "MXN") }]);
   });
 
   it("a Colombian vendor charges in USD; the change is audited and caps follow", async () => {

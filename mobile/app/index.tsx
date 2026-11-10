@@ -2,6 +2,8 @@
 // PUBLIC_URL/t/:terminal with countdown, live SSE status, PAID flood (haptics + spoken amount),
 // cancel, and links to soundbox, NFC, back office and settings. Sends first-run vendors to onboarding.
 // Every control has a label/role/hint and each state change is announced to VoiceOver/TalkBack.
+// Charging needs the phone unlocked once with the stall PIN (or a back-office session); a refused
+// token shows the PIN card again.
 import type { CartLine, Sale, TerminalEvent } from "@shared/types";
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,13 +24,16 @@ import {
 import { connectTerminal } from "@/lib/terminal-stream";
 import { FONTS, RADIUS } from "@/lib/theme";
 import { PaidFlood } from "@/paid-flood";
-import { Body, Button, Card, Message, Screen, TopBar } from "@/ui";
+import { Body, Button, Card, Field, Message, Screen, TopBar } from "@/ui";
 import { VoiceCart } from "@/voice-cart";
 
 type Phase = "entry" | "waiting" | "paid" | "failed" | "expired";
 
 export default function SaleScreen() {
-  const { api, serverUrl, terminal, t, locale, colors } = useApp();
+  const { api, serverUrl, terminal, t, locale, colors, token, deviceToken, setDeviceToken } = useApp();
+  const [pin, setPin] = useState("");
+  const [authLost, setAuthLost] = useState(false);
+  const locked = authLost || (!deviceToken && !token);
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>("entry");
   const [sale, setSale] = useState<Sale>();
@@ -134,9 +139,9 @@ export default function SaleScreen() {
         : await api.createSale(terminal, amount?.minor ?? 0);
       setSale(created);
       setPhase("waiting");
-    } catch {
+    } catch (err) {
       buzzError();
-      setError(t("sale.createFailed"));
+      if (!lostAuth(err)) setError(t("sale.createFailed"));
     } finally {
       setBusy(false);
     }
@@ -152,6 +157,7 @@ export default function SaleScreen() {
       reset();
     } catch (err) {
       const code = err instanceof ApiError ? err.code : "";
+      if (lostAuth(err)) return;
       if (code === "SALE_ALREADY_PAID") {
         const { sale: paid } = await api.sale(current.id).catch(() => ({ sale: current }));
         setSale(paid);
@@ -160,6 +166,33 @@ export default function SaleScreen() {
       } else if (code === "SALE_NOT_OPEN" || code === "SALE_NOT_FOUND") reset();
       else setError(t("sale.cancelFailed"));
     } finally {
+      setBusy(false);
+    }
+  }
+
+  /** The server refused this phone's token: forget it and show the PIN card. */
+  function lostAuth(err: unknown): boolean {
+    if (!(err instanceof ApiError) || err.code !== "CHARGE_AUTH_REQUIRED") return false;
+    setDeviceToken(undefined);
+    setAuthLost(true);
+    setError(t("sale.unlockAgain"));
+    return true;
+  }
+
+  async function unlock() {
+    if (busy || pin.length < 4) return;
+    setBusy(true);
+    setError("");
+    try {
+      setDeviceToken((await api.unlock(terminal, pin)).token);
+      setAuthLost(false);
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : "";
+      setError(
+        code === "PIN_LOCKED" ? t("bo.locked") : code === "PIN_WRONG" ? t("bo.loginFailed") : t("sale.createFailed"),
+      );
+    } finally {
+      setPin("");
       setBusy(false);
     }
   }
@@ -191,10 +224,26 @@ export default function SaleScreen() {
     <Screen>
       <TopBar title={stall || "paygent"} online={online} />
 
-      {phase === "entry" && vendorId !== "" && (
+      {locked && vendorId !== "" && (
+        <Card>
+          <Body>{t("sale.unlockHint")}</Body>
+          <Field
+            label={t("bo.pin")}
+            value={pin}
+            onChangeText={setPin}
+            secureTextEntry
+            keyboardType="number-pad"
+            maxLength={16}
+            onSubmitEditing={unlock}
+          />
+          <Button label={t("sale.unlock")} busy={busy} disabled={pin.length < 4} onPress={unlock} />
+        </Card>
+      )}
+
+      {phase === "entry" && !locked && vendorId !== "" && (
         <VoiceCart vendorId={vendorId} cart={cart} onCart={setCart} />
       )}
-      {phase === "entry" && cart.length > 0 && (
+      {phase === "entry" && !locked && cart.length > 0 && (
         <Button
           label={t("sale.charge")}
           hint={t("a11y.chargeHint")}
@@ -204,7 +253,7 @@ export default function SaleScreen() {
         />
       )}
 
-      {phase === "entry" && cart.length === 0 && (
+      {phase === "entry" && !locked && cart.length === 0 && (
         <Card>
           <Pressable
             onPress={() => setKeypadOpen((v) => !v)}

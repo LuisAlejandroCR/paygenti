@@ -12,7 +12,12 @@ function setup() {
   let now = Date.parse("2026-10-06T12:00:00Z");
   const paypal = new MockPayPal();
   const sales = new SalesService({ store: new MemoryStore(), paypal, clock: () => now });
-  const app = createApp({ paypal, sales, publicUrl: "https://paygent.example/" });
+  const app = createApp({
+    chargeAuth: "off",
+    paypal,
+    sales,
+    publicUrl: "https://paygent.example/",
+  });
   return { app, paypal, sales, advance: (ms: number) => (now += ms) };
 }
 

@@ -6,6 +6,7 @@
 import { serveStatic } from "@hono/node-server/serve-static";
 import { type Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import QRCode from "qrcode";
 import { z } from "zod";
@@ -20,9 +21,15 @@ import {
 import type { Sale } from "../shared/types";
 import type { ModelClient } from "./backoffice/agent";
 import type { PayPalTools } from "./backoffice/paypal-tools";
-import { backofficeRoutes, clientIpResolver, type ProxyTrust } from "./backoffice/routes";
+import {
+  backofficeRoutes,
+  clientIpResolver,
+  isLiveSession,
+  type ProxyTrust,
+} from "./backoffice/routes";
 import { BackOffice } from "./backoffice/tools";
 import type { VisionClient } from "./catalog/extract";
+import { DeviceTokens } from "./device-token";
 import type { IntegrationStatus } from "./integrations";
 import { type Lang, pickLang } from "./lang";
 import { mcpRoutes } from "./owner/mcp";
@@ -72,6 +79,27 @@ export interface AppDeps {
   applePayDomainAssociation?: string;
   /** Proxy headers trusted to name the caller (PIN lockout); omitted means the socket address. */
   proxyTrust?: ProxyTrust;
+  /**
+   * "on" (default): creating, cancelling and extending a sale need a device token from
+   * /api/terminals/:id/unlock (stall PIN) or a live back-office session of the stall that owns it.
+   * "off" only for local experiments: anyone could then open or cancel a stall's charges.
+   */
+  chargeAuth?: "on" | "off";
+  /** Signs device tokens (DEVICE_TOKEN_SECRET); defaults to a random per-boot secret. */
+  deviceTokens?: DeviceTokens;
+  /**
+   * CORS_ORIGINS: exact origins (e.g. the deployed dashboard) allowed to call /api/* from a
+   * browser. Empty means same-origin only. Auth is bearer tokens, never cookies, so no credentials.
+   */
+  corsOrigins?: readonly string[];
+}
+
+/** "https://a.example, https://b.example" -> exact origins; anything that is not one is dropped. */
+export function parseCorsOrigins(raw: string | undefined): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((s) => s.trim().replace(/\/+$/, ""))
+    .filter((s) => /^https?:\/\/[a-z0-9.-]+(:\d{1,5})?$/i.test(s));
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -101,6 +129,7 @@ const railBody = z.strictObject({
   rail: z.enum(["paypal", "applepay", "googlepay", "oxxo", "pix", "spei", "breb"]),
 });
 const pinBody = z.strictObject({ pin: z.string().max(16) });
+const BEARER = /^Bearer (\S{1,200})$/;
 const approveBody = z.strictObject({ decline: z.boolean().optional() });
 const webhookBody = z.object({
   event_type: z.string().max(100),
@@ -136,6 +165,8 @@ export function createApp(deps: AppDeps): Hono {
     deps.sales ?? new SalesService({ store: new MemoryStore(), paypal, clock: deps.clock });
   const app = new Hono();
   const clientIp = clientIpResolver(deps.proxyTrust);
+  const devices = deps.deviceTokens ?? new DeviceTokens({ now: deps.clock });
+  const chargeAuth = deps.chargeAuth ?? "on";
 
   // One stall per vendor, each with its own PIN, caps, sessions and inbox. The lock follows each
   // stall's charge currency (caps per currency; MXN keeps its defaults).
@@ -162,6 +193,27 @@ export function createApp(deps: AppDeps): Hono {
   if (!main) throw new Error("app: the store has no vendor");
   const office = main.office;
 
+  /** Undefined when the caller may charge for this stall; otherwise the 401 to return. */
+  const denyCharge = (c: Context, vendorId: string) => {
+    if (chargeAuth === "off") return undefined;
+    const token = BEARER.exec(c.req.header("authorization") ?? "")?.[1] ?? "";
+    const stall = stalls.get(vendorId);
+    const now = (deps.clock ?? Date.now)();
+    if (
+      stall &&
+      token &&
+      (devices.verify(token, vendorId) || isLiveSession(stall.sessions, token, now))
+    )
+      return undefined;
+    return c.json({ error: "CHARGE_AUTH_REQUIRED" }, 401);
+  };
+  /** Same check for a sale's routes: the stall that owns the sale decides. */
+  const denySale = (c: Context, saleId: string) => {
+    const sale = sales.store.getSale(saleId);
+    if (!sale) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    return denyCharge(c, sale.vendorId);
+  };
+
   app.onError((err, c) => {
     if (err instanceof SaleError)
       return c.json({ error: err.code, message: err.message }, err.status);
@@ -183,6 +235,18 @@ export function createApp(deps: AppDeps): Hono {
           : limit)(c, next),
   );
   app.use("/webhooks/*", limit);
+  if (deps.corsOrigins?.length) {
+    const allowed = new Set(deps.corsOrigins);
+    app.use(
+      "/api/*",
+      cors({
+        origin: (origin) => (allowed.has(origin) ? origin : null),
+        allowMethods: ["GET", "POST", "PUT", "DELETE"],
+        allowHeaders: ["Authorization", "Content-Type", "X-Paygent-Sessions"],
+        maxAge: 600,
+      }),
+    );
+  }
 
   // Public route: modes only, never the failure reason (it stays in the server log).
   app.get("/api/health", (c) => {
@@ -198,6 +262,7 @@ export function createApp(deps: AppDeps): Hono {
       clientId: paypal.clientId ?? null,
       publicUrl: base(c, deps),
       transcribe: !!deps.transcriber,
+      chargeAuth: chargeAuth === "on",
     }),
   );
 
@@ -225,9 +290,25 @@ export function createApp(deps: AppDeps): Hono {
     return c.body(svg, 200, { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" });
   });
 
+  // The vendor's device unlocks the terminal once with the stall PIN (same lockout as the back office).
+  app.post("/api/terminals/:id/unlock", async (c) => {
+    const id = terminalId.safeParse(c.req.param("id"));
+    const terminal = id.success ? sales.store.getTerminal(id.data) : undefined;
+    const stall = terminal && stalls.get(terminal.vendorId);
+    if (!terminal || !stall) return c.json({ error: "TERMINAL_NOT_FOUND" }, 404);
+    const body = pinBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const result = stall.policy.verifyPin("vendor", body.data.pin, [clientIp(c)]);
+    if (!result.ok) return c.json({ error: result.code }, result.code === "PIN_LOCKED" ? 429 : 401);
+    return c.json(devices.issue(stall.id));
+  });
+
   app.post("/api/terminals/:id/sales", async (c) => {
     const id = terminalId.safeParse(c.req.param("id"));
-    if (!id.success) return c.json({ error: "TERMINAL_NOT_FOUND" }, 404);
+    const terminal = id.success ? sales.store.getTerminal(id.data) : undefined;
+    if (!id.success || !terminal) return c.json({ error: "TERMINAL_NOT_FOUND" }, 404);
+    const denied = denyCharge(c, terminal.vendorId);
+    if (denied) return denied;
     const body = createSaleBody.safeParse(await readJson(c));
     if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
     const sale = await sales.createSale(id.data, body.data);
@@ -251,6 +332,8 @@ export function createApp(deps: AppDeps): Hono {
   app.post("/api/sales/:id/cancel", (c) => {
     const id = uuid.safeParse(c.req.param("id"));
     if (!id.success) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    const denied = denySale(c, id.data);
+    if (denied) return denied;
     return c.json({ sale: sales.cancel(id.data) });
   });
 
@@ -326,6 +409,8 @@ export function createApp(deps: AppDeps): Hono {
   app.post("/api/sales/:id/extend", (c) => {
     const id = uuid.safeParse(c.req.param("id"));
     if (!id.success) return c.json({ error: "SALE_NOT_FOUND" }, 404);
+    const denied = denySale(c, id.data);
+    if (denied) return denied;
     return c.json({ sale: sales.extend(id.data) });
   });
 

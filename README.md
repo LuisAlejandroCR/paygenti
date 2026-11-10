@@ -40,12 +40,23 @@ moves — a deterministic policy lock with the vendor's PIN decides.
 
 Open **`/judge`** (locally: <http://localhost:8787/judge>). One screen, two panels:
 
-1. Vendor (left): type `95` or dictate an order, then tap **Charge**.
+1. Vendor (left): the first time, unlock the terminal with the demo PIN `1234`; then type `95` or
+   dictate an order and tap **Charge**.
 2. Customer (right): the checkout appears — tap **Pay (simulated)** or **Simulate decline**.
 3. Vendor: the screen turns **PAID** and announces it.
 4. Bonus: open `/backoffice`, enter PIN `1234`, refund a sale — the lock asks for the PIN again.
 
 No keys are needed: without PayPal credentials the server runs against an in-memory mock gateway.
+
+## Charging needs an unlocked device
+
+Opening, cancelling and extending a sale need the stall's say-so; otherwise anyone who knows the
+URL could open a charge on Rosa's sticker or cancel the sale her customer is about to pay. The
+vendor screen (web and phone) asks for the stall PIN once and keeps a **device token** for 7 days.
+The token is signed (HMAC-SHA256, `DEVICE_TOKEN_SECRET`), names one stall and can only charge: no
+ledger, refunds or payouts. A live back-office session of that stall also works (dashboard, phone
+back office). Unlocking shares the PIN lockout. Customers need nothing: checkout, rails and capture
+stay public, and Claude over MCP charges with its own token.
 
 ## Soundbox: an old phone on the counter
 
@@ -199,6 +210,9 @@ with none set, the server runs on the mock PayPal gateway with an in-memory stor
 | `STALL_PINS` | PIN per extra stall, e.g. `beto:5678,luz:2468` (demo stall "Don Beto — Tacos" defaults to `5678`) |
 | `TRUSTED_IP_HEADER` | Single-IP header your edge overwrites on every request (e.g. `cf-connecting-ip`, `true-client-ip`), used to key the PIN lockout. Unset: not used |
 | `TRUST_PROXY_HOPS` | Proxies in front that append to `X-Forwarded-For`; the client is the entry that many from the right. Default `0`: the header is ignored (its leftmost entry is client-forged) |
+| `DEVICE_TOKEN_SECRET` | 32+ characters that sign vendor device tokens (see *Charging needs an unlocked device*). Unset: a random secret per start, so devices unlock again after every restart |
+| `CHARGE_AUTH` | `off` lets anyone open, cancel or extend a stall's charges (local experiments only). Default: on |
+| `CORS_ORIGINS` | Exact origins allowed to call `/api/*` from a browser (e.g. the deployed dashboard), comma-separated. Unset: same-origin only |
 
 **PayPal**
 

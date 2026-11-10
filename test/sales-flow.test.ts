@@ -34,7 +34,7 @@ class TrustingPayPal extends MockPayPal {
 function setup(paypal = new MockPayPal()) {
   let now = Date.parse("2026-10-06T12:00:00Z");
   const sales = new SalesService({ store: new MemoryStore(), paypal, clock: () => now });
-  const app = createApp({ paypal, sales });
+  const app = createApp({ chargeAuth: "off", paypal, sales });
   const events: TerminalEvent[] = [];
   sales.subscribe("rosa-01", (e) => events.push(e));
   const createSale = async (body: unknown = { amount: 9500 }) => {
@@ -232,7 +232,10 @@ describe("webhooks", () => {
 describe("mock-only routes", () => {
   it("404 when the gateway is not the mock", async () => {
     const fetch = async () => new Response("{}", { status: 500 });
-    const app = createApp({ paypal: new RestPayPal({ clientId: "x", clientSecret: "y", fetch }) });
+    const app = createApp({
+      chargeAuth: "off",
+      paypal: new RestPayPal({ clientId: "x", clientSecret: "y", fetch }),
+    });
     const res = await app.request("/api/mock/orders/ABC/approve", json({}));
     expect(res.status).toBe(404);
   });

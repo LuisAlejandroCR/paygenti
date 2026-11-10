@@ -2,9 +2,9 @@
      No es la spec (docs/plan.md, criterios de aceptación) ni la bitácora de decisiones (docs/memoria.md).
      Se sobrescribe completo en cada traspaso; lo histórico vive en memoria y en git log. -->
 
-# Traspaso — paygent (2026-10-14)
+# Traspaso — paygent (2026-10-14, actualizado 2026-11-10)
 
-Entrega del hackathon: **12-nov-2026 12:00 PT** (15:00 en Bogotá; en noviembre rige PST). Hoy faltan 29 días.
+Entrega del hackathon: **12-nov-2026 12:00 PT** (15:00 en Bogotá; en noviembre rige PST). Al 2026-11-10 faltan 2 días; ver la checklist de abajo.
 
 ## Cómo arrancar
 
@@ -51,27 +51,54 @@ Deploy en Render (`https://paygent-rirl.onrender.com/api/health`, consultado 202
 
 ## Actualización 2026-11-10 (faltan 2 días; el hardware llega el 11-nov)
 
-Rama `claude/eloquent-brahmagupta-orlw1f`, en PR:
+### PRs abiertos (apilados: mergear en este orden y cambiar la base del siguiente a `main`)
 
-- **Seguridad:** el bloqueo del PIN ya no confía en `X-Forwarded-For` (ver `docs/memoria.md`, 2026-11-10).
-  Variables nuevas `TRUSTED_IP_HEADER` y `TRUST_PROXY_HOPS`; el freno global ahora se duplica.
-- `render.yaml` declara todas las variables que lee el servidor (resuelve la parte de `render.yaml` del #21).
-- CI: `actions/checkout@v5` y `setup-node@v5` (Node 24) y runner fijo en `ubuntu-24.04` (resuelve los avisos
-  del #21). e2e de bloqueo usa un header de prueba confiable.
+| PR | Rama | Qué |
+|---|---|---|
+| #49 | `claude/eloquent-brahmagupta-orlw1f` | Seguridad: el bloqueo del PIN ya no confía en `X-Forwarded-For` (`TRUSTED_IP_HEADER`, `TRUST_PROXY_HOPS`); freno global escalonado; `render.yaml` completo; CI con acciones v5 y `ubuntu-24.04` |
+| #50 | `claude/sale-auth` | Seguridad: crear, cancelar y extender ventas piden un dispositivo desbloqueado con el PIN del puesto (`DEVICE_TOKEN_SECRET`, `CHARGE_AUTH`) |
+| #51 | `claude/pending-fixes` | Libro del día en una sola moneda (`others`), Resumen del móvil con `/ledger-range` (2 llamadas, día del puesto), `/` sigue al puesto elegido, `CORS_ORIGINS` opcional |
 
-Orden de trabajo hasta la entrega:
+Detalle y porqués: `docs/memoria.md`, entradas del 2026-11-10.
 
-1. **Hoy:** build EAS del dev client Android (NFC y HCE no corren en Expo Go); en Render poner `DATABASE_URL`,
-   `VENDOR_PIN`, `STALL_PINS` y el header de IP verificado (`TRUSTED_IP_HEADER`, probar `true-client-ip` o
-   `cf-connecting-ip`); un pago sandbox real después del Server SDK (#29) con webhook.
-2. **11-nov, con hardware:** sticker NTAG en iPhone y Android → pago sandbox → el teléfono habla; HCE Android
-   → iPhone (si falla, el video usa el sticker); soundbox en el Android viejo (instalar, sonido, pantalla
-   completa, fijar pantalla, corte de red); voz con ruido real.
-3. **12-nov antes de 12:00 PT:** video < 3 min en inglés en dispositivos reales, repo público (decidir antes qué
-   docs privados salen: `memoria`, `handoff`, `bank-confirm`), texto de Devpost.
+### Checklist hasta la entrega (12-nov 12:00 PT)
 
-Riesgo abierto: crear, cancelar y extender ventas no piden autenticación (cualquiera puede cancelar el cobro
-abierto de un puesto). No desvía dinero; para la demo en vivo conviene un token de dispositivo de la vendedora.
+**Hoy, 10-nov (usuario):**
+
+- [ ] Revisar y mergear #49 → #50 → #51 (en ese orden).
+- [ ] Render → variables: `DATABASE_URL` (Neon; hoy `database: off`), `VENDOR_PIN`, `STALL_PINS`,
+      `DEVICE_TOKEN_SECRET` (≥ 32 caracteres; el blueprint solo lo genera en servicios nuevos) y el header de IP:
+      probar `TRUSTED_IP_HEADER=true-client-ip` o `cf-connecting-ip` y confirmar que llega la IP real. Sin él,
+      todos los clientes comparten una llave de bloqueo del PIN. `CORS_ORIGINS` solo si el dashboard se
+      despliega en otro origen.
+- [ ] Build EAS del dev client Android (`mobile/README.md`); NFC y HCE no corren en Expo Go. iOS solo por EAS
+      en la nube con cuenta de Apple Developer.
+- [ ] Un pago sandbox real después del Server SDK (#29), con webhook recibido; payout real de 10 MXN a la
+      cuenta Personal sandbox; probar `/mcp` con un cliente Claude real.
+
+**11-nov, con el hardware:**
+
+- [ ] Desbloquear con el PIN cada teléfono que cobra (vendedora y `/judge`).
+- [ ] Sticker NTAG: grabar desde la pantalla NFC; tap en iPhone y Android → pago sandbox → el teléfono habla.
+- [ ] HCE Android → iPhone (si falla, el video usa el sticker).
+- [ ] Soundbox en el Android viejo: instalar, activar sonido, pantalla completa, fijar pantalla, corte de red.
+- [ ] Voz con ruido real; si se puede, 10 ventas dictadas por otra persona (≥ 9 carritos correctos).
+- [ ] Móvil con TalkBack/VoiceOver y texto grande (nunca probado); Resumen con datos reales.
+
+**12-nov, antes de 12:00 PT:**
+
+- [ ] Video < 3 min en inglés en dispositivos reales (`docs/submission.md`, guion y checklist).
+- [ ] Decidir qué docs privados salen (`memoria`, `handoff`, `bank-confirm`) y hacer público el repo; borrar
+      en un commit no los saca del historial.
+- [ ] Texto de Devpost: `/judge`, PIN demo `1234` (el panel de la vendedora lo pide una vez), sin llaves.
+- [ ] Deploy vivo hasta el 15-dic (Render free duerme: con `DATABASE_URL` no se pierden datos).
+
+**Decisiones abiertas (no bloquean la demo):** Bre-B automático (spec en `docs/bank-confirm.md`), desplegar
+el dashboard, Yape, tokens verificado/autodeclarado en web y móvil, wallets (Apple Pay / Google Pay) en sandbox.
+
+**Riesgos conocidos:** e2e de onboarding inestable en CI (no se reprodujo en 3 corridas locales completas); el
+móvil no se probó en dispositivo después de #50 y #51; sin `TRUSTED_IP_HEADER`, 5 PINs malos de cualquiera
+bloquean a todos los clientes por un rato.
 
 ## Qué falta (en orden)
 
@@ -99,25 +126,25 @@ abierto de un puesto). No desvía dinero; para la demo en vivo conviene un token
     no los saca del historial de git.
 11. **Confirmación bancaria de Bre-B** (`docs/bank-confirm.md`): ¿se construye antes del 12-nov o queda como
     spec? Hoy ninguna venta en COP puede existir (COP no es moneda PayPal), así que no cambia la demo.
-12. **Dashboard**: ¿se despliega y entra en la demo? No está en `render.yaml` ni en CI; su build de Lovable
-    apunta a Cloudflare por defecto y el servidor no manda CORS.
+12. **Dashboard**: ¿se despliega y entra en la demo? No está en `render.yaml`; su build de Lovable apunta a
+    Cloudflare por defecto. ~~El servidor no manda CORS~~: ahora `CORS_ORIGINS` (orígenes exactos) lo permite
+    (2026-11-10). CI ya lo corre (job `dashboard`, #43).
 13. **Yape (parsers de Luca, MIT)**: la opción "solo transferencias" ya se resolvió con código propio en #35
     (sin usar Luca). Queda "yape sí" (riel + créditos en `THIRD_PARTY_NOTICES.md`) o "no". Bloqueo: PEN no es
     moneda PayPal.
 
 ### Huecos conocidos de lo ya mergeado
 
-14. Dashboard (#40): **"Cobrar" sigue simulado también en modo real** — muestra un enlace inventado y marca
-    "pagado" a los 3,5 s sin llamar al servidor ni a PayPal (`Overlays.tsx`, `Cobrar`); no usarlo en la demo
-    y conectarlo o esconderlo en modo real. Además: sin probar con ventas reales; métricas por riel,
-    interruptor de rieles y nombre/fecha de metas siguen en mock; sus tests (vitest) no corren en CI.
-15. Móvil (#39): el mes se arma con hasta 62 llamadas al ledger; el día usa el reloj del teléfono (cerca de
-    medianoche puede sobrar o faltar un día); sin probar con TalkBack/VoiceOver ni texto grande. Jest de
+14. Dashboard (#40): ~~"Cobrar" simulado en modo real~~ (resuelto en #43: cobra en la terminal y espera la
+    captura; desde el PR de autenticación de cobros manda la sesión del puesto). Sigue: sin probar con ventas
+    reales; métricas por riel, interruptor de rieles y nombre/fecha de metas siguen en mock.
+15. Móvil (#39): ~~62 llamadas al ledger y reloj del teléfono~~ (2026-11-10: dos llamadas a
+    `/ledger-range`, que devuelve el "hoy" del puesto); sin probar con TalkBack/VoiceOver ni texto grande. Jest de
     `mobile/` no encuentra tests cuando el repo está bajo `.claude/` (worktrees).
 16. Rieles: wallets sin probar en sandbox real ni en dispositivos; OXXO solo se lista (sin botón nativo);
     Bre-B nunca se ofrece (COP); panel de rieles sin probar en navegador con llaves reales.
-17. MCP: solo JSON (sin stream ni session id); no hay pantalla para crear puestos; la app de cobro (`/`)
-    elige terminal por `?terminal=`, el selector solo cambia el back office.
+17. MCP: solo JSON (sin stream ni session id); no hay pantalla para crear puestos. ~~La app de cobro (`/`) ignora
+    el selector~~: sin `?terminal=`, `/` abre la primera terminal del puesto elegido en el back office (2026-11-10).
 18. SDK de PayPal: depende de `unstable_httpClientOptions`; después de #29 no hay registro de un pago real en
     sandbox. `@paypal/agent-toolkit` trae su propia copia 1.1.0 del SDK.
 19. Accesibilidad: el respaldo de Firefox (#37) existe pero el deploy no tiene transcriptor y no se probó en
@@ -125,12 +152,11 @@ abierto de un puesto). No desvía dinero; para la demo en vivo conviene un token
     vendedoras ciegas.
 20. Diseño: verificado (verde) / autodeclarado (morado con trama) solo existen como tokens en el dashboard;
     la web y el móvil no los tienen. `--primary` no significa lo mismo en web y dashboard (`docs/design.md`).
-21. Varios: un `XFER` sin concepto sigue contando como ingreso (decisión de #35); el libro del día mezcla montos
-    si ese día cambió la moneda; `render.yaml` no declara `STALL_PINS`, `STT_*`, rieles ni
-    `APPLE_PAY_DOMAIN_ASSOCIATION` (se agregan a mano en Render). CI: la corrida de `main` tras #39 falló por
+21. Varios: un `XFER` sin concepto sigue contando como ingreso (decisión de #35); ~~el libro del día mezcla montos
+    si ese día cambió la moneda~~ (2026-11-10: totales solo en la moneda actual, el resto en `others`);
+    ~~`render.yaml` incompleto~~ (#49). CI: la corrida de `main` tras #39 falló por
     un timeout de `page.goto` en `e2e/onboarding.spec.ts` ("Mexico selects MXN", phone-es) y la de #40 pasó
-    (inestable, sin investigar); GitHub avisa que `actions/checkout@v4` y `setup-node@v4` corren sobre Node 20
-    (obsoleto) y que `ubuntu-latest` pasa a Ubuntu 26 desde el 19-oct-2026.
+    (inestable, sin investigar; en las corridas locales del 2026-11-10 pasó). ~~Avisos de Node 20 y Ubuntu 26~~ (#49).
 
 ### Del plan (sin cambios de criterio)
 

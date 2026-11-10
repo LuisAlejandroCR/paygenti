@@ -1,6 +1,7 @@
 // app/resumen.tsx: the vendor's month at a glance — wine card with verified sales big, self-declared
 // and "to confirm" apart (never summed, pending never paid), delta vs last month, shortcut pills,
-// a day strip and bank transfers to confirm with the stall PIN. Data: per-day back-office ledgers.
+// a day strip and bank transfers to confirm with the stall PIN. Data: two /ledger-range calls (this
+// month and the same days of last month); "today" is the stall's day from the server, not the phone's.
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -12,8 +13,8 @@ import {
   dayKey,
   daysIn,
   deltaPct,
-  elapsedDays,
-  monthKey,
+  elapsedDaysOn,
+  localDayKey,
   pendingTransfers,
   shiftMonth,
   split,
@@ -26,20 +27,6 @@ const MONTHS = {
   es: ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
 };
 
-/** Runs fetches a few at a time so a month (≤ 62 day ledgers) does not flood the server. */
-async function pool<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
-  const out: R[] = new Array(items.length);
-  let next = 0;
-  const worker = async () => {
-    while (next < items.length) {
-      const i = next++;
-      out[i] = await fn(items[i] as T);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(size, items.length) }, worker));
-  return out;
-}
-
 interface MonthData {
   month: string;
   currency: Currency;
@@ -50,8 +37,10 @@ interface MonthData {
 export default function ResumenScreen() {
   const { api, token, setToken, t, colors, locale } = useApp();
   const router = useRouter();
-  const today = useMemo(() => new Date(), []);
-  const [month, setMonth] = useState(() => monthKey(today));
+  const phoneToday = useMemo(() => localDayKey(new Date()), []);
+  const [serverToday, setServerToday] = useState<string>();
+  const todayKey = serverToday ?? phoneToday;
+  const [month, setMonth] = useState(() => phoneToday.slice(0, 7));
   const [data, setData] = useState<MonthData>();
   const [error, setError] = useState("");
   const [confirming, setConfirming] = useState<string>();
@@ -59,22 +48,24 @@ export default function ResumenScreen() {
   const [busy, setBusy] = useState(false);
 
   const prev = shiftMonth(month, -1);
-  const day = elapsedDays(month, today);
+  const day = elapsedDaysOn(month, todayKey);
   const name = (m: string) => MONTHS[locale][Number(m.slice(5, 7)) - 1] ?? m;
 
   const load = useCallback(() => {
-    const curDays = Array.from({ length: day }, (_, i) => i + 1);
-    const prevDays = Array.from({ length: Math.min(day, daysIn(prev)) }, (_, i) => i + 1);
-    return Promise.all([
-      pool(curDays, 4, (d) => api.ledger(dayKey(month, d))),
-      pool(prevDays, 4, (d) => api.ledger(dayKey(prev, d))),
-    ])
-      .then(([cur, before]) => {
+    // The server clamps to the stall's today; last month is compared over the same elapsed days.
+    return api
+      .ledgerRange(dayKey(month, 1), dayKey(month, daysIn(month)))
+      .then(async (cur) => {
+        const elapsed = elapsedDaysOn(month, cur.today);
+        const prevDays = Math.min(elapsed, daysIn(prev));
+        const before =
+          prevDays > 0 ? (await api.ledgerRange(dayKey(prev, 1), dayKey(prev, prevDays))).days : [];
+        setServerToday(cur.today);
         setError("");
         setData({
           month,
-          currency: (cur[0] ?? before[0])?.totals.paid.currency ?? "MXN",
-          cur: new Map(cur.map((l, i) => [i + 1, l.rows])),
+          currency: (cur.days[0] ?? before[0])?.totals.paid.currency ?? "MXN",
+          cur: new Map(cur.days.map((l) => [Number(l.day.slice(8, 10)), l.rows])),
           prevSame: before.flatMap((l) => l.rows),
         });
       })
@@ -83,7 +74,7 @@ export default function ResumenScreen() {
         else setError(t("bo.loadFailed"));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, month, prev, day, setToken]);
+  }, [api, month, prev, setToken]);
 
   useEffect(() => {
     if (token) void load();
@@ -105,7 +96,7 @@ export default function ResumenScreen() {
   const days = data ? daily(data.cur, month, c) : [];
   const dayMax = Math.max(1, ...days.map((d) => d.verified + d.declared));
   const pending = pendingTransfers(rows);
-  const isCurrent = month === monthKey(today);
+  const isCurrent = month >= todayKey.slice(0, 7);
 
   async function confirm(id: string) {
     setBusy(true);

@@ -130,9 +130,11 @@ export async function createCharge(
   currency: string,
 ): Promise<LiveCharge> {
   const t = encodeURIComponent(terminalId);
+  // The stall's back-office session authorizes the charge (the server refuses anonymous ones).
   const r = await call<{ sale: { id: string } }>(`/api/terminals/${t}/sales`, {
     method: "POST",
     body: JSON.stringify({ amount: toMinor(amount, currency) }),
+    stall: active,
   });
   const info = await call<{ payUrl: string }>(`/api/terminals/${t}`);
   return { saleId: r.sale.id, payUrl: info.payUrl, qrUrl: `${BASE}/api/terminals/${t}/qr.svg` };
@@ -143,9 +145,10 @@ export async function chargeStatus(saleId: string): Promise<ChargeState> {
   return chargeState(r.sale.status);
 }
 export async function cancelCharge(saleId: string) {
-  await call(`/api/sales/${encodeURIComponent(saleId)}/cancel`, { method: "POST" }).catch(
-    () => undefined,
-  );
+  await call(`/api/sales/${encodeURIComponent(saleId)}/cancel`, {
+    method: "POST",
+    stall: active,
+  }).catch(() => undefined);
 }
 
 /** Split a date range into ≤31-day windows (kept for the grid datasource). */
