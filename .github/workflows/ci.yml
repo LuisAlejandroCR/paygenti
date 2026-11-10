@@ -2,6 +2,8 @@
 # Playwright end-to-end suite in Chromium (e2e job) on every push and PR; the mobile job checks
 # the Expo app in mobile/ (typecheck, lint, jest) and the dashboard job checks the payments
 # dashboard in paygent-dashboard/ (lint, vitest, build), each with its own lockfile.
+# Runner pinned to ubuntu-24.04 so the ubuntu-latest move to 26 cannot break Playwright before the
+# deadline; checkout/setup-node v5 run on Node 24 (v4 warned about the deprecated Node 20).
 name: ci
 on:
   push:
@@ -9,10 +11,10 @@ on:
   pull_request:
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -20,10 +22,10 @@ jobs:
       - run: npm run check
       - run: npm run build
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -31,13 +33,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
   mobile:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: mobile
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -47,13 +49,13 @@ jobs:
       - run: npm run lint
       - run: npm test -- --ci
   dashboard:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: paygent-dashboard
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm

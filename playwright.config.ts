@@ -37,6 +37,8 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       PORT: String(PORT),
+      // Lets e2e/lockout.spec.ts act as a second client; X-Forwarded-For stays untrusted.
+      TRUSTED_IP_HEADER: "x-e2e-client-ip",
       PUBLIC_URL: "",
       PAYPAL_CLIENT_ID: "",
       PAYPAL_CLIENT_SECRET: "",

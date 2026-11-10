@@ -353,8 +353,10 @@ in [docs/accessibility.md](docs/accessibility.md).
 
 `render.yaml` defines a Render Node web service: build `npm ci && npm run build`, start
 `npm start`, health check `/api/health`. Secrets are set in the Render dashboard. The blueprint
-declares the core variables only; add `STALL_PINS`, the `STT_*` and rail variables by hand if you use
-them. `/api/health` reports the mode of each third party (`on`, `off` or `fallback`), never its
+declares every variable the server reads (values stay empty, `sync: false`); on a service created
+before a variable was added to the blueprint, add it by hand. Set `TRUSTED_IP_HEADER` or
+`TRUST_PROXY_HOPS` once verified on your host: without them every caller behind the proxy shares one
+PIN-lockout key. `/api/health` reports the mode of each third party (`on`, `off` or `fallback`), never its
 secrets.
 
 Render's free web service sleeps and restarts, so set `DATABASE_URL` to keep state. Recommended:

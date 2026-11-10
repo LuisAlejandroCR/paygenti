@@ -4,6 +4,23 @@
 
 # Memoria — paygent
 
+## 2026-11-10 — El bloqueo del PIN ya no confía en X-Forwarded-For
+
+- Problema: `clientIp()` tomaba la primera entrada de `X-Forwarded-For`, que escribe el cliente (Render la
+  agrega al final, no la reemplaza). Rotando ese header un atacante tenía intentos nuevos sin fin por
+  "IP", podía bloquear a la vendedora poniendo su IP, y el freno global fijo de 5 min le dejaba ~50
+  intentos cada 20 min: un PIN de 4 dígitos caía en ~33 h de promedio, con el deploy vivo hasta el 15-dic.
+  Con el PIN: reembolsos y alta de un proveedor propio para payouts (tope 500 MXN/día).
+- Arreglo: por defecto solo cuenta la dirección del socket. `TRUSTED_IP_HEADER` (un header de una IP que
+  el borde reescribe) o `TRUST_PROXY_HOPS` (cuenta desde la derecha) lo abren; valores que no parecen IP
+  se ignoran. El freno global ahora se duplica (5 min → 1 h) hasta el PIN correcto y se persiste.
+- e2e: el servidor de Playwright confía solo en `x-e2e-client-ip`; un `X-Forwarded-For` falso sigue en 429.
+- ⏳ Falta verificar en Render qué header trae la IP real (`true-client-ip` / `cf-connecting-ip` o el
+  número de saltos) y ponerlo; sin eso, todos los clientes comparten una llave de bloqueo.
+- Sin arreglar (decisión de diseño): crear, cancelar y extender ventas no piden autenticación; cualquiera
+  puede cancelar el cobro abierto de un puesto o abrir uno en su terminal. No desvía dinero, pero puede
+  sabotear una demo en vivo.
+
 ## 2026-10-14 — Paleta "Cempasúchil" reemplaza a "Merlot Dream"
 
 - Problema: el vino de Cobrar y el rojo destructivo medían ΔE 0.064 (OKLab), es decir, se leían como un solo
