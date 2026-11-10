@@ -4,6 +4,19 @@
 
 # Memoria — paygent
 
+## 2026-11-10 — Pendientes de código cerrados antes del hardware
+
+- Libro del día: si la vendedora cambiaba de moneda ese día, `sales-today`, `ledger` y el cuadre sumaban
+  centavos de MXN y USD bajo la moneda nueva. Ahora los totales cubren solo la moneda actual y el resto sale en
+  `others` (por moneda, nunca convertido); web y móvil lo muestran como línea aparte.
+- Móvil, Resumen: de hasta 62 llamadas a 2 con `GET .../backoffice/ledger-range?from&to` (≤ 32 días, cortado
+  en el "hoy" del puesto, que también devuelve). El día ya no sale del reloj del teléfono.
+- `/` sin `?terminal=` abre la primera terminal del puesto elegido en el back office (antes siempre Rosa).
+- `CORS_ORIGINS`: orígenes exactos que pueden llamar a `/api/*` desde el navegador (el dashboard desplegado
+  aparte). Sin credenciales (todo es bearer). Sin la variable no se manda ningún header CORS.
+- Quedan para el usuario o como decisión: DB y PINs en Render, EAS, pruebas en dispositivos, repo público,
+  Bre-B automático, despliegue del dashboard, Yape, tokens verificado/autodeclarado en web y móvil.
+
 ## 2026-11-10 — Cobrar, cancelar y extender piden un dispositivo desbloqueado
 
 - Problema: `POST /api/terminals/:id/sales`, `/api/sales/:id/cancel` y `/extend` eran públicos. Cualquiera

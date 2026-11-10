@@ -6,6 +6,7 @@
 import { serveStatic } from "@hono/node-server/serve-static";
 import { type Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import QRCode from "qrcode";
 import { z } from "zod";
@@ -86,6 +87,19 @@ export interface AppDeps {
   chargeAuth?: "on" | "off";
   /** Signs device tokens (DEVICE_TOKEN_SECRET); defaults to a random per-boot secret. */
   deviceTokens?: DeviceTokens;
+  /**
+   * CORS_ORIGINS: exact origins (e.g. the deployed dashboard) allowed to call /api/* from a
+   * browser. Empty means same-origin only. Auth is bearer tokens, never cookies, so no credentials.
+   */
+  corsOrigins?: readonly string[];
+}
+
+/** "https://a.example, https://b.example" -> exact origins; anything that is not one is dropped. */
+export function parseCorsOrigins(raw: string | undefined): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((s) => s.trim().replace(/\/+$/, ""))
+    .filter((s) => /^https?:\/\/[a-z0-9.-]+(:\d{1,5})?$/i.test(s));
 }
 
 const terminalId = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -221,6 +235,18 @@ export function createApp(deps: AppDeps): Hono {
           : limit)(c, next),
   );
   app.use("/webhooks/*", limit);
+  if (deps.corsOrigins?.length) {
+    const allowed = new Set(deps.corsOrigins);
+    app.use(
+      "/api/*",
+      cors({
+        origin: (origin) => (allowed.has(origin) ? origin : null),
+        allowMethods: ["GET", "POST", "PUT", "DELETE"],
+        allowHeaders: ["Authorization", "Content-Type", "X-Paygent-Sessions"],
+        maxAge: 600,
+      }),
+    );
+  }
 
   // Public route: modes only, never the failure reason (it stays in the server log).
   app.get("/api/health", (c) => {

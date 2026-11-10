@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { buildRailRegistry } from "../shared/rails";
-import { createApp } from "./app";
+import { createApp, parseCorsOrigins } from "./app";
 import { AnthropicClient } from "./backoffice/agent";
 import { createPayPalTools } from "./backoffice/paypal-tools";
 import { proxyTrustFromEnv } from "./backoffice/routes";
@@ -105,6 +105,8 @@ const app = createApp({
   proxyTrust: proxyTrustFromEnv(process.env),
   chargeAuth,
   deviceTokens,
+  // The dashboard (paygent-dashboard) on its own origin; unset keeps the API same-origin only.
+  corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
   staticRoot: existsSync(webRoot) ? webRoot : undefined,
 });
 

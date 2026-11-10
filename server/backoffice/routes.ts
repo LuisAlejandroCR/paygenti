@@ -32,6 +32,8 @@ import type { PayPalTools } from "./paypal-tools";
 import { type Authority, type BackOffice, BackOfficeError } from "./tools";
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+/** /ledger-range: one month plus slack. */
+const MAX_LEDGER_RANGE_DAYS = 31;
 const pinField = z.string().max(16).optional();
 const loginBody = z.strictObject({ pin: z.string().max(16) });
 const reconcileBody = z.strictObject({ cashMinor: z.number().int().min(0).max(100_000_000) });
@@ -174,6 +176,22 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
     const date = c.req.query("date");
     if (date !== undefined && !isDay(date)) return c.json({ error: "INVALID_DATE" }, 400);
     return c.json(office.ledger(date));
+  });
+
+  // A month in one call (the phone's month view used to make up to 62): days from..to, clamped to
+  // the stall's today, plus that today so the client does not trust the phone's clock at midnight.
+  app.get("/ledger-range", (c) => {
+    const denied = requireVendor(c);
+    if (denied) return denied;
+    const from = c.req.query("from") ?? "";
+    const to = c.req.query("to") ?? "";
+    if (!isDay(from) || !isDay(to) || to < from) return c.json({ error: "INVALID_DATE" }, 400);
+    if (daysBetween(from, to) > MAX_LEDGER_RANGE_DAYS)
+      return c.json({ error: "RANGE_TOO_LONG" }, 400);
+    const today = office.currentDay();
+    const days = [];
+    for (let d = from; d <= to && d <= today; d = addDays(d, 1)) days.push(office.ledger(d));
+    return c.json({ today, days });
   });
 
   app.post("/reconcile", async (c) => {
