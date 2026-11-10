@@ -2,7 +2,9 @@
 // The PIN itself is never kept: only a salted SHA-256 digest. Failures are counted per client key
 // (IP, session): 5 wrong attempts lock that client, and each further lockout doubles (5, 10, 20 min,
 // capped at 1 h). A global backstop locks everyone after many failures across all clients, so
-// rotating keys does not buy unlimited guesses. A locked client is refused even with the right PIN.
+// rotating keys does not buy unlimited guesses; it doubles too (5 min .. 1 h) until the right PIN is
+// entered, so a slow distributed brute force cannot hold 50 guesses per 20 min for weeks.
+// A locked client is refused even with the right PIN.
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 export interface PinGuardOptions {
@@ -27,6 +29,8 @@ export interface PinGuardState {
   clients: Array<{ key: string } & ClientState>;
   globalFailures: number[];
   globalLockedUntil: number;
+  /** Global lockouts since the last correct PIN (older snapshots lack it: 0). */
+  globalLockouts?: number;
 }
 
 export type PinResult =
@@ -57,6 +61,7 @@ export class PinGuard {
   readonly #clients = new Map<string, ClientState>();
   #globalFailures: number[] = [];
   #globalLockedUntil = 0;
+  #globalLockouts = 0;
   readonly #onChange?: (state: PinGuardState) => void;
 
   constructor(opts: PinGuardOptions) {
@@ -74,6 +79,7 @@ export class PinGuard {
       for (const { key, ...c } of opts.state.clients) this.#clients.set(key, { ...c });
       this.#globalFailures = [...opts.state.globalFailures];
       this.#globalLockedUntil = opts.state.globalLockedUntil;
+      this.#globalLockouts = opts.state.globalLockouts ?? 0;
     }
   }
 
@@ -85,6 +91,7 @@ export class PinGuard {
         .map(([key, c]) => ({ key, ...c })),
       globalFailures: [...this.#globalFailures],
       globalLockedUntil: this.#globalLockedUntil,
+      globalLockouts: this.#globalLockouts,
     };
   }
 
@@ -122,13 +129,16 @@ export class PinGuard {
         s.failures = 0;
         s.lockouts = 0;
       }
+      this.#globalLockouts = 0;
       return { ok: true, code: "PIN_OK" };
     }
 
     this.#globalFailures = this.#globalFailures.filter((t) => t > now - this.#globalWindow);
     this.#globalFailures.push(now);
     if (this.#globalFailures.length >= this.#globalMax) {
-      this.#globalLockedUntil = now + this.#lockoutMs;
+      const ms = Math.min(this.#lockoutMs * 2 ** this.#globalLockouts, this.#maxLockoutMs);
+      this.#globalLockouts += 1;
+      this.#globalLockedUntil = now + ms;
       this.#globalFailures = [];
     }
 

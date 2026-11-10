@@ -10,6 +10,7 @@ import {
   summarize,
 } from "../server/backoffice/agent";
 import { PayPalTools } from "../server/backoffice/paypal-tools";
+import { clientIpResolver, type ProxyTrust, proxyTrustFromEnv } from "../server/backoffice/routes";
 import { MockPayPal } from "../server/paypal/mock";
 import type { Money } from "../shared/money";
 import { stubToolkit } from "./support/toolkit-stub";
@@ -38,11 +39,12 @@ function fakeModel(first: ContentBlock[]): ModelClient & { requests: ModelReques
   };
 }
 
-async function setup(model?: ModelClient) {
+async function setup(model?: ModelClient, proxyTrust?: ProxyTrust) {
   const paypal = new CountingPayPal();
   const toolkit = stubToolkit();
   const app = createApp({
     paypal,
+    proxyTrust,
     vendorPin: PIN,
     agentModel: model,
     paypalTools: new PayPalTools(toolkit),
@@ -140,20 +142,56 @@ describe("back-office tools", () => {
 });
 
 describe("PIN lockout is scoped per client", () => {
-  it("five wrong PINs from one IP lock that IP only; the vendor's IP still logs in", async () => {
-    const { app } = await setup();
-    const login = (pin: string, ip: string) =>
+  const loginWith =
+    (app: { request: (p: string, i: RequestInit) => Response | Promise<Response> }) =>
+    (pin: string, xff: string) =>
       app.request("/api/backoffice/session", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Forwarded-For": `${ip}, 10.0.0.1` },
+        headers: { "Content-Type": "application/json", "X-Forwarded-For": xff },
         body: JSON.stringify({ pin }),
       });
-    for (let i = 0; i < 4; i++) expect((await login("0000", "203.0.113.7")).status).toBe(401);
-    expect((await login("0000", "203.0.113.7")).status).toBe(429);
-    expect((await login(PIN, "203.0.113.7")).status).toBe(429);
-    const vendor = await login(PIN, "198.51.100.2");
+
+  it("five wrong PINs from one IP lock that IP only; the vendor's IP still logs in", async () => {
+    // Two proxies append to X-Forwarded-For: the client is the entry two from the right.
+    const { app } = await setup(undefined, { hops: 2 });
+    const login = loginWith(app);
+    const via = (ip: string) => `${ip}, 10.0.0.1`;
+    for (let i = 0; i < 4; i++) expect((await login("0000", via("203.0.113.7"))).status).toBe(401);
+    expect((await login("0000", via("203.0.113.7"))).status).toBe(429);
+    expect((await login(PIN, via("203.0.113.7"))).status).toBe(429);
+    const vendor = await login(PIN, via("198.51.100.2"));
     expect(vendor.status).toBe(200);
     expect(((await vendor.json()) as { token: string }).token).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("a forged leftmost X-Forwarded-For does not buy fresh attempts", async () => {
+    const { app } = await setup(undefined, { hops: 1 });
+    const login = loginWith(app);
+    // The proxy appends the real peer (203.0.113.7); the attacker rotates the part it controls.
+    for (let i = 0; i < 4; i++)
+      expect((await login("0000", `10.9.9.${i}, 203.0.113.7`)).status).toBe(401);
+    expect((await login("0000", "10.9.9.200, 203.0.113.7")).status).toBe(429);
+  });
+
+  it("without proxy trust, X-Forwarded-For is ignored entirely", async () => {
+    const { app } = await setup();
+    const login = loginWith(app);
+    for (let i = 0; i < 4; i++) expect((await login("0000", `10.9.9.${i}`)).status).toBe(401);
+    expect((await login("0000", "10.9.9.99")).status).toBe(429);
+  });
+
+  it("reads a trusted single-IP header and rejects junk in it", () => {
+    const resolve = clientIpResolver({ header: "cf-connecting-ip" });
+    const ctx = (h: Record<string, string>) =>
+      ({ req: { header: (n: string) => h[n.toLowerCase()] } }) as never;
+    expect(resolve(ctx({ "cf-connecting-ip": "198.51.100.2" }))).toBe("ip:198.51.100.2");
+    expect(resolve(ctx({ "cf-connecting-ip": "<script>" }))).toBe("ip:unknown");
+    expect(proxyTrustFromEnv({ TRUST_PROXY_HOPS: "x", TRUSTED_IP_HEADER: "bad header" })).toEqual({
+      hops: 0,
+    });
+    expect(
+      proxyTrustFromEnv({ TRUST_PROXY_HOPS: "2", TRUSTED_IP_HEADER: "True-Client-IP" }),
+    ).toEqual({ header: "true-client-ip", hops: 2 });
   });
 });
 

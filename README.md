@@ -197,6 +197,8 @@ with none set, the server runs on the mock PayPal gateway with an in-memory stor
 | `PASSPORT_SIGNING_KEY` | Ed25519 private key (PKCS8 PEM or base64 DER) that signs sales passports; otherwise an ephemeral demo key |
 | `VENDOR_PIN` | PIN of the main stall (Rosa): back office, refunds, payouts (demo default `1234`) |
 | `STALL_PINS` | PIN per extra stall, e.g. `beto:5678,luz:2468` (demo stall "Don Beto — Tacos" defaults to `5678`) |
+| `TRUSTED_IP_HEADER` | Single-IP header your edge overwrites on every request (e.g. `cf-connecting-ip`, `true-client-ip`), used to key the PIN lockout. Unset: not used |
+| `TRUST_PROXY_HOPS` | Proxies in front that append to `X-Forwarded-For`; the client is the entry that many from the right. Default `0`: the header is ignored (its leftmost entry is client-forged) |
 
 **PayPal**
 

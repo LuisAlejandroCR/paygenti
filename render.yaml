@@ -27,3 +27,9 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      # PIN lockout keys on the caller IP. Render appends to X-Forwarded-For, so its leftmost entry
+      # is forged by the client: set TRUSTED_IP_HEADER or TRUST_PROXY_HOPS once verified on Render.
+      - key: TRUSTED_IP_HEADER
+        sync: false
+      - key: TRUST_PROXY_HOPS
+        sync: false

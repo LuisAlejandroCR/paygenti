@@ -8,6 +8,7 @@ import { buildRailRegistry } from "../shared/rails";
 import { createApp } from "./app";
 import { AnthropicClient } from "./backoffice/agent";
 import { createPayPalTools } from "./backoffice/paypal-tools";
+import { proxyTrustFromEnv } from "./backoffice/routes";
 import { AnthropicVisionClient } from "./catalog/extract";
 import { PostgresStore } from "./db/postgres";
 import { pgClient } from "./db/sql";
@@ -84,6 +85,8 @@ const app = createApp({
   publicUrl: process.env.PUBLIC_URL?.trim() || process.env.RENDER_EXTERNAL_URL?.trim() || undefined,
   voiceEnv: process.env,
   transcriber,
+  // Which proxy header names the caller for the PIN lockout; unset trusts none (socket address).
+  proxyTrust: proxyTrustFromEnv(process.env),
   staticRoot: existsSync(webRoot) ? webRoot : undefined,
 });
 

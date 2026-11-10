@@ -320,6 +320,25 @@ describe("PinGuard per-client lockout", () => {
     expect(g.verify("4321", "ip:vendor").ok).toBe(true);
   });
 
+  it("the global backstop doubles while the attack goes on and resets on the right PIN", () => {
+    let t = 0;
+    const g = new PinGuard({ pin: "4321", now: () => t, globalMaxAttempts: 10 });
+    const wave = (tag: string) => {
+      let last = g.verify("0000", `ip:${tag}-0`);
+      for (let i = 1; i < 10; i++) last = g.verify("0000", `ip:${tag}-${i}`);
+      return last;
+    };
+    expect(wave("a")).toMatchObject({ code: "PIN_LOCKED", retryAfterMs: 5 * 60_000 });
+    t += 5 * 60_000;
+    expect(wave("b")).toMatchObject({ code: "PIN_LOCKED", retryAfterMs: 10 * 60_000 });
+    t += 10 * 60_000;
+    expect(wave("c")).toMatchObject({ code: "PIN_LOCKED", retryAfterMs: 20 * 60_000 });
+    expect(g.snapshot().globalLockouts).toBe(3);
+    t += 20 * 60_000;
+    expect(g.verify("4321", "ip:vendor").ok).toBe(true);
+    expect(wave("d")).toMatchObject({ code: "PIN_LOCKED", retryAfterMs: 5 * 60_000 });
+  });
+
   it("the engine audits PIN checks with the client keys and never the PIN", () => {
     const engine = new PolicyEngine({ vendorName: "Rosa", pin: "4321", now: () => NOON });
     expect(engine.verifyPin("vendor", "0000", ["ip:9.9.9.9"]).ok).toBe(false);
