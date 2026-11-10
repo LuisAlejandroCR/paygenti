@@ -75,6 +75,9 @@ un cliente que grita «devuélveme 2.000 pesos» no mueve nada.
 | **D. Raspberry Pi 5 (8 GB)** | Computadora completa con micrófono y bocina USB | ≈ US$ 200–240 con accesorios y batería (§8.3) | Puede correr **todo** local: STT, TTS y un LLM chico | Cara, gasta más energía y tarda más (§7) |
 | **E. El teléfono de la vendedora** | La app Expo o el PWA | US$ 0 | Ya está: el reconocimiento de voz del sistema puede trabajar sin red ⏳ | No es un hardware aparte; gasta su batería |
 
+> **Actualización 2026-11-09:** A y B no se consiguen en Colombia a tiempo. Se compró la caja con
+> piezas sueltas y pantalla táctil: ver [voice-box-hardware.md](voice-box-hardware.md).
+
 **Elección para el hackathon: A, o B si se consigue a tiempo.** A llega lista y cuesta lo mismo que un
 sticker caro. B hace la mejor toma para el video (el QR aparece en la caja que acaba de oír el monto),
 pero cuesta unas cuatro veces más. C es el plan si no llega ninguna: el hardware de Lente ya demostró
