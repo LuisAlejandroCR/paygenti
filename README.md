@@ -212,6 +212,7 @@ with none set, the server runs on the mock PayPal gateway with an in-memory stor
 | `TRUST_PROXY_HOPS` | Proxies in front that append to `X-Forwarded-For`; the client is the entry that many from the right. Default `0`: the header is ignored (its leftmost entry is client-forged) |
 | `DEVICE_TOKEN_SECRET` | 32+ characters that sign vendor device tokens (see *Charging needs an unlocked device*). Unset: a random secret per start, so devices unlock again after every restart |
 | `CHARGE_AUTH` | `off` lets anyone open, cancel or extend a stall's charges (local experiments only). Default: on |
+| `CORS_ORIGINS` | Exact origins allowed to call `/api/*` from a browser (e.g. the deployed dashboard), comma-separated. Unset: same-origin only |
 
 **PayPal**
 

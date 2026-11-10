@@ -7,6 +7,8 @@ import {
   daysIn,
   deltaPct,
   elapsedDays,
+  elapsedDaysOn,
+  localDayKey,
   pendingTransfers,
   shiftMonth,
   split,
@@ -90,5 +92,16 @@ describe("summary calendar", () => {
     expect(deltaPct(150, 100)).toBe(50);
     expect(deltaPct(50, 100)).toBe(-50);
     expect(deltaPct(10, 0)).toBeUndefined();
+  });
+});
+
+describe("elapsedDaysOn (the stall's today from the server)", () => {
+  it("counts up to the server's day, all of a past month, none of a future one", () => {
+    expect(elapsedDaysOn("2026-10", "2026-10-06")).toBe(6);
+    expect(elapsedDaysOn("2026-09", "2026-10-06")).toBe(30);
+    expect(elapsedDaysOn("2026-11", "2026-10-06")).toBe(0);
+  });
+  it("localDayKey pads month and day", () => {
+    expect(localDayKey(new Date(2026, 0, 5))).toBe("2026-01-05");
   });
 });

@@ -33,6 +33,8 @@ export interface SalesToday {
   count: number;
   total: Money;
   refunded: Money;
+  /** Sales today in a currency the stall no longer charges in: shown apart, never summed. */
+  others?: { currency: string; count: number; net: Money }[];
   sales: {
     id: string;
     paidAt: string;
@@ -142,6 +144,11 @@ export function createApi(baseUrl: string, token?: string, stall: string = DEFAU
     /** One day's ledger (YYYY-MM-DD, stall time zone); today when omitted. */
     ledger: (date?: string) =>
       request<Ledger>(bo(date ? `/ledger?date=${encodeURIComponent(date)}` : "/ledger")),
+    /** Day ledgers from..to (≤ 32 days), clamped to the stall's today, which it also returns. */
+    ledgerRange: (from: string, to: string) =>
+      request<{ today: string; days: Ledger[] }>(
+        bo(`/ledger-range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+      ),
     /** Vendor checked her bank app: PIN-gated; the sale becomes vendor_confirmed, never paid. */
     vendorConfirm: (saleId: string, pin: string) =>
       request<{ sale: Sale }>(`/api/sales/${encodeURIComponent(saleId)}/vendor-confirm`, {

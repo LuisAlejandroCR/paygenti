@@ -512,6 +512,8 @@ const en = {
   "bo.backToRegister": "Back to the register",
   "bo.sections": "Back-office sections",
   "bo.noSales": "No paid sales yet today. They show up here as soon as PayPal confirms them.",
+  "bo.otherCurrency":
+    "Also today, before the currency change: {amount} · {count} (not added to the total).",
   "bo.salesCountOne": "1 sale",
   "bo.refundedAmount": "{amount} refunded",
   "bo.refundHint": "The money goes back to the customer through PayPal. A refund cannot be undone.",
@@ -1037,6 +1039,8 @@ const es: Dict = {
   "bo.backToRegister": "Volver a la caja",
   "bo.sections": "Secciones del negocio",
   "bo.noSales": "Todavía no hay ventas pagadas hoy. Aparecen aquí en cuanto PayPal las confirma.",
+  "bo.otherCurrency":
+    "También hoy, antes del cambio de moneda: {amount} · {count} (no se suma al total).",
   "bo.salesCountOne": "1 venta",
   "bo.refundedAmount": "{amount} devuelto",
   "bo.refundHint": "El dinero regresa al cliente por PayPal. Una devolución no se puede deshacer.",

@@ -100,25 +100,25 @@ hay que agregarlo a mano). Con el hardware: desbloquear una vez cada teléfono (
     no los saca del historial de git.
 11. **Confirmación bancaria de Bre-B** (`docs/bank-confirm.md`): ¿se construye antes del 12-nov o queda como
     spec? Hoy ninguna venta en COP puede existir (COP no es moneda PayPal), así que no cambia la demo.
-12. **Dashboard**: ¿se despliega y entra en la demo? No está en `render.yaml` ni en CI; su build de Lovable
-    apunta a Cloudflare por defecto y el servidor no manda CORS.
+12. **Dashboard**: ¿se despliega y entra en la demo? No está en `render.yaml`; su build de Lovable apunta a
+    Cloudflare por defecto. ~~El servidor no manda CORS~~: ahora `CORS_ORIGINS` (orígenes exactos) lo permite
+    (2026-11-10). CI ya lo corre (job `dashboard`, #43).
 13. **Yape (parsers de Luca, MIT)**: la opción "solo transferencias" ya se resolvió con código propio en #35
     (sin usar Luca). Queda "yape sí" (riel + créditos en `THIRD_PARTY_NOTICES.md`) o "no". Bloqueo: PEN no es
     moneda PayPal.
 
 ### Huecos conocidos de lo ya mergeado
 
-14. Dashboard (#40): **"Cobrar" sigue simulado también en modo real** — muestra un enlace inventado y marca
-    "pagado" a los 3,5 s sin llamar al servidor ni a PayPal (`Overlays.tsx`, `Cobrar`); no usarlo en la demo
-    y conectarlo o esconderlo en modo real. Además: sin probar con ventas reales; métricas por riel,
-    interruptor de rieles y nombre/fecha de metas siguen en mock; sus tests (vitest) no corren en CI.
-15. Móvil (#39): el mes se arma con hasta 62 llamadas al ledger; el día usa el reloj del teléfono (cerca de
-    medianoche puede sobrar o faltar un día); sin probar con TalkBack/VoiceOver ni texto grande. Jest de
+14. Dashboard (#40): ~~"Cobrar" simulado en modo real~~ (resuelto en #43: cobra en la terminal y espera la
+    captura; desde el PR de autenticación de cobros manda la sesión del puesto). Sigue: sin probar con ventas
+    reales; métricas por riel, interruptor de rieles y nombre/fecha de metas siguen en mock.
+15. Móvil (#39): ~~62 llamadas al ledger y reloj del teléfono~~ (2026-11-10: dos llamadas a
+    `/ledger-range`, que devuelve el "hoy" del puesto); sin probar con TalkBack/VoiceOver ni texto grande. Jest de
     `mobile/` no encuentra tests cuando el repo está bajo `.claude/` (worktrees).
 16. Rieles: wallets sin probar en sandbox real ni en dispositivos; OXXO solo se lista (sin botón nativo);
     Bre-B nunca se ofrece (COP); panel de rieles sin probar en navegador con llaves reales.
-17. MCP: solo JSON (sin stream ni session id); no hay pantalla para crear puestos; la app de cobro (`/`)
-    elige terminal por `?terminal=`, el selector solo cambia el back office.
+17. MCP: solo JSON (sin stream ni session id); no hay pantalla para crear puestos. ~~La app de cobro (`/`) ignora
+    el selector~~: sin `?terminal=`, `/` abre la primera terminal del puesto elegido en el back office (2026-11-10).
 18. SDK de PayPal: depende de `unstable_httpClientOptions`; después de #29 no hay registro de un pago real en
     sandbox. `@paypal/agent-toolkit` trae su propia copia 1.1.0 del SDK.
 19. Accesibilidad: el respaldo de Firefox (#37) existe pero el deploy no tiene transcriptor y no se probó en
@@ -126,12 +126,11 @@ hay que agregarlo a mano). Con el hardware: desbloquear una vez cada teléfono (
     vendedoras ciegas.
 20. Diseño: verificado (verde) / autodeclarado (morado con trama) solo existen como tokens en el dashboard;
     la web y el móvil no los tienen. `--primary` no significa lo mismo en web y dashboard (`docs/design.md`).
-21. Varios: un `XFER` sin concepto sigue contando como ingreso (decisión de #35); el libro del día mezcla montos
-    si ese día cambió la moneda; `render.yaml` no declara `STALL_PINS`, `STT_*`, rieles ni
-    `APPLE_PAY_DOMAIN_ASSOCIATION` (se agregan a mano en Render). CI: la corrida de `main` tras #39 falló por
+21. Varios: un `XFER` sin concepto sigue contando como ingreso (decisión de #35); ~~el libro del día mezcla montos
+    si ese día cambió la moneda~~ (2026-11-10: totales solo en la moneda actual, el resto en `others`);
+    ~~`render.yaml` incompleto~~ (#49). CI: la corrida de `main` tras #39 falló por
     un timeout de `page.goto` en `e2e/onboarding.spec.ts` ("Mexico selects MXN", phone-es) y la de #40 pasó
-    (inestable, sin investigar); GitHub avisa que `actions/checkout@v4` y `setup-node@v4` corren sobre Node 20
-    (obsoleto) y que `ubuntu-latest` pasa a Ubuntu 26 desde el 19-oct-2026.
+    (inestable, sin investigar; en las corridas locales del 2026-11-10 pasó). ~~Avisos de Node 20 y Ubuntu 26~~ (#49).
 
 ### Del plan (sin cambios de criterio)
 

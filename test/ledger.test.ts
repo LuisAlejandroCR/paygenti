@@ -107,3 +107,41 @@ describe("GET /api/backoffice/ledger", () => {
     expect(data.totals).toMatchObject({ net: { minor: 0 }, count: 0 });
   });
 });
+
+describe("GET /api/backoffice/ledger-range", () => {
+  it("returns one ledger per day up to the stall's today, plus that today", async () => {
+    const { json, pay, token } = await setup();
+    await pay({ amount: 9500 });
+    // NOW is 2026-10-06 12:00 in Mexico City: the 7th is still the future there.
+    const r = await json(
+      "/api/backoffice/ledger-range?from=2026-10-01&to=2026-10-31",
+      undefined,
+      token,
+    );
+    expect(r.status).toBe(200);
+    const days = r.data.days as { day: string; rows: unknown[] }[];
+    expect(r.data.today).toBe("2026-10-06");
+    expect(days.map((d) => d.day)).toEqual([
+      "2026-10-01",
+      "2026-10-02",
+      "2026-10-03",
+      "2026-10-04",
+      "2026-10-05",
+      "2026-10-06",
+    ]);
+    expect(days[5]?.rows).toHaveLength(1);
+  });
+
+  it("needs a session and refuses bad or long ranges", async () => {
+    const { json, token } = await setup();
+    expect((await json("/api/backoffice/ledger-range?from=2026-10-01&to=2026-10-02")).status).toBe(
+      401,
+    );
+    for (const q of [
+      "from=2026-10-05&to=2026-10-01",
+      "from=x&to=2026-10-01",
+      "from=2026-08-01&to=2026-10-01",
+    ])
+      expect((await json(`/api/backoffice/ledger-range?${q}`, undefined, token)).status).toBe(400);
+  });
+});
