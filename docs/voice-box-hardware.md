@@ -94,9 +94,11 @@ LED). Lo demás se suma después sin mover lo que ya está.
 | Pulsador | — | 7 | A GND, con `INPUT_PULLUP`. Patas en diagonal |
 | LED | — | 8 | Con resistencia de 330 Ω a GND |
 | MAX98357A | BCLK / LRC / DIN | 15 / 16 / 17 | Va en I2S1 (transmisión). VIN a 5Vin (más volumen) o 3V3. SD y GAIN sin conectar |
-| Pantalla SPI | SCK / MOSI / CS / DC / RST / luz | 12 / 11 / 10 / 9 / 13 / 18 | La luz de fondo por PWM |
-| Táctil XPT2046 (si lo trae) | MISO / T_CS / T_IRQ | 13 / 41 / 42 | Comparte SCK y MOSI. Si MISO usa el 13, el reset de la pantalla pasa al 21 |
-| Táctil de 4 hilos (si es así) | X / Y analógicos | 1 / 2 | Pines de ADC1 |
+| Pantalla SPI | SCK / MOSI / MISO / CS / DC / RESET | 12 / 11 / 13 / 10 / 9 / 21 | VCC a 3V3. La luz (LED) fija a 3V3; a GPIO 18 solo si el módulo tiene transistor de luz ⏳ |
+| Táctil XPT2046 (si lo trae) | T_CLK / T_DIN / T_DO / T_CS / T_IRQ | 12 / 11 / 13 / 41 / 42 | Comparte el bus SPI con la pantalla |
+| Táctil de 4 hilos (si es así) | Y+ / X− / X+ / Y− | 1 / 2 / 41 / 42 | Y+ y X− analógicos (ADC1); X+ y Y− digitales |
+
+![Conexiones de la caja de voz](img/voice-box-wiring.png)
 
 **Pines que no se usan:** 0, 3, 45 y 46 deciden cómo arranca la placa. 19 y 20 son el USB. En la
 N16R8, 35 a 37 son de la PSRAM. 43 y 44 son el puerto serie. El LED RGB de la placa va en el 48 o
@@ -120,6 +122,8 @@ el 38, según la versión.
 - rejilla de agujeros de 3 mm para el parlante;
 - agujero para el pulsador, pegado por dentro con silicona caliente;
 - el cable USB sale por la muesca.
+
+![Layout de la tapa y del interior de la caja](img/voice-box-layout.png)
 
 El sticker NFC se pega por dentro de la tapa, lejos del imán del parlante, junto al QR impreso y un
 texto «Toca o escanea para pagar». Si se forra la caja, el agujero del micrófono queda descubierto.
