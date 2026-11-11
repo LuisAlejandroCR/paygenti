@@ -128,6 +128,21 @@ el 38, según la versión.
 El sticker NFC se pega por dentro de la tapa, lejos del imán del parlante, junto al QR impreso y un
 texto «Toca o escanea para pagar». Si se forra la caja, el agujero del micrófono queda descubierto.
 
+### 3.1 Versión vertical, como el Sono QR (2026-11-11)
+
+Con las piezas en la mano, la caja se arma **parada**, como el Sono QR de Bold: pantalla vertical
+hacia el cliente y base con peso. A diferencia del Sono QR, tiene un lado para la vendedora (botón,
+micrófono y LED), y la pantalla muestra la cara, el monto, el QR y «PAGADO». El QR impreso queda en
+un costado como respaldo.
+
+La foto de la pantalla confirma que es SPI con táctil XPT2046 (pines T_IRQ, T_DO, T_DIN, T_CS y
+T_CLK) y lector de microSD; el diagrama de conexiones no cambia. Falta saber si el chip es ILI9341
+o ST7789.
+
+![Exterior: frente, atrás, lado y estados de pantalla](img/voice-box-exterior.png)
+
+![Interior: pared del frente y pared de atrás](img/voice-box-interior.png)
+
 ## 4. Plan hasta el cierre
 
 | Día | Qué |
