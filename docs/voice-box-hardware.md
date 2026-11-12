@@ -249,7 +249,7 @@ Cómo: las voces de Windows **Sabina (es-MX)** y **Zira (en-US)** graban cada pa
 con una tabla por idioma. El firmware une las palabras de `spoken` («paid ochenta y cinco pesos…»),
 como hacen las cajas de QR del mercado. Por el tamaño de las voces, el firmware usa la partición de
 3 MB de app (`PartitionScheme=app3M_fat9M_16MB`). Prueba sin hablarle: escribir claves por el monitor
-serie (115200), por ejemplo `paid cuarenta pesos`, y la caja las dice.
+serie (115200), por ejemplo `paid cuarenta pesos`, y la caja las dice. `net` hace `GET /api/health` contra `SERVER_URL` e imprime el código (sin hablarle: confirma que la caja llega al servidor; si no, muestra «Sin servidor»).
 
 Si aún se oye bajo, el resto es hardware: VIN del MAX98357A a 5V, y el pin GAIN (hoy libre, 9 dB) a
 GND da 12 dB, o a GND con una resistencia de 100 kΩ da 15 dB.
