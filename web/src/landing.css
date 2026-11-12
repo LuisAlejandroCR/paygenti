@@ -295,6 +295,10 @@
   margin-top: 24px;
 }
 
+.lp-rosa2 {
+  margin-top: 24px;
+}
+
 /* ---------- Wider screens ---------- */
 @media (min-width: 720px) {
   .lp-steps,
