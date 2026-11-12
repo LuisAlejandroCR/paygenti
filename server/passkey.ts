@@ -26,8 +26,18 @@ export interface RelyingParty {
   origins: string[];
 }
 
-/** `base` is the app's public origin; on localhost any local port counts (Vite dev proxy). */
-export function relyingParty(base: string, requestOrigin?: string): RelyingParty {
+/**
+ * `base` is the app's public origin; on localhost any local port counts (Vite dev proxy).
+ * `frontOrigins` (PASSKEY_ORIGINS) are exact origins of a front end that proxies /api here, such
+ * as the Vercel deploy: a request from one of them binds its passkeys to that host instead.
+ */
+export function relyingParty(
+  base: string,
+  requestOrigin?: string,
+  frontOrigins: readonly string[] = [],
+): RelyingParty {
+  if (requestOrigin && frontOrigins.includes(requestOrigin))
+    return { rpID: new URL(requestOrigin).hostname, origins: [requestOrigin] };
   const url = new URL(base);
   const origins = [url.origin];
   if (url.hostname === "localhost" && requestOrigin && LOCALHOST_ORIGIN.test(requestOrigin))

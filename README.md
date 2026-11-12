@@ -218,6 +218,7 @@ with none set, the server runs on the mock PayPal gateway with an in-memory stor
 | `DEVICE_TOKEN_SECRET` | 32+ characters that sign vendor device tokens (see *Charging needs an unlocked device*). Unset: a random secret per start, so devices unlock again after every restart |
 | `CHARGE_AUTH` | `off` lets anyone open, cancel or extend a stall's charges (local experiments only). Default: on |
 | `CORS_ORIGINS` | Exact origins allowed to call `/api/*` from a browser (e.g. the deployed dashboard), comma-separated. Unset: same-origin only |
+| `PASSKEY_ORIGINS` | Exact origins of a front end that proxies `/api` here (the Vercel deploy, see [docs/landing.md](docs/landing.md)), comma-separated. Passkeys made there bind to that host. Unset: passkeys bind to `PUBLIC_URL` only |
 
 **PayPal**
 

@@ -15,7 +15,9 @@
     "e2e": "playwright test",
     "ux:audit": "tsx scripts/ux-audit.ts",
     "voice:clips": "tsx scripts/voice-clips.ts",
-    "voice:preview": "tsx scripts/voice-preview.ts"
+    "voice:preview": "tsx scripts/voice-preview.ts",
+    "landing:record": "tsx scripts/record-landing.ts",
+    "build:vercel": "vite build && tsx scripts/vercel-pages.ts"
   },
   "repository": {
     "type": "git",
