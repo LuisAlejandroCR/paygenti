@@ -26,3 +26,6 @@ lovable/
 
 # UX audit output (npm run ux:audit): screenshots and report, regenerated on every run
 ux-shots/
+
+# Voice box Wi-Fi and server settings (firmware/voice-box/secrets.example.h is the template).
+firmware/voice-box/secrets.h
