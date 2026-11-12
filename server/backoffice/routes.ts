@@ -115,6 +115,8 @@ export interface BackOfficeRouteDeps {
   passport: PassportSigner;
   /** Base URL for verify links; defaults to the request origin. */
   publicUrl?: string;
+  /** PASSKEY_ORIGINS: a front end that proxies /api here; its requests get verify links on its own host. */
+  frontOrigins?: readonly string[];
   /** This stall's session tokens (token -> expiry); shared with the owner routes. */
   sessions?: Map<string, number>;
   /** This stall's inbox of Claude proposals (refunds, payouts) awaiting the PIN. */
@@ -390,7 +392,12 @@ export function backofficeRoutes(deps: BackOfficeRouteDeps): Hono {
       goal: deps.store.savingsGoal(deps.vendorId),
     });
     const signed = deps.passport.sign(report);
-    const origin = (deps.publicUrl ?? new URL(c.req.url).origin).replace(/\/+$/, "");
+    const requestOrigin = c.req.header("origin");
+    const origin = (
+      requestOrigin && deps.frontOrigins?.includes(requestOrigin)
+        ? requestOrigin
+        : (deps.publicUrl ?? new URL(c.req.url).origin)
+    ).replace(/\/+$/, "");
     const verifyUrl = `${origin}/verify#${encodePayload(signed)}`;
     let qr: string | null = null;
     try {

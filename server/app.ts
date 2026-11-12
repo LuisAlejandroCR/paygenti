@@ -691,6 +691,7 @@ export function createApp(deps: AppDeps): Hono {
       vision: deps.menuVision,
       passport: signer,
       publicUrl: deps.publicUrl,
+      frontOrigins: deps.passkeyOrigins,
       sessions: s.sessions,
       approvals: s.approvals,
       clientIp,
