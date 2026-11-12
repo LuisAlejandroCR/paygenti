@@ -422,9 +422,9 @@ export function VendorApp({
 
       {locked && vendorId && !missing && (
         <form class="panel login-card unlock" onSubmit={unlock} aria-labelledby="unlock-title">
-          <p id="unlock-title" class="big">
+          <h2 id="unlock-title" class="big">
             {t("vendor.unlockTitle")}
-          </p>
+          </h2>
           <p class="hint">{t("vendor.unlockHint")}</p>
           <label>
             {t("bo.pin")}

@@ -18,6 +18,43 @@
 - ⏳ Usuario: «PAGADO» en el aparato, variables de Render (`DATABASE_URL`, `DEVICE_TOKEN_SECRET`,
   `TRUSTED_IP_HEADER`, STT), pago y payout reales en sandbox, pruebas en dispositivos, video y repo público.
 
+## 2026-11-12 — Revisión responsive de todas las pantallas (320–430 px y escritorio)
+
+- Medido en 9 rutas × 320/375/390/430/1280 px (más alto contraste y back office con sesión): sin
+  scroll horizontal y sin controles de menos de 44 px. El único desborde es dentro de la tabla del
+  libro diario a 320 px, que tiene su propio scroll.
+- Arreglos: el título del desbloqueo pasa de `<p>` a `<h2>` (jerarquía para lector de pantalla) y se
+  achica a 320 px; la explicación se alinea con el campo; en alto contraste «Escribir sticker» ya no
+  lleva una caja que cortaba el texto. Se incluye tal cual la regla de 7c20a77 (PIN a ancho completo,
+  16 px para que iOS no haga zoom) para que las ramas no diverjan.
+- La auditoría con axe encontró tres cosas más: a 320 px (y en el panel del modo jurado) el campo
+  «Escribe el pedido» quedaba en 13 px de ancho, porque compartía fila con «Agregar» y el teclado;
+  ahora una container query baja «Agregar» debajo del campo cuando la fila mide menos de 340 px. El
+  título de `/verify` no podía encogerse (`flex: 1 0 auto`) y ensanchaba la página a 335 px. En
+  oscuro, el azul PayPal de «Esperando pago» quedó en 4,3:1 sobre la tarjeta aclarada; sube a 5,3:1.
+- Lo que queda señalado y se acepta: el enlace en línea «Abrir el menú» (WCAG 2.5.8 exime los enlaces
+  dentro de un texto) y las celdas de la tabla ag-grid del libro diario, que tiene su propio scroll.
+- `scripts/ux-audit.ts` estaba roto desde que cobrar exige dispositivo desbloqueado (401): ahora
+  desbloquea con el PIN de demo y mide también 320, 390 y 430 px.
+- `docs/ui/screens.html` (generado por `scripts/ui-static.ts`): siete pantallas como HTML estático con
+  `styles.css` incrustado y el QR como data URL, para revisarlas o publicarlas sin build. Es una foto;
+  la fuente sigue siendo `web/src`.
+
+## 2026-11-12 — Paleta más clara y legible al sol
+
+- Por qué: la terminal se usa en la calle con el celular; el fondo crema y los bordes suaves se perdían
+  al sol, el texto secundario quedaba gris claro y los botones deshabilitados (`opacity: 0.45`) no se
+  leían. El modo oscuro era casi negro y se veía apagado en la sombra.
+- Claro: superficies y tarjetas blancas sobre crema muy claro; texto secundario 9,3:1; bordes 3,3:1
+  (antes 1,9:1). Oscuro: fondo café medio (no negro), bordes 3:1, vino de acción más oscuro para que el
+  texto blanco del botón llegue a 4,5:1, rojo destructivo más claro.
+- Deshabilitado: relleno `--muted`, texto secundario y borde punteado; se distingue por forma, no solo
+  por color, y se lee igual que el resto (7,9:1 en claro).
+- El desbloqueo con PIN del vendedor ahora es tarjeta con campo de 56 px (antes era el input nativo).
+- Alto contraste negro/blanco/amarillo queda igual, como opción explícita. Todo medido con WCAG AA
+  (4,5:1 texto, 3:1 bordes) en claro, oscuro y alto contraste; única excepción: el relleno vino contra
+  el fondo oscuro (2,5:1), aceptable porque el botón lleva texto a 4,5:1.
+
 ## 2026-11-12 — La caja se oye más fuerte y la prueba muestra la cara
 
 - Probada en la caja real: las dos voces se oían, pero bajito, y en la prueba por serie la pantalla no
