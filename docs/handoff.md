@@ -2,16 +2,37 @@
      No es la spec (docs/plan.md, criterios de aceptación) ni la bitácora de decisiones (docs/memoria.md).
      Se sobrescribe completo en cada traspaso; lo histórico vive en memoria y en git log. -->
 
-# Traspaso — paygent (2026-10-14, actualizado 2026-11-12)
+# Traspaso — paygent (2026-10-14, actualizado 2026-11-12, `main` en #59)
 
-## Actualización 2026-11-12 — caja de voz física
+## Pendientes consolidados (2026-11-12) — la única lista vigente
 
-La caja de voz ya cobra por voz en el aparato real (ESP32-S3 + INMP441 + MAX98357A + pantalla 2,8").
-Firmware en `firmware/voice-box/`, endpoint `POST /api/terminals/:id/voice`, hallazgos del armado y
-**lista de pendientes en orden** en `docs/voice-box-hardware.md` §6. Empezar por §6.3, punto 1
-(«PAGADO» en el aparato). Lo de abajo es de antes y puede estar viejo.
+Revisada contra `origin/main` (#59), `gh pr list --state merged` y
+`GET https://paygent-rirl.onrender.com/api/health` (`database: off`, `speech-to-text: off`,
+`device-tokens: on`, `paypal: sandbox`). El repo sigue **privado**. Entrega: **12-nov-2026 12:00 PT**
+(15:00 en Bogotá). Las listas más abajo son historia: si contradicen esta, gana esta.
 
-Entrega del hackathon: **12-nov-2026 12:00 PT** (15:00 en Bogotá; en noviembre rige PST). Al 2026-11-10 faltan 2 días; ver la checklist de abajo.
+**Bloquean el envío a Devpost**
+
+| # | Qué falta | Quién | Hecho cuando |
+|---|---|---|---|
+| 1 | Video < 3 min en inglés (guion v2 en `docs/submission.md`) | Usuario | Subido (YouTube/Vimeo), dura ≤ 3:00 y el enlace está en Devpost |
+| 2 | Decidir qué docs privados salen (`docs/memoria.md`, `docs/handoff.md`, `docs/submission.md`) | Usuario | Decisión anotada; si salen, quitados y la tabla «Documentation» del README sin enlaces rotos |
+| 3 | Repo público sin secretos | Usuario (el agente puede correr el escaneo) | `git ls-files` sin `.env*`, `secrets.h`, PDF, `CLAUDE.md`, `AGENTS.md`; escaneo del historial limpio; `gh repo view` dice `PUBLIC` |
+| 4 | Texto de Devpost y envío | Usuario | Pegado de `docs/submission.md` con demo <https://paygent-rirl.onrender.com/judge>, PIN demo `1234`, sin llaves; Devpost muestra «Submitted» antes de las 12:00 PT |
+
+**Recomendados (la demo funciona sin ellos)**
+
+| # | Qué falta | Quién | Hecho cuando |
+|---|---|---|---|
+| 5 | Render: `DATABASE_URL` (Neon), `STALL_PINS`, `TRUSTED_IP_HEADER`, `PUBLIC_URL` | Usuario | `/api/health` dice `database: on`; una venta sobrevive a que Render duerma |
+| 6 | «PAGADO» en la caja de voz (`docs/voice-box-hardware.md` §6.3.1) | Usuario (con el aparato) | Cobro por voz → pago sandbox desde el teléfono → pantalla verde y «Pagado, cuarenta pesos» una sola vez |
+| 7 | Pago, reembolso y payout reales en sandbox después del Server SDK (#29) | Usuario | Captura + reembolso de 150 aceptado y 250 rechazado; payout de 10 MXN a la cuenta Personal; anotado en `docs/memoria.md` |
+| 8 | Teléfonos reales: APK recompilado (voces de #57), passkey (#58), sticker NTAG215, iOS de EAS (#59) | Usuario | En un Android y un iPhone: tap en el sticker abre el pago, PAGADO suena con las voces de la caja, Face ID/huella desbloquea |
+| 9 | Voz en Render: `STT_API_KEY`, `STT_URL`, `STT_MODEL` | Usuario | `/api/health` dice `speech-to-text: on`; Firefox dicta un pedido en el deploy |
+| 10 | Caja de voz: token de dispositivo en `POST /api/terminals/:id/voice`, HTTPS en el firmware y caja virtual en `/judge` | Agente | `/voice` sin token responde 401 con prueba en vitest; el firmware manda el token; `/judge` cobra con el micrófono del navegador |
+
+Fuera de la lista (decisiones sin fecha): Bre-B automático (`docs/bank-confirm.md`), desplegar el dashboard,
+Yape, wallets en sandbox, limpiar worktrees viejos.
 
 ## Cómo arrancar
 
@@ -21,7 +42,7 @@ Entrega del hackathon: **12-nov-2026 12:00 PT** (15:00 en Bogotá; en noviembre 
 4. Dashboard: `cd paygent-dashboard && npm ci && npm test` (no corre en CI). Móvil: `cd mobile && npm ci && npm run check`.
 5. Diseño y tokens: `docs/design.md`. Borrador de la entrega (Devpost, video, checklist): `docs/submission.md`.
 
-## Estado de `main` (último merge: #40)
+## Estado de `main` hasta #40 (histórico; lo posterior: #41–#59 en `gh pr list --state merged`)
 
 Todo está mergeado; la corrida de CI de `main` en #40 está verde (jobs `check`, `e2e`, `mobile`). Números y
 títulos verificados con `gh pr list` el 2026-10-14. #38, #34, #39 y #40 entraron a `main` el 2026-10-08.
@@ -56,7 +77,7 @@ Deploy en Render (`https://paygent-rirl.onrender.com/api/health`, consultado 202
   vivo real + job de CI `dashboard`): mergeadas.
 - Paleta "Cempasúchil" aplicada en web, dashboard y móvil (`feat/palette-cempasuchil`, ver `docs/design.md`).
 
-## Actualización 2026-11-10 (faltan 2 días; el hardware llega el 11-nov)
+## Actualización 2026-11-10 (histórico; reemplazada por la lista de arriba)
 
 ### PRs abiertos (apilados: mergear en este orden y cambiar la base del siguiente a `main`)
 
@@ -107,7 +128,7 @@ el dashboard, Yape, tokens verificado/autodeclarado en web y móvil, wallets (Ap
 móvil no se probó en dispositivo después de #50 y #51; sin `TRUSTED_IP_HEADER`, 5 PINs malos de cualquiera
 bloquean a todos los clientes por un rato.
 
-## Qué falta (en orden)
+## Qué falta (lista del 2026-10-14, histórica; reemplazada por la de arriba)
 
 ### Acciones del usuario (no las puede hacer un agente)
 
