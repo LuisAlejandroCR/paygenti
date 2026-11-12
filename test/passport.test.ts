@@ -169,3 +169,40 @@ describe("routes", () => {
     expect(range.status).toBe(400);
   });
 });
+
+describe("verify link origin", () => {
+  const issue = async (origin: string) => {
+    const paypal = new MockPayPal();
+    const app = createApp({
+      chargeAuth: "off",
+      paypal,
+      vendorPin: "4321",
+      publicUrl: "https://api.example",
+      passkeyOrigins: ["https://front.example"],
+    });
+    const login = await app.request("/api/backoffice/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: "4321" }),
+    });
+    const { token } = (await login.json()) as { token: string };
+    const res = await app.request("/api/backoffice/passport", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        Origin: origin,
+      },
+      body: JSON.stringify({}),
+    });
+    return ((await res.json()) as { verifyUrl: string }).verifyUrl;
+  };
+
+  it("points at the proxying front end when the request comes from an allowed origin", async () => {
+    expect(await issue("https://front.example")).toMatch(/^https:\/\/front\.example\/verify#/);
+  });
+
+  it("ignores an origin that is not on the list", async () => {
+    expect(await issue("https://evil.example")).toMatch(/^https:\/\/api\.example\/verify#/);
+  });
+});
