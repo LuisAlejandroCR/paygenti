@@ -1,33 +1,31 @@
 // e2e/soundbox.spec.ts: soundbox kiosk end to end — QR when idle, open amount, PAID with the amount
-// after a sale is captured from another context, spoken once and not again after a reload; layout.
+// after a sale is captured from another context, announced once and not again after a reload; layout.
 import type { Page } from "@playwright/test";
 import { expect, expectNoOverflow, test } from "./fixtures";
 
 const SB = {
-  en: { enable: "Tap to enable sound", paid: "PAID", open: "To pay", spoken: "Received: 42 pesos" },
+  en: { enable: "Tap to enable sound", paid: "PAID", open: "To pay" },
   es: {
     enable: "Toca para activar el sonido",
     paid: "PAGADO",
     open: "Por pagar",
-    spoken: "Recibido: 42 pesos",
   },
 } as const;
 
-/** Records what the page says instead of speaking (no voices in headless browsers). */
+/** Counts audio the page starts (recorded clips or the fallback chime) without playing it. */
 async function captureSpeech(page: Page) {
   await page.addInitScript(() => {
-    const w = window as unknown as { __spoken: string[] };
-    w.__spoken = [];
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.speak = (u: SpeechSynthesisUtterance) => {
-        if (u.text) w.__spoken.push(u.text);
-      };
-      window.speechSynthesis.getVoices = () => [];
-    }
+    const w = window as unknown as { __played: number };
+    w.__played = 0;
+    const count = function (this: AudioScheduledSourceNode) {
+      w.__played += 1;
+    } as AudioScheduledSourceNode["start"];
+    AudioBufferSourceNode.prototype.start = count;
+    OscillatorNode.prototype.start = count;
   });
 }
-const spoken = (page: Page) =>
-  page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
+const played = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __played: number }).__played);
 
 test("soundbox: idle QR, open amount, PAID once, no re-announce after reload", async ({
   page,
@@ -51,7 +49,7 @@ test("soundbox: idle QR, open amount, PAID once, no re-announce after reload", a
   await request.post(`/api/sales/${sale.id}/capture`);
   await expect(page.getByText(sb.paid, { exact: true })).toBeVisible();
   await expect(page.locator(".sb-amount")).toContainText("42.00");
-  await expect.poll(() => spoken(page)).toEqual([sb.spoken]);
+  await expect.poll(() => played(page)).toBeGreaterThan(0);
   await expectNoOverflow(page);
   const stored = await page.evaluate(() => sessionStorage.getItem("paygent.soundbox.announced"));
   expect(stored).toContain(sale.id);
@@ -60,7 +58,7 @@ test("soundbox: idle QR, open amount, PAID once, no re-announce after reload", a
   await page.getByRole("button", { name: sb.enable }).click();
   await expect(page.locator(".sb-net")).toHaveClass(/on/);
   await page.waitForTimeout(500);
-  expect(await spoken(page)).toEqual([]);
+  expect(await played(page)).toBe(0);
   await expect(page.locator("img.sb-qr")).toBeVisible();
 });
 
@@ -74,7 +72,7 @@ test("soundbox: declined sale shows the failed state without sound", async ({ pa
   await request.post(`/api/mock/orders/${sale.orderId}/approve`, { data: { decline: true } });
   await request.post(`/api/sales/${sale.id}/capture`);
   await expect(page.locator(".soundbox")).toHaveAttribute("data-state", "failed");
-  expect(await spoken(page)).toEqual([]);
+  expect(await played(page)).toBe(0);
   await expectNoOverflow(page);
 });
 
