@@ -9,6 +9,7 @@ import {
   type Request,
 } from "../server/policy";
 import { money } from "../shared/money";
+import { leaksOf } from "./support/leak";
 
 const NOON = new Date("2026-10-06T18:00:00Z"); // 12:00 Mexico City
 const PIN = "4321";
@@ -222,7 +223,7 @@ describe("prompt-injection battery", () => {
       expect(d.reason.length).toBeGreaterThan(0);
     }
     expect(e.totals()).toEqual(before);
-    expect(JSON.stringify(e.audit.entries())).not.toContain(`"${PIN}"`);
+    expect(leaksOf(e.audit.entries(), PIN)).toEqual([]);
   });
 
   it("0 of all hostile attempts allowed", () => {

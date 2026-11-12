@@ -4,6 +4,19 @@
 
 # Memoria — paygent
 
+## 2026-11-12 — La prueba del PIN que fallaba al azar
+
+- `payouts.test.ts` buscaba el PIN `4321` en el JSON de la auditoría con `toContain`; un UUID de
+  ticket (`32b43212-…`) lo contenía por azar (≈ 1 de cada pocos cientos de corridas). Lo mismo
+  podía pasar en `policy.test.ts` (tickets UUID en la auditoría).
+- `test/support/leak.ts` (`leaksOf`) recorre llaves y valores, quita los UUID y busca el PIN como
+  palabra entera; `test/leak.test.ts` prueba que un UUID con `4321` pasa y que el PIN como valor,
+  número, palabra en un mensaje o llave falla. Usado en `payouts`, `policy` y `policy-injection`.
+- Verificado: 50 corridas seguidas de los cuatro archivos sin fallos; `npm run check` y `build` pasan.
+- **Se deja sin cerrar:** `POST /api/terminals/:id/voice` sin token. El token `pgd_` vence en 7 días y
+  la caja no tiene teclado para desbloquearse; cerrarlo hoy dejaría la caja sin cobrar hasta
+  reflashearla. Sigue en `voice-box-hardware.md` §6.3, punto 4.
+
 ## 2026-11-12 — Cierre de pendientes chicos antes del video
 
 - **`ux:audit` vuelve a sembrar:** desbloquea la terminal una vez con el PIN demo (`/unlock`, como el

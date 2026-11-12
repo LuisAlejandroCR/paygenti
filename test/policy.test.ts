@@ -13,6 +13,7 @@ import {
   speak,
 } from "../server/policy/rules";
 import { money } from "../shared/money";
+import { leaksOf } from "./support/leak";
 
 const mxn = (minor: number) => money(minor, "MXN");
 // 2026-10-06 12:00 in Mexico City (UTC-6).
@@ -348,7 +349,7 @@ describe("PinGuard per-client lockout", () => {
       action: { check: "vendor_pin", client: ["ip:9.9.9.9"] },
       decision: { allow: false, code: "PIN_WRONG" },
     });
-    expect(JSON.stringify(entry)).not.toContain("0000");
+    expect(leaksOf(entry, "0000")).toEqual([]);
   });
 });
 
@@ -363,7 +364,7 @@ describe("AuditLog", () => {
       decision: { allow: false, code: "X", reason: "r" },
     });
     const [e] = log.entries();
-    expect(JSON.stringify(e)).not.toContain("4321");
+    expect(leaksOf(e, "4321")).toEqual([]);
     expect(e?.seq).toBe(1);
     expect(Object.isFrozen(e)).toBe(true);
     expect(() => {
@@ -392,8 +393,8 @@ describe("PolicyEngine", () => {
     expect(e.decide(refund(), { actor: "vendor" }).code).toBe("PIN_REQUIRED");
     expect(e.decide(refund(), { actor: "vendor", pin: "9999" }).code).toBe("PIN_REQUIRED");
     expect(e.decide(refund(), vendor).allow).toBe(true);
-    expect(JSON.stringify(e.audit.entries())).not.toContain("4321");
-    expect(JSON.stringify(e.audit.entries())).not.toContain("9999");
+    expect(leaksOf(e.audit.entries(), "4321")).toEqual([]);
+    expect(leaksOf(e.audit.entries(), "9999")).toEqual([]);
   });
 
   it("audits every decision", () => {
