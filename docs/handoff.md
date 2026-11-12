@@ -72,7 +72,7 @@ Detalle y porqués: `docs/memoria.md`, entradas del 2026-11-10.
 
 **Hoy, 10-nov (usuario):**
 
-- [ ] Revisar y mergear #49 → #50 → #51 (en ese orden).
+- [x] Revisar y mergear #49 → #50 → #51 (en `main` desde #52).
 - [ ] Render → variables: `DATABASE_URL` (Neon; hoy `database: off`), `VENDOR_PIN`, `STALL_PINS`,
       `DEVICE_TOKEN_SECRET` (≥ 32 caracteres; el blueprint solo lo genera en servicios nuevos) y el header de IP:
       probar `TRUSTED_IP_HEADER=true-client-ip` o `cf-connecting-ip` y confirmar que llega la IP real. Sin él,
