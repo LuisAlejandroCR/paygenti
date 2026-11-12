@@ -19,6 +19,7 @@ import {
   railsForSale,
   saleStatusLabel,
 } from "../shared/rails";
+import { spokenAmount } from "../shared/spoken";
 import type { Sale } from "../shared/types";
 import type { ModelClient } from "./backoffice/agent";
 import type { PayPalTools } from "./backoffice/paypal-tools";
@@ -495,7 +496,11 @@ export function createApp(deps: AppDeps): Hono {
     }
     if (!input) return c.json({ intent: "unknown", lang, text });
     const sale = await sales.createSale(terminal.id, input);
-    return c.json({ intent: "charge", lang, text, sale }, 201);
+    // `spoken`: the amount in words of `lang`, one recorded clip per word on the box (shared/spoken.ts).
+    return c.json(
+      { intent: "charge", lang, text, sale, spoken: spokenAmount(sale.total, lang) },
+      201,
+    );
   });
 
   // Firefox has no SpeechRecognition: the page records a clip and the server transcribes it.

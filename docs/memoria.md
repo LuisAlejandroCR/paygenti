@@ -4,6 +4,46 @@
 
 # Memoria — paygent
 
+## 2026-11-12 — La caja se oye más fuerte y la prueba muestra la cara
+
+- Probada en la caja real: las dos voces se oían, pero bajito, y en la prueba por serie la pantalla no
+  cambiaba (solo sonaba).
+- **Volumen, ≈ +11 dB sin recortar:** la ganancia de las voces pasa de 40 % a 100 % (+8 dB; los clips
+  tienen su pico al 95 %, no saturan) y `voice-clips.ts` comprime cada clip antes de normalizar (+3 dB).
+  El compresor mira el máximo en ±5 ms: un primer intento con ataque de 2 ms dio +0,2 dB, porque los
+  picos del arranque se colaban y la normalización por pico no subía nada. La campanita sube igual
+  (6000 → 15000). Con el USB del PC no hubo reinicio por caída de voltaje.
+- **Una tabla de mensajes** (`MESSAGES`: clave → cara y título) y `tell()` la usan el flujo real y la
+  prueba por serie, así que `paid cuarenta pesos` muestra PAGADO en verde. Antes los títulos estaban
+  repetidos en tres lugares del firmware.
+- **Semáforo en la pantalla**, a pedido tras verlo en la caja: los errores se veían iguales a la cara
+  de reposo (fondo blanco). Ahora verde = pagado, amarillo con «!» = aviso (repite, sin monto,
+  cancelado, vencido: nada se rompió) y rojo con «X» y cara preocupada = falla (red, servidor, voz a
+  texto, PayPal, caja sin registro, pago fallido). Amarillo lleva texto oscuro y rojo texto blanco,
+  para que el título se lea.
+- **El rojo salía azul:** la pantalla tiene rojo y azul invertidos (bit BGR de MADCTL); el verde y el
+  blanco no lo delataban. Los colores ahora se escriben como `#RRGGBB` con `color()`, que los invierte.
+  Paleta de alto contraste para sol y sombra: verde #15803D y rojo #B91C1C con texto blanco (≥ 5:1),
+  amarillo #FACC15 con texto oscuro (≈ 12:1).
+
+## 2026-11-12 — La caja habla: voces grabadas en el firmware
+
+- La caja ya cobraba y mostraba «PAGADO», pero la bocina solo pitaba. Ahora dice «Pagado, cuarenta
+  pesos» y cada error por su nombre (sin wifi, sin servidor, no entendió, PayPal rechazó…).
+- **Voces dentro del firmware, no TTS del servidor:** el servidor no tiene TTS, uno de nube pedía otra
+  llave y sumaba latencia, y los errores de red tienen que sonar sin red. La voz Sabina (es-MX) de
+  Windows graba una vez cada palabra de número y cada frase; `scripts/voice-clips.ts` las deja en
+  µ-law de 16 kHz (78 clips, ≈ 1 MB) en `firmware/voice-box/clips.h`. Así suenan las cajas de QR.
+- **El monto en palabras lo arma el servidor** (`shared/spoken.ts`, campo `spoken` de `/voice`): la
+  regla de los números (un/veintiún, cien/ciento, «millón de») queda en TS con pruebas, y una prueba
+  asegura que toda palabra posible tiene su clip. Solo español; monedas femeninas dicen solo el número.
+- **También en inglés:** Zira (en-US) graba el mismo juego de palabras y frases; `spoken` sigue el
+  `lang` de la petición. La caja elige con `BOX_LANG` en `secrets.h` o `lang en` por serie, sin
+  reflashear, y la pantalla cambia de idioma con ella.
+- El firmware pasa a la partición de 3 MB de app (`app3M_fat9M_16MB`): con los dos idiomas usa
+  2,96 MB (94 %). Las voces van como cadenas con escapes `\x`, no como listas de enteros: compilar
+  bajó de 7 min a 1,5 min.
+
 ## 2026-11-12 — Caja de voz: firmware Arduino y endpoint de voz por terminal
 
 - Firmware **Arduino propio** en vez de XiaoZhi, ESP-IDF o ESPHome: con el cierre a horas, era lo único
