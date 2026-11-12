@@ -1,11 +1,15 @@
-<!-- docs/voice-box.md: spec (no construida) de la «caja de voz» de paygent: un dispositivo de mostrador
-     al que la vendedora le habla («cóbrame 40 pesos de unos tacos», «¿cuánto llevo hoy?», «aconséjame»),
-     en varios idiomas. Compara correrlo en la nube, en un equipo local o en el teléfono, con costos con
-     fuente y fecha. Lo construido vive en README.md y docs/plan.md; las decisiones, en docs/memoria.md. -->
+<!-- docs/voice-box.md: spec de la «caja de voz» de paygent (cobro por voz construido; ventas y consejos no):
+     qué hace la caja, opciones nube / local / teléfono y costos con fuente y fecha. No es la bitácora del
+     aparato real (docs/voice-box-hardware.md: piezas, cableado, firmware y pendientes) ni el razonamiento
+     (docs/memoria.md). -->
 
 # Caja de voz: «Pay, cóbrame 40 pesos de unos tacos»
 
-> **Spec, sin construir.** Escrita el 2026-11-05, a siete días del cierre (2026-11-12 12:00 PT). Los
+> **Estado (2026-11-12):** construido el cobro por voz y el resultado dicho en voz alta (firmware Arduino en
+> `firmware/voice-box/`, `POST /api/terminals/:id/voice`); lo que se construyó y lo pendiente están en
+> [voice-box-hardware.md](voice-box-hardware.md) §6. Las intenciones de ventas y consejos (§5) siguen sin construir.
+>
+> **Spec.** Escrita el 2026-11-05, a siete días del cierre (2026-11-12 12:00 PT). Los
 > precios llevan fuente y fecha de lectura (§12). ⏳ marca lo que no está verificado. Aquí no hay
 > latencias medidas: las que importan (soltar el botón → QR) se miden al construirlo. Los modelos
 > abiertos y las APIs baratas, comparados con Claude, están en [open-models.md](open-models.md), que
