@@ -80,6 +80,21 @@
   compararla con la caja. Las pruebas jest de `mobile/` no corren dentro de `.claude/worktrees/`
   (testMatch no ve rutas con punto); `tsc` y `expo lint` de la app sí pasan.
 
+## 2026-11-12 — Desbloqueo con Face ID / huella (passkeys web)
+
+- Spec: `docs/passkeys.md`. Web primero (Safari iPhone, Chrome Android, sin build de tienda); la app
+  Expo queda como paso siguiente porque las sesiones de APK y TestFlight son dueñas de `mobile/`.
+- El PIN sigue siendo la raíz: enrolar pide el token que da el PIN, y la passkey solo gana **el mismo**
+  token `pgd.…` (7 días). Nada nuevo que `CHARGE_AUTH_REQUIRED` tenga que entender.
+- `@simplewebauthn/server@14.0.3` (no 14.1.0: tenía 6 días); `@simplewebauthn/browser@14.0.0`.
+- RP ID = host de `PUBLIC_URL`/`RENDER_EXTERNAL_URL`; en localhost se acepta cualquier puerto local
+  (proxy de Vite). Retos de un solo uso, 5 min, en memoria (un reinicio solo obliga a tocar otra vez).
+- Límite propio: 5 fallos por IP → 5 min, duplicando a 1 h (en memoria). Si el PIN ya bloqueó a ese
+  cliente, la passkey también responde 429: no es una puerta para saltarse la lockout.
+- Las opciones se piden antes del toque: Safari pierde el gesto del usuario tras un `fetch` lento.
+- Verificado: 11 tests de servidor con un autenticador P-256 en software, y e2e en Chromium con el
+  autenticador virtual de DevTools (`e2e/passkey.spec.ts`). ⏳ Falta la prueba en un iPhone real.
+
 ## 2026-11-12 — La caja se oye más fuerte y la prueba muestra la cara
 
 - Probada en la caja real: las dos voces se oían, pero bajito, y en la prueba por serie la pantalla no

@@ -5,13 +5,15 @@
 // are atomic SQL increments, so even two processes on one DB never lose an update; a unique index
 // keeps one capture id per sale. close() flushes the queue (SIGTERM on Render) before exiting.
 // Suppliers, payouts, MCP tokens (hash only) and Claude's approvals are loaded and written the same
-// way; policy state, suppliers and payouts carry the stall's vendor_id (migration 3).
+// way; policy state, suppliers and payouts carry the stall's vendor_id (migration 3). Face ID /
+// fingerprint passkeys (public key and counter only) live in their own table (migration 5).
 import type { Currency } from "../../shared/money";
 import type { SavingsGoal, StatementMonth } from "../../shared/passport";
 import type {
   Approval,
   CatalogItem,
   McpToken,
+  PasskeyCredential,
   Payout,
   Sale,
   Supplier,
@@ -123,6 +125,19 @@ export class PostgresStore extends MemoryStore {
       };
       if (r.revoked_at !== null) t.revokedAt = iso(r.revoked_at);
       this.tokenMap.set(t.id, t);
+    }
+    this.passkeyMap.clear();
+    for (const r of (await db.query("SELECT * FROM passkeys ORDER BY created_at")).rows) {
+      const p: PasskeyCredential = {
+        id: String(r.id),
+        terminalId: String(r.terminal_id),
+        vendorId: String(r.vendor_id),
+        publicKey: String(r.public_key),
+        counter: Number(r.counter),
+        createdAt: iso(r.created_at) as string,
+      };
+      if (r.transports !== null) p.transports = r.transports as string[];
+      this.passkeyMap.set(p.id, p);
     }
     this.approvalMap.clear();
     for (const r of (await db.query("SELECT data FROM approvals ORDER BY seq")).rows) {
@@ -407,6 +422,29 @@ export class PostgresStore extends MemoryStore {
           `INSERT INTO pin_states (vendor_id, state) VALUES ($1, $2::jsonb)
            ON CONFLICT (vendor_id) DO UPDATE SET state = EXCLUDED.state`,
           [vendorId, json],
+        )
+        .then(() => undefined),
+    );
+  }
+
+  override savePasskey(passkey: PasskeyCredential): void {
+    super.savePasskey(passkey);
+    const p = structuredClone(passkey);
+    this.#enqueue("passkey", (tx) =>
+      tx
+        .query(
+          `INSERT INTO passkeys (id, terminal_id, vendor_id, public_key, counter, transports, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)
+           ON CONFLICT (id) DO UPDATE SET counter = EXCLUDED.counter`,
+          [
+            p.id,
+            p.terminalId,
+            p.vendorId,
+            p.publicKey,
+            p.counter,
+            p.transports ? JSON.stringify(p.transports) : null,
+            p.createdAt,
+          ],
         )
         .then(() => undefined),
     );
