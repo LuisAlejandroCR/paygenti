@@ -13,7 +13,8 @@ const config: ExpoConfig = {
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
   ios: {
-    bundleIdentifier: "com.paygent.app",
+    // com.paygent.app is taken by another Apple team; Android keeps com.paygent.app.
+    bundleIdentifier: "com.alejoooo.paygent",
     supportsTablet: true,
     infoPlist: {
       CFBundleDisplayName: "paygent",
@@ -52,12 +53,16 @@ const config: ExpoConfig = {
       "react-native-nfc-manager",
       {
         nfcPermission: "paygent writes your stall's payment link to NFC stickers.",
-        includeNdefEntitlement: true,
+        // TAG only: App Store Connect rejects the legacy "NDEF" format (ITMS-90778); TAG still
+        // reads and writes NDEF on NTAG stickers.
+        includeNdefEntitlement: false,
       },
     ],
     "./plugins/with-hce",
   ],
   experiments: { typedRoutes: false, tsconfigPaths: true },
+  // EAS project @alejoooo-team/paygent; EAS builds need it and cannot write it into a .ts config.
+  extra: { eas: { projectId: "fa346fc6-7da1-45f1-b178-0fb572349053" } },
 };
 
 export default config;
