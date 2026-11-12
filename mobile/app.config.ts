@@ -13,7 +13,8 @@ const config: ExpoConfig = {
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
   ios: {
-    bundleIdentifier: "com.paygent.app",
+    // com.paygent.app is taken by another Apple team; Android keeps com.paygent.app.
+    bundleIdentifier: "com.alejoooo.paygent",
     supportsTablet: true,
     infoPlist: {
       CFBundleDisplayName: "paygent",
