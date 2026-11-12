@@ -2,7 +2,7 @@
 // (iOS + Android) and, on Android only, emulates an NDEF Type 4 tag carrying the same URL with
 // react-native-hce. Native modules are required lazily so a build without them reports "unsupported".
 import { Platform } from "react-native";
-import { fitsNtag213 } from "./nfc-url";
+import { fitsNtag215 } from "./nfc-url";
 
 type NfcModule = typeof import("react-native-nfc-manager");
 type HceModule = typeof import("react-native-hce");
@@ -46,7 +46,7 @@ export class StickerTooSmall extends Error {}
 
 /** Waits for a sticker, writes one NDEF URI record, releases the reader. */
 export async function writeSticker(url: string, alertMessage: string): Promise<void> {
-  if (!fitsNtag213(url)) throw new StickerTooSmall(url);
+  if (!fitsNtag215(url)) throw new StickerTooSmall(url);
   const nfc = nfcModule();
   if (!nfc) throw new Error("unsupported");
   const { default: manager, Ndef, NfcTech } = nfc;

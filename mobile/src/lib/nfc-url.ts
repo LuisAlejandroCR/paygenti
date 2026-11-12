@@ -1,9 +1,9 @@
 // src/lib/nfc-url.ts: builds and checks the URL written to NFC stickers and served by the HCE tag —
 // PUBLIC_URL/t/:terminal, the same link the server prints in its QR — and sizes the NDEF message so
-// the app can refuse a link that does not fit an NTAG213 (144 bytes of user memory).
+// the app can refuse a link that does not fit an NTAG215 (504 bytes of user memory), the sticker on the box.
 
 export const TERMINAL_ID = /^[a-z0-9-]{1,40}$/;
-export const NTAG213_BYTES = 144;
+export const NTAG215_BYTES = 504;
 
 /** Normalises a server base URL ("https://x.com/" -> "https://x.com"); undefined if not http(s). */
 export function normalizeBaseUrl(input: string): string | undefined {
@@ -43,6 +43,6 @@ export function ndefTagBytes(url: string): number {
   return 1 + tlvLength + record + 1; // 0x03, length, record, 0xFE
 }
 
-export function fitsNtag213(url: string): boolean {
-  return ndefTagBytes(url) <= NTAG213_BYTES;
+export function fitsNtag215(url: string): boolean {
+  return ndefTagBytes(url) <= NTAG215_BYTES;
 }
