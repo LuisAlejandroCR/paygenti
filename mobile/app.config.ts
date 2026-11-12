@@ -52,7 +52,9 @@ const config: ExpoConfig = {
       "react-native-nfc-manager",
       {
         nfcPermission: "paygent writes your stall's payment link to NFC stickers.",
-        includeNdefEntitlement: true,
+        // TAG only: App Store Connect rejects the legacy "NDEF" format (ITMS-90778); TAG still
+        // reads and writes NDEF on NTAG stickers.
+        includeNdefEntitlement: false,
       },
     ],
     "./plugins/with-hce",
