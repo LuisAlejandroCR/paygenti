@@ -1,6 +1,7 @@
 // scripts/ux-audit.ts: screen-by-screen UI/UX audit (npm run ux:audit) — builds the web app, starts
-// the mock server on port 8792 (or targets UX_BASE_URL), drives every screen and state in 8 modes
-// (375/1280 px × light/dark × en/es), saves screenshots and writes ux-shots/report.md + report.ndjson.
+// the mock server on port 8792 (or targets UX_BASE_URL), drives every screen and state in 20
+// modes (320/375/390/430/1280 px × light/dark × en/es), saves screenshots and writes
+// ux-shots/report.md + report.ndjson.
 //
 // Checks per screen and mode: axe-core (serious/critical reported), horizontal overflow, interactive
 // targets under 44×44 px and console errors. Only the correct demo PIN (1234) is ever sent, so the
@@ -46,8 +47,12 @@ interface Mode {
   locale: "en-US" | "es-MX";
 }
 const MODES: Mode[] = [];
+// Phones from the narrowest (320) to the largest common (430), then desktop.
 for (const [width, height] of [
+  [320, 640],
   [375, 812],
+  [390, 844],
+  [430, 932],
   [1280, 800],
 ] as const)
   for (const scheme of ["light", "dark"] as const)
