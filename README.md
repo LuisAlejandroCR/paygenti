@@ -30,8 +30,11 @@ moves — a deterministic policy lock with the vendor's PIN decides.
 - **Customer checkout (`/pay/:saleId`, reached via `/t/:terminal`)** — shows the stall, the items
   and the total before paying with PayPal, Venmo, Pay Later or a card, whichever PayPal offers
   for that currency and buyer (see [Payment methods at checkout](#payment-methods-at-checkout)).
-- **Paid announcement** — the vendor's phone turns green and says the amount out loud
-  (en-US or es-MX voice).
+- **Paid announcement** — the vendor's phone turns green and says the amount out loud with the
+  voice box's own recordings: a chime, "¡Pagado!" / "Paid!" and the amount in words (Spanish or English).
+- **Voice box (`firmware/voice-box/`)** — an ESP32-S3 counter box with a mic, a speaker and a screen:
+  hold the button, say "cóbrame cuarenta pesos de unos tacos", and it opens the sale through
+  `POST /api/terminals/:id/voice` and shows the amount. Build log: [docs/voice-box-hardware.md](docs/voice-box-hardware.md).
 - **Back office (`/backoffice`, PIN `1234` in the demo)** — today's sales, cash reconcile, invoice
   with QR, refunds, payouts to suppliers, and an optional Claude assistant. Money only moves
   through a deterministic policy lock.
@@ -55,7 +58,9 @@ URL could open a charge on Rosa's sticker or cancel the sale her customer is abo
 vendor screen (web and phone) asks for the stall PIN once and keeps a **device token** for 7 days.
 The token is signed (HMAC-SHA256, `DEVICE_TOKEN_SECRET`), names one stall and can only charge: no
 ledger, refunds or payouts. A live back-office session of that stall also works (dashboard, phone
-back office). Unlocking shares the PIN lockout. Customers need nothing: checkout, rails and capture
+back office). After a PIN unlock the web vendor screen can save a passkey (Face ID or fingerprint), so
+the next unlock is one tap and returns the same token ([docs/passkeys.md](docs/passkeys.md)). Unlocking
+shares the PIN lockout. Customers need nothing: checkout, rails and capture
 stay public, and Claude over MCP charges with its own token.
 
 ## Soundbox: an old phone on the counter
@@ -401,7 +406,10 @@ Built (and covered by unit or end-to-end tests where a test can reach it), but n
 real hardware or real services:
 
 - Real devices: tapping a real NTAG sticker, the Android phone-to-phone tap, the soundbox on an old
-  Android phone, and an iOS build (EAS).
+  Android phone, the iOS build on an iPhone (the EAS build itself finished), passkey unlock and the
+  recorded voice clips on a real phone.
+- The voice box showing PAID after a real sandbox capture (voice charge itself works on the device),
+  and the voice endpoint on Render (`speech-to-text: off` there).
 - Apple Pay and Google Pay buttons in the real PayPal sandbox and on phones (the Apple Pay domain
   is not registered yet).
 - Voice in real Firefox; the mobile app with TalkBack and VoiceOver.
@@ -421,7 +429,8 @@ real hardware or real services:
 | [docs/payment-rails.md](docs/payment-rails.md) | Payment rails research and what paygent does with each |
 | [docs/paypal-server-sdk.md](docs/paypal-server-sdk.md) | How the PayPal Server SDK is used and which calls still use fetch |
 | [docs/bank-confirm.md](docs/bank-confirm.md) | Spec, not built: Bre-B confirmation from the bank's notice (Spanish) |
-| [docs/voice-box.md](docs/voice-box.md) | Spec, not built: the counter voice box ("charge me 40 pesos for tacos", sales, advice, multilingual), local vs cloud and what each costs (Spanish) |
+| [docs/passkeys.md](docs/passkeys.md) | Passkey unlock (Face ID / fingerprint) for the vendor screen (Spanish) |
+| [docs/voice-box.md](docs/voice-box.md) | Spec, partly built (voice charge and spoken result; see the build log): the counter voice box ("charge me 40 pesos for tacos", sales, advice, multilingual), local vs cloud and what each costs (Spanish) |
 | [docs/open-models.md](docs/open-models.md) | Research: open-weight and low-cost models (DeepSeek, Gemma 4, Qwen, gpt-oss, Meta Muse, Ollama, open STT/TTS) for the voice box, compared with Claude (Spanish) |
 | [docs/voice-box-hardware.md](docs/voice-box-hardware.md) | Voice box build log: parts bought in Bogotá, wiring, the Arduino firmware that runs it, findings and what is pending (Spanish) |
 | [mobile/README.md](mobile/README.md) | Mobile app: run, EAS builds, NFC and HCE testing |
@@ -436,7 +445,7 @@ real hardware or real services:
 ## En español
 
 **paygent** es el cajero con IA para vendedores ambulantes: dices el precio, el cliente toca o
-escanea, y tu teléfono dice "Recibido: 95 pesos". La app está en inglés y español (sigue el idioma
+escanea, y tu teléfono (o la caja de voz) dice "¡Pagado! noventa y cinco pesos". La app está en inglés y español (sigue el idioma
 del navegador; botón EN/ES arriba).
 
 - **Piezas:** servidor (`server/`, Node + Hono), app web (`web/`, Preact), dashboard
@@ -477,8 +486,11 @@ del navegador; botón EN/ES arriba).
   conectado a `/mcp` solo propone reembolsos y pagos, que se aprueban con el PIN.
 - **Accesibilidad:** objetivo WCAG 2.2 AA; modo voz, teclado, alto contraste, texto al 200 % y
   movimiento reducido. Detalle y huecos en [docs/accessibility.md](docs/accessibility.md).
-- **Sin verificar todavía:** sticker y tap NFC reales, bocina en Android viejo, build de iOS, Apple
-  Pay / Google Pay en teléfonos, Firefox real y lectores de pantalla en el móvil.
+- **Caja de voz:** ESP32-S3 con micrófono, bocina y pantalla (`firmware/voice-box/`); cobra por voz y
+  dice el resultado con voces grabadas. Bitácora en [docs/voice-box-hardware.md](docs/voice-box-hardware.md).
+- **Sin verificar todavía:** sticker y tap NFC reales, bocina en Android viejo, la app de iOS en un
+  iPhone, passkeys y voces en un teléfono real, «PAGADO» en la caja de voz, Apple Pay / Google Pay en
+  teléfonos, Firefox real y lectores de pantalla en el móvil.
 
 La spec y el plan por bloques están en [docs/plan.md](docs/plan.md); el estado actual, en
 [docs/handoff.md](docs/handoff.md); el diseño, en [docs/design.md](docs/design.md).
