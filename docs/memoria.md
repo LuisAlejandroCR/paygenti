@@ -4,6 +4,19 @@
 
 # Memoria — paygent
 
+## 2026-11-12 — Caja de voz: firmware Arduino y endpoint de voz por terminal
+
+- Firmware **Arduino propio** en vez de XiaoZhi, ESP-IDF o ESPHome: con el cierre a horas, era lo único
+  que llegaba a una toma real, y habla HTTP directo con paygent.
+- `POST /api/terminals/:id/voice` acepta `audio/*` (transcribe) o JSON `{ text }` (caja virtual). Si la
+  frase trae una cifra, cobra ese monto en la moneda del puesto; si no, usa el parser del catálogo; si
+  nada sirve, `intent: "unknown"` sin crear venta. Sin token `pgd_` todavía (abierto como `/sales`).
+- La pantalla resultó horizontal de fábrica (tipo ILI9342): se descubrió probando las cuatro rotaciones
+  y luego los volteos de `MADCTL` en el aparato; queda `0xE8` con tamaño lógico 240×320.
+- STT por OpenRouter (`openai/whisper-1`) reusando el transcriptor compatible con Whisper.
+- La bitácora del hardware (#48), el estudio de modelos (#47) y sus diagramas se habían mergeado en
+  cadena entre ramas de docs y nunca llegaron a `main`; entran con este PR.
+
 ## 2026-11-10 — Pendientes de código cerrados antes del hardware
 
 - Libro del día: si la vendedora cambiaba de moneda ese día, `sales-today`, `ledger` y el cuadre sumaban

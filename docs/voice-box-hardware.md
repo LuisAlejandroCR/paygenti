@@ -1,12 +1,12 @@
 <!-- docs/voice-box-hardware.md: bitácora del hardware de la caja de voz — qué se compró en Bogotá el
-     2026-11-09, por qué, cómo se conecta y qué falta decidir (el firmware). Complementa la spec
+     2026-11-09, por qué, cómo se conecta, el firmware que corre (§6) y lo que falta (§6.3). Complementa la spec
      docs/voice-box.md (qué hace la caja) y docs/open-models.md (qué modelos la mueven).
      Precios en COP leídos de las fichas de MercadoLibre ese día; ⏳ = no verificado. -->
 
 # Caja de voz: hardware comprado y plan de armado
 
 > Sesión del 2026-11-09 (Bogotá). La compra llega el martes 2026-11-10. La entrega del hackathon
-> cierra el jueves 2026-11-12 a las 15:00 de Bogotá. **El firmware todavía no está decidido** (§6).
+> cierra el jueves 2026-11-12 a las 15:00 de Bogotá. **Firmware: Arduino propio, funcionando** (§6, 2026-11-12).
 
 ## 1. Qué cambió frente a la spec
 
@@ -173,22 +173,57 @@ arco. Cada estado reemplaza al LED de la spec (§2.3):
 en vivo de la terminal (`GET /api/terminals/:id/events`), igual que la bocina. La cara no reemplaza
 el monto: el monto va en texto grande y dicho en voz alta.
 
-## 6. Firmware: pendiente de decidir
+## 6. Firmware: Arduino propio (2026-11-12)
 
-Lo único fijo es lo que la caja tiene que hacer: grabar mientras el botón está apretado, mandar el
-audio a paygent, mostrar el estado (LED o cara) y reproducir la respuesta. Todavía no se elige cómo.
-Las opciones conocidas:
+Se eligió **firmware propio en Arduino** (arduino-cli 1.6 + core `esp32:esp32` 3.3.12): era lo más
+corto a una toma de video, y la caja habla HTTP directo con paygent. XiaoZhi, ESP-IDF y ESPHome quedaron
+descartados por tiempo. Todo vive en `firmware/`:
 
-| Opción | Qué es | A favor | En contra |
-|---|---|---|---|
-| **Firmware propio en Arduino** | Un sketch que graba por I2S, hace `POST /api/terminals/:id/voice` y escucha `/api/terminals/:id/events` | Habla directo con la API de paygent (§3 de la spec); simple de entender | Todo por escribir: audio, Wi-Fi, pantalla, cara |
-| **Firmware propio en ESP-IDF** | Lo mismo con el framework de Espressif (`esp_lcd`, LVGL) | Más control del audio y la pantalla | Más lento de escribir esta semana |
-| **XiaoZhi (`xiaozhi-esp32`)** | Firmware abierto de asistente de voz para ESP32-S3 que ya maneja INMP441, MAX98357A, pantallas y caras con emociones ⏳ | Mucho ya resuelto, incluida la cara | Está hecho para hablar con su propio servidor; habría que adaptarlo a paygent o imitar ese servidor. Licencia y protocolo por revisar ⏳ |
-| **ESPHome (asistente de voz)** | Configuración en YAML con micrófono, parlante y pantalla | Rápido de configurar | Pensado para Home Assistant, no para la API de paygent |
-| **Protocolo del clip de Lente** | TCP con PCM16 a 16 kHz (`docs/PROTOCOL.md` de Lente) | Ya probado con un ESP32-S3 | Paygent no tiene ese servidor; habría que portarlo |
+| Sketch | Qué prueba o hace |
+|---|---|
+| `voice-box/` | La caja: botón → graba → `POST /api/terminals/:id/voice` → cara con el monto → «PAGADO» |
+| `board-check/` | Placa, flash de 16 MB y PSRAM de 8 MB |
+| `mic-check/` | Nivel del INMP441 por serie (silencio rms ≈ 15–30; voz hasta ≈ 500) |
+| `io-check/` | Botón (GPIO 7), LED (GPIO 8) y pitido por el MAX98357A |
+| `pin-scan/` | Dice en qué GPIO está de verdad un botón |
+| `display-check/`, `rotation-check/` | Chip y orientación de la pantalla |
 
-Lo que hay que decidir: si la caja habla HTTP directo con paygent o un protocolo de streaming; si la
-voz de respuesta sale de la bocina de la caja o del teléfono; y cuánto tiempo hay de aquí al jueves.
+Cargar: `arduino-cli compile --fqbn "esp32:esp32:esp32s3:FlashSize=16M,PSRAM=opi" --upload -p COM3
+firmware/voice-box`. Wi-Fi, URL del servidor y terminal van en `firmware/voice-box/secrets.h`
+(gitignored; plantilla en `secrets.example.h`).
+
+### 6.1 Lo que se verificó en el aparato real
+
+- **Cobro por voz de punta a punta:** la vendedora aprieta, dice «cóbrame cuarenta pesos de unos
+  tacos», suelta; el servidor transcribe y responde 201 con una venta de MXN 40 y su orden del sandbox.
+  La cara muestra «40 MXN · Escanea para pagar».
+- **STT:** OpenRouter con `STT_URL=https://openrouter.ai/api/v1/audio/transcriptions` y
+  `STT_MODEL=openai/whisper-1` (el servidor lee `STT_URL`, la ruta completa; `STT_BASE_URL` no se usa).
+- El endpoint cobra el primer número dicho como monto; sin número, arma el carrito con el catálogo.
+
+### 6.2 Hallazgos del armado
+
+- **La pantalla es horizontal de fábrica (320×240, tipo ILI9342)**, no la ILI9341 vertical que dice el
+  anuncio. El ID por SPI devuelve `00` (MISO mudo). Montada vertical, solo se ve bien con tamaño
+  lógico 240×320 y `MADCTL = 0xE8`; las rotaciones de Adafruit dejan franjas o la imagen en mosaico.
+- **El pin 5V de la placa no da corriente** (puente IN-OUT abierto): el amplificador va a **3V3** y suena
+  más bajo.
+- Pulsador de 2 patas en GPIO 7 a GND. **Sin LED** (no se consiguió) y **sin táctil** (faltaron cables):
+  la pantalla muestra cada estado.
+- Los colores pueden estar invertidos (en fotos el amarillo se vio celeste) ⏳ sin confirmar a ojo.
+
+### 6.3 Pendiente para el próximo chat (en orden)
+
+1. **«PAGADO» en el aparato:** cobrar por voz, pagar desde el teléfono en `http://<IP del PC>:8787/t/rosa-01`
+   con el comprador del sandbox y ver la pantalla verde con la campanita. No se ha probado.
+2. **Render:** desplegar el endpoint y poner `STT_API_KEY`, `STT_URL` y `STT_MODEL` en Render. Para
+   apuntar la caja a `https://…onrender.com` el firmware necesita `WiFiClientSecure` (hoy solo `http`).
+3. **Caja virtual en `/judge`** (micrófono del navegador contra el mismo endpoint) para que el jurado
+   pruebe sin hardware. Sin empezar.
+4. **Token de dispositivo `pgd_`:** hoy `POST /api/terminals/:id/voice` es abierto, igual que
+   `POST /api/terminals/:id/sales` (spec `docs/voice-box.md` §3).
+5. Después: más volumen (soldar IN-OUT y pasar el amplificador a 5V), respuesta hablada por la bocina,
+   e intenciones de ventas y consejos (spec §5).
 
 ## 7. La competencia: Bold Sono QR
 
