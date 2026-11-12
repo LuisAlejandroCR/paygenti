@@ -13,7 +13,7 @@ import { type Currency, formatMoney, fromPayPalValue, type Money } from "../../s
 import type { CartLine, CatalogItem, Sale, TerminalEvent } from "../../shared/types";
 import { type Command, listenOnce, parseCommand, playSound, speak, usePref } from "./a11y";
 import { A11yToggles } from "./a11y-toggles";
-import { announcePaid, spokenAmount, unlockAudio } from "./announce";
+import { announcePaid, announcePhrase, spokenAmount, unlockAudio } from "./announce";
 import { ApiError, api, deviceToken } from "./api";
 import { useT } from "./i18n";
 import { BackspaceIcon, ClockIcon, PaidCheck, XCircleIcon } from "./icons";
@@ -110,9 +110,22 @@ export function VendorApp({
     warned.current = false;
     if (phase !== "entry") focusRef.current?.focus();
     if (!voiceMode) return;
+    // "paid" is announced by announcePaid() with the box's chime and voice.
+    if (phase === "paid") return;
+    // Failed and expired have a box clip: same voice and words as the box; the tone and the spoken
+    // line only if the clip cannot play.
+    if (phase === "failed" || phase === "expired") {
+      const text = describe();
+      setSaid(text);
+      void announcePhrase(phase === "failed" ? "sale_failed" : "sale_expired").then((ok) => {
+        if (ok) return;
+        playSound(phase);
+        speak(text);
+      });
+      return;
+    }
     playSound(phase);
-    // "paid" is already spoken by announcePaid(); voice mode adds only the tone.
-    if (phase !== "paid") say(describe());
+    say(describe());
   }, [phase, voiceMode]);
 
   // A server with CHARGE_AUTH=off never asks for the PIN here.

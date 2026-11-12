@@ -242,6 +242,7 @@ Hasta aquí la caja solo pitaba. Ahora dice el resultado en voz alta.
 | 6 | Se oye fuerte sin recortar: voces comprimidas (+3 dB) y al 100 % de la escala en vez de 40 % (+8 dB). La campanita sube igual |
 | 7 | La prueba por el monitor serie muestra la misma cara y título que el flujo real: `paid cuarenta pesos` → PAGADO en verde, `err_amount` → «Sin monto» |
 | 8 | Cada resultado tiene su color y su cara: **verde** y feliz = pagado; **amarillo** con «!» = aviso, no se rompió nada (no entendió, sin monto, cancelado, vencido); **rojo** con «X» y cara preocupada = falló algo (sin internet, sin servidor, error del servidor, voz a texto, PayPal, caja sin registro, pago fallido) |
+| 9 | **Una sola voz** (2026-11-12): la caja, la web (soundbox y pantalla de la vendedora) y la app dicen el pago con las mismas grabaciones y las mismas palabras: campanita, «¡Pagado!» y el monto de `spoken`, con 60 ms entre clips. `npm run voice:clips` escribe en una pasada `clips.h`, `web/public/voice/` y `mobile/assets/voice/`; `test/voice-parity.test.ts` comprueba que cada WAV tiene las mismas muestras que la caja reproduce de `clips.h`. En modo voz, la web dice «cobro vencido» y «el pago falló» con los clips de la caja |
 
 Cómo: las voces de Windows **Sabina (es-MX)** y **Zira (en-US)** graban cada palabra y frase una vez;
 `scripts/voice-clips.ts` las recorta, las comprime, las pasa a µ-law de 16 kHz y escribe `firmware/voice-box/clips.h`

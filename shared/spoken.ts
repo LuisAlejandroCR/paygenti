@@ -1,7 +1,8 @@
 // shared/spoken.ts: an amount in words for the voice box's speaker, in Spanish ("ochenta y cinco pesos
 // con cincuenta centavos") or English ("eighty five pesos and fifty cents"). The box has one recorded
 // clip per word and language (firmware/voice-box/clips.h, built by scripts/voice-clips.ts from
-// SPOKEN_WORDS), so every word said here must be in that list.
+// SPOKEN_WORDS), so every word said here must be in that list. The web and the app play the same
+// recordings (web/public/voice, mobile/assets/voice) in the order paidClipKeys() gives.
 import { decimalsOf } from "./currency";
 import type { Money } from "./money";
 
@@ -253,4 +254,54 @@ export function spokenAmount(m: Money, lang: SpokenLang): string {
     words.push(...integer(cents), cents === 1 ? L.cents[0] : L.cents[1]);
   }
   return words.join(" ");
+}
+
+// ---------- clip keys (box, web and app say the same recordings) ----------
+
+/**
+ * Fixed phrases recorded next to the words (texts in scripts/voice-clips.ts): what the box says for
+ * each outcome. The web and the app play the same files for the states they share.
+ */
+export const PHRASE_KEYS = [
+  "paid",
+  "err_wifi",
+  "err_server",
+  "err_internal",
+  "err_stt_off",
+  "err_stt_failed",
+  "err_unknown",
+  "err_paypal",
+  "err_terminal",
+  "err_amount",
+  "sale_cancelled",
+  "sale_expired",
+  "sale_failed",
+] as const;
+export type PhraseKey = (typeof PHRASE_KEYS)[number];
+
+/** Silence after each clip, as in the box's say() (WORD_GAP_MS in voice-box.ino). */
+export const WORD_GAP_MS = 60;
+
+/**
+ * The paid announcement as clip keys: "paid" and then the amount's words ("paid cuarenta pesos").
+ * A word without a clip (the digits of a billion or more) is dropped, as the box skips it. The
+ * chime that comes first is not a key: players add it (voice/chime.wav).
+ */
+export function paidClipKeys(m: Money, lang: SpokenLang): string[] {
+  const vocab = new Set(SPOKEN_WORDS[lang]);
+  return [
+    "paid",
+    ...spokenAmount(m, lang)
+      .split(" ")
+      .filter((w) => vocab.has(w)),
+  ];
+}
+
+/**
+ * File name of a clip, without extension: the key without accents ("dieciséis" -> "dieciseis"). A
+ * Windows device name gets a "_" ("con" -> "con_"): Windows and Git cannot hold a file "con.wav".
+ */
+export function clipFile(key: string): string {
+  const name = key.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(name) ? `${name}_` : name;
 }

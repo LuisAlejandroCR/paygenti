@@ -2,20 +2,30 @@
 // amount word from shared/spoken.ts plus the paid/error phrases below, in Spanish (VOICE_ES, default
 // "Microsoft Sabina", es-MX) and English (VOICE_EN, default "Microsoft Zira Desktop", en-US); trimmed,
 // compressed (louder on a small speaker), peak-normalized and stored as 16 kHz µ-law in
-// firmware/voice-box/clips.h, one table per language.
+// firmware/voice-box/clips.h, one table per language. The same samples, decoded back from µ-law, go to
+// web/public/voice and mobile/assets/voice as 16-bit WAVs (plus the box's chime), so the box, the web
+// and the app say the same recordings; mobile/assets/voice/index.ts maps keys to bundled files.
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { SPOKEN_WORDS, type SpokenLang } from "../shared/spoken";
+import { clipFile, type PhraseKey, SPOKEN_WORDS, type SpokenLang } from "../shared/spoken";
 
 const RATE = 16000;
 const OUT = resolve("firmware/voice-box/clips.h");
+/** Where the web build serves the clips from and where the Expo app bundles them. */
+const WAV_DIRS = [resolve("web/public/voice"), resolve("mobile/assets/voice")];
+const MOBILE_INDEX = resolve("mobile/assets/voice/index.ts");
 
 /** Per language: Windows voice, fallback culture, fixed phrases by key, and words read differently. */
 const LANGS: Record<
   SpokenLang,
-  { voice: string; culture: string; phrases: Record<string, string>; sayAs: Record<string, string> }
+  {
+    voice: string;
+    culture: string;
+    phrases: Record<PhraseKey, string>;
+    sayAs: Record<string, string>;
+  }
 > = {
   es: {
     voice: process.env.VOICE_ES ?? "Microsoft Sabina",
@@ -188,6 +198,49 @@ for (const s of [-32000, -1000, -10, 0, 10, 1000, 32000]) {
     throw new Error(`µ-law round trip off: ${s} -> ${back}`);
 }
 
+/** A 16 kHz mono 16-bit PCM WAV file. */
+function wavFile(pcm: Int16Array): Buffer {
+  const data = pcm.length * 2;
+  const buf = Buffer.alloc(44 + data);
+  buf.write("RIFF", 0, "ascii");
+  buf.writeUInt32LE(36 + data, 4);
+  buf.write("WAVEfmt ", 8, "ascii");
+  buf.writeUInt32LE(16, 16);
+  buf.writeUInt16LE(1, 20); // PCM
+  buf.writeUInt16LE(1, 22); // mono
+  buf.writeUInt32LE(RATE, 24);
+  buf.writeUInt32LE(RATE * 2, 28);
+  buf.writeUInt16LE(2, 32);
+  buf.writeUInt16LE(16, 34);
+  buf.write("data", 36, "ascii");
+  buf.writeUInt32LE(data, 40);
+  for (let i = 0; i < pcm.length; i++) buf.writeInt16LE(pcm[i] ?? 0, 44 + 2 * i);
+  return buf;
+}
+
+/** Writes one clip to every WAV folder (`name` is relative, e.g. "es/cuarenta.wav"). */
+function writeWavs(name: string, pcm: Int16Array): void {
+  for (const dir of WAV_DIRS) writeFileSync(join(dir, name), wavFile(pcm));
+}
+
+/**
+ * The box's paid chime, sample for sample: tone() in voice-box.ino (sine at 15000, phase restarting
+ * per tone, whole 20 ms blocks) for 660, 880 and 1320 Hz over 120, 120 and 240 ms.
+ */
+function chimePcm(): Int16Array {
+  const out: number[] = [];
+  for (const [hz, ms] of [
+    [660, 120],
+    [880, 120],
+    [1320, 240],
+  ] as const) {
+    const n = Math.floor(ms / 20) * (RATE / 50);
+    for (let i = 0; i < n; i++)
+      out.push(Math.trunc(15000 * Math.sin((2 * Math.PI * hz * i) / RATE)));
+  }
+  return Int16Array.from(out);
+}
+
 /** Bytes as an escaped string literal: the compiler lexes it far faster than a list of integers. */
 function literal(data: number[]): string {
   const rows: string[] = [];
@@ -202,7 +255,10 @@ function literal(data: number[]): string {
 }
 
 /** Synthesizes one language and returns its C arrays and table; `bytes` is the µ-law size. */
-function buildLang(lang: SpokenLang, dir: string): { code: string; clips: number; bytes: number } {
+function buildLang(
+  lang: SpokenLang,
+  dir: string,
+): { code: string; clips: number; bytes: number; lift: number; keys: string[] } {
   const cfg = LANGS[lang];
   const entries = [
     ...SPOKEN_WORDS[lang].map((w) => ({ key: w, text: cfg.sayAs[w] ?? w })),
@@ -240,6 +296,8 @@ function buildLang(lang: SpokenLang, dir: string): { code: string; clips: number
   entries.forEach((e, i) => {
     const clip = trimAndNormalize(readWav(readFileSync(join(out, `${i}.wav`))));
     const data = Array.from(clip.pcm, mulaw);
+    // What the box's speaker gets after mulawDecode(), so web and app sound the same as the box.
+    writeWavs(`${lang}/${clipFile(e.key)}.wav`, Int16Array.from(data, unmulaw));
     bytes += data.length;
     lift += clip.liftDb / entries.length;
     const name = `CLIP_${id}_${i}`;
@@ -254,12 +312,43 @@ static const Clip CLIPS_${id}[] = {
 ${table.join("\n")}
 };
 constexpr size_t CLIP_COUNT_${id} = sizeof(CLIPS_${id}) / sizeof(CLIPS_${id}[0]);`;
-  return { code, clips: entries.length, bytes, lift };
+  return { code, clips: entries.length, bytes, lift, keys: entries.map((e) => e.key) };
+}
+
+/** Metro bundles only literal require() calls, so the app gets a generated key -> asset table. */
+function mobileIndex(built: { lang: SpokenLang; keys: string[] }[]): string {
+  const table = built
+    .map((b) => {
+      const rows = b.keys.map(
+        (k) => `    ${JSON.stringify(k)}: require("./${b.lang}/${clipFile(k)}.wav"),`,
+      );
+      return [`  ${b.lang}: {`, ...rows, "  },"].join("\n");
+    })
+    .join("\n");
+  return `// index.ts: the voice box's clips bundled in the app — generated by scripts/voice-clips.ts, do not
+// edit. Keys are the words of shared/spoken.ts plus the fixed phrases (paid, err_*, sale_*); the WAVs
+// are the same samples the box plays (firmware/voice-box/clips.h). Played by src/lib/announce.ts.
+
+/** The box's paid chime, played before "paid". */
+export const CHIME: number = require("./chime.wav");
+
+/** Clip asset per language and key. */
+export const VOICE_CLIPS: Record<"es" | "en", Record<string, number>> = {
+${table}
+};
+`;
 }
 
 const dir = mkdtempSync(join(tmpdir(), "voice-clips-"));
 try {
   writeFileSync(join(dir, "synth.ps1"), SYNTH_PS1);
+  for (const wavDir of WAV_DIRS) {
+    for (const lang of ["es", "en"]) {
+      rmSync(join(wavDir, lang), { recursive: true, force: true });
+      mkdirSync(join(wavDir, lang), { recursive: true });
+    }
+  }
+  writeWavs("chime.wav", chimePcm());
   const built = (["es", "en"] as const).map((lang) => ({ lang, ...buildLang(lang, dir) }));
   const summary = built
     .map(
@@ -284,7 +373,8 @@ struct Clip {
 ${built.map((b) => b.code).join("\n\n")}
 `;
   writeFileSync(OUT, header);
-  console.log(`wrote ${OUT} — ${summary}`);
+  writeFileSync(MOBILE_INDEX, mobileIndex(built));
+  console.log(`wrote ${OUT}, ${WAV_DIRS.join(" and ")} — ${summary}`);
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
