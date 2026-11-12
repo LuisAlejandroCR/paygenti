@@ -7,3 +7,4 @@
 #define WIFI_PASS "your-wifi-password"
 #define SERVER_URL "http://192.168.1.50:8787"
 #define TERMINAL_ID "rosa-01"
+#define BOX_LANG "es"  // "es" or "en": what the box listens for, shows and says
