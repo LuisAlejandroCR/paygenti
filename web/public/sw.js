@@ -1,6 +1,7 @@
 // web/public/sw.js: minimal service worker so the soundbox is installable and its shell opens offline.
-// Caches only the app shell (navigations and /assets/*); never touches /api, SSE, /t, /pay data or webhooks.
-const CACHE = "paygent-shell-v1";
+// Caches only the app shell (navigations, /assets/* and the voice clips in /voice/*); never touches /api,
+// SSE, /t, /pay data or webhooks.
+const CACHE = "paygent-shell-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -32,7 +33,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetch(req).catch(() => caches.match("/").then((r) => r || Response.error())));
     return;
   }
-  if (url.pathname.startsWith("/assets/") || SHELL.includes(url.pathname)) {
+  if (/^\/(assets|voice)\//.test(url.pathname) || SHELL.includes(url.pathname)) {
     event.respondWith(
       caches.match(req).then(
         (hit) =>
