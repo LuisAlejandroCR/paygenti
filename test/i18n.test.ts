@@ -8,6 +8,7 @@ import { SANDBOX_TEST_VISA } from "../shared/funding";
 import { money } from "../shared/money";
 import { paidAnnouncement } from "../web/src/announce";
 import { DICTIONARIES, detectLocale, reasonText, speechLang, translate } from "../web/src/i18n";
+import { judgeIntroKey, judgeStepKeys } from "../web/src/judge-steps";
 
 describe("detectLocale", () => {
   it("picks Spanish for es* and English for anything else", () => {
@@ -55,6 +56,28 @@ describe("dictionaries", () => {
       expect(note).toMatch(/sandbox/i);
       expect(note).not.toMatch(/@|password|contraseña/i);
     }
+  });
+
+  it("judge script follows the PayPal mode: simulated button in mock, test card in sandbox", () => {
+    expect(judgeStepKeys("mock")).toContain("judge.step3");
+    expect(judgeStepKeys(undefined)).toContain("judge.step3");
+    expect(judgeIntroKey("mock")).toBe("judge.intro");
+    expect(judgeStepKeys("sandbox")).toContain("judge.step3Sandbox");
+    expect(judgeStepKeys("sandbox")).not.toContain("judge.step3");
+    expect(judgeIntroKey("sandbox")).toBe("judge.introSandbox");
+    for (const locale of ["en", "es"] as const) {
+      const sandbox = [...judgeStepKeys("sandbox"), judgeIntroKey("sandbox")]
+        .map((k) => translate(locale, k, { card: SANDBOX_TEST_VISA }))
+        .join(" ");
+      expect(sandbox).toContain(SANDBOX_TEST_VISA);
+      expect(sandbox).toMatch(/sandbox/i);
+      expect(sandbox).not.toMatch(/simulad|simulated|mock|@|password|contraseña/i);
+    }
+    expect(translate("en", "judge.step3Sandbox", { card: SANDBOX_TEST_VISA })).toContain(
+      "Debit or Credit Card",
+    );
+    expect(translate("en", "judge.step3")).toContain("Pay (simulated)");
+    expect(translate("es", "judge.step3")).toContain("Pagar (simulado)");
   });
 
   it("announces payment in both languages", () => {
