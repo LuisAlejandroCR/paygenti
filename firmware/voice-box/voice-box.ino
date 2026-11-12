@@ -472,6 +472,22 @@ void loop() {
       lang = line == "lang en" ? EN : ES;
       Serial.printf("lang: %s\n", lang == EN ? "en" : "es");
       face(IDLE);
+    } else if (line == "net") {  // reachability check without talking: GET /api/health on SERVER_URL
+      if (!wifiUp()) {
+        Serial.println("net: no wifi");
+        tell("err_wifi");
+      } else {
+        HTTPClient http;
+        http.setTimeout(5000);
+        http.begin(String(SERVER_URL) + "/api/health");
+        int code = http.GET();
+        String body = code > 0 ? http.getString() : "";
+        http.end();
+        Serial.printf("net: GET %s/api/health -> %d %s\n", SERVER_URL, code, body.substring(0, 160).c_str());
+        if (code != 200) tell("err_server", String(code));
+      }
+      delay(1500);
+      face(IDLE);
     } else if (line.length()) {
       Serial.printf("say: %s\n", line.c_str());
       int sp = line.indexOf(' ');
