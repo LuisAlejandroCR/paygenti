@@ -51,6 +51,52 @@
   letter-spacing: -0.02em;
 }
 
+.lp-top {
+  flex-wrap: wrap;
+}
+.lp-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ES / EN toggle: same pill as the apps' .lang-toggle (styles.css), split into two buttons. */
+.lp-lang {
+  display: inline-flex;
+  align-items: stretch;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.lp-lang-btn {
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+.lp-lang-btn + .lp-lang-btn {
+  border-left: 1px solid var(--border);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.lp-lang-btn:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.lp-lang-btn[aria-pressed="true"] {
+  font-weight: 800;
+  color: var(--action-text);
+}
+
 /* ---------- Buttons (links styled as buttons) ---------- */
 .lp-btn {
   display: inline-flex;
@@ -129,6 +175,143 @@
   margin: 0;
   justify-self: center;
   width: min(100%, 360px);
+}
+
+/* ---------- Hero sale simulator (front-end only) ---------- */
+.lp-sim {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 16px;
+}
+.lp-sim-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.lp-sim-title {
+  margin: 0;
+  font-size: 1.4rem;
+}
+.lp-sim-badge {
+  margin: 0;
+  padding: 2px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+}
+.lp-sim-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: sim;
+}
+.lp-sim-steps li {
+  counter-increment: sim;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-foreground);
+}
+.lp-sim-steps li::before {
+  content: counter(sim);
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  font-weight: 700;
+}
+.lp-sim-steps li[aria-current="step"] {
+  color: var(--foreground);
+  font-weight: 700;
+}
+.lp-sim-steps li[aria-current="step"]::before {
+  background: var(--action);
+  border-color: var(--action);
+  color: var(--action-foreground);
+}
+.lp-sim-box {
+  min-height: 150px;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  background: var(--muted);
+}
+.lp-sim-screen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.lp-sim-screen[hidden] {
+  display: none;
+}
+.lp-sim-screen p {
+  margin: 0;
+  flex: 1 1 200px;
+}
+.lp-sim-big {
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 4vw, 1.8rem);
+  font-weight: 800;
+}
+.lp-sim-qr {
+  flex: none;
+  border-radius: 8px;
+  background: #fff;
+}
+.lp-sim-box:has(.lp-sim-paid:not([hidden])) {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--success-foreground);
+}
+.lp-sim-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.lp-sim-controls .lp-btn {
+  flex: 1 1 180px;
+  cursor: pointer;
+}
+.lp-sim-controls .lp-btn[hidden] {
+  display: none;
+}
+
+/* ---------- Open it on your phone ---------- */
+.lp-phone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 20px 32px;
+}
+.lp-phone > div {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.lp-phone p {
+  margin: 8px 0 16px;
+}
+.lp-phone .lp-btn {
+  overflow-wrap: anywhere;
+}
+.lp-phone-qr {
+  flex: none;
+  border-radius: 12px;
+  background: #fff;
+}
+
+@media (min-width: 720px) {
+  .lp-sim-steps {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 /* ---------- Video frames ---------- */
