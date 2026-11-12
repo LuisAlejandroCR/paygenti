@@ -1,18 +1,28 @@
 // web/src/judge.tsx: judge mode at /judge — vendor and customer side by side on one screen
-// (stacked on mobile) with a short guided script. Works with zero env vars on the mock gateway.
+// (stacked on mobile) with a short guided script that follows the PayPal mode from /api/config
+// (simulated pay button on the mock gateway, test card in sandbox).
 // The customer panel follows the vendor panel only: the vendor adopts any open sale on load, so
 // both panels always show the same sale. The header is the same title bar as every other screen.
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
+import { SANDBOX_TEST_VISA } from "../../shared/funding";
+import { api } from "./api";
 import { Checkout } from "./checkout";
-import { type Key, useT } from "./i18n";
+import { useT } from "./i18n";
+import { judgeIntroKey, judgeStepKeys, type PayPalMode } from "./judge-steps";
 import { LangToggle } from "./lang-toggle";
 import { VendorApp } from "./vendor";
-
-const STEPS: Key[] = ["judge.step1", "judge.step2", "judge.step3", "judge.step4", "judge.step5"];
 
 export function JudgeApp({ terminal }: { terminal: string }) {
   const { t } = useT();
   const [saleId, setSaleId] = useState<string>();
+  const [mode, setMode] = useState<PayPalMode>();
+
+  useEffect(() => {
+    api
+      .config()
+      .then((c) => setMode(c.paypal))
+      .catch(() => {});
+  }, []);
 
   return (
     <div class="judge">
@@ -22,7 +32,7 @@ export function JudgeApp({ terminal }: { terminal: string }) {
           <LangToggle />
         </div>
         <p>
-          {t("judge.intro")}{" "}
+          {t(judgeIntroKey(mode))}{" "}
           <a
             class="bar-btn judge-soundbox"
             href={`/soundbox?terminal=${terminal}`}
@@ -33,8 +43,8 @@ export function JudgeApp({ terminal }: { terminal: string }) {
           </a>
         </p>
         <ol>
-          {STEPS.map((k) => (
-            <li key={k}>{t(k)}</li>
+          {judgeStepKeys(mode).map((k) => (
+            <li key={k}>{t(k, { card: SANDBOX_TEST_VISA })}</li>
           ))}
         </ol>
       </header>
