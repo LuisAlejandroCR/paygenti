@@ -2,7 +2,14 @@
      No es la spec (docs/plan.md, criterios de aceptación) ni la bitácora de decisiones (docs/memoria.md).
      Se sobrescribe completo en cada traspaso; lo histórico vive en memoria y en git log. -->
 
-# Traspaso — paygent (2026-10-14, actualizado 2026-11-10)
+# Traspaso — paygent (2026-10-14, actualizado 2026-11-12)
+
+## Actualización 2026-11-12 — caja de voz física
+
+La caja de voz ya cobra por voz en el aparato real (ESP32-S3 + INMP441 + MAX98357A + pantalla 2,8").
+Firmware en `firmware/voice-box/`, endpoint `POST /api/terminals/:id/voice`, hallazgos del armado y
+**lista de pendientes en orden** en `docs/voice-box-hardware.md` §6. Empezar por §6.3, punto 1
+(«PAGADO» en el aparato). Lo de abajo es de antes y puede estar viejo.
 
 Entrega del hackathon: **12-nov-2026 12:00 PT** (15:00 en Bogotá; en noviembre rige PST). Al 2026-11-10 faltan 2 días; ver la checklist de abajo.
 

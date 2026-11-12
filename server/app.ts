@@ -10,6 +10,7 @@ import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import QRCode from "qrcode";
 import { z } from "zod";
+import { parseAmount } from "../shared/money";
 import { verifyPassport } from "../shared/passport";
 import {
   buildRailRegistry,
@@ -158,6 +159,11 @@ const audioLimit = bodyLimit({
   onError: (c) => c.json({ error: "AUDIO_TOO_LARGE" }, 413),
 });
 const TRANSCRIBE_PATH = "/api/voice/transcribe";
+/** The voice box posts its push-to-talk WAV here; same audio limit as TRANSCRIBE_PATH. */
+const TERMINAL_VOICE_PATH = /^\/api\/terminals\/[^/]+\/voice$/;
+const terminalVoiceBody = z.strictObject({ text: z.string().trim().min(1).max(500) });
+/** First spoken figure ("40", "85.50"): a box charge by amount wins over catalog lines. */
+const SPOKEN_AMOUNT = /\d+(?:[.,]\d{1,2})?/;
 
 export function createApp(deps: AppDeps): Hono {
   const { paypal } = deps;
@@ -230,7 +236,7 @@ export function createApp(deps: AppDeps): Hono {
       ? imageLimit
       : c.req.path === STATEMENT_PATH
         ? statementLimit
-        : c.req.path === TRANSCRIBE_PATH
+        : c.req.path === TRANSCRIBE_PATH || TERMINAL_VOICE_PATH.test(c.req.path)
           ? audioLimit
           : limit)(c, next),
   );
@@ -447,6 +453,49 @@ export function createApp(deps: AppDeps): Hono {
     if (!vendor) return c.json({ error: "VENDOR_NOT_FOUND" }, 404);
     const result = await parseVoice(body.data.text, vendor.catalog, deps.voiceEnv ?? {});
     return c.json(result);
+  });
+
+  // Voice box (ESP32) and virtual box: a WAV clip or plain text becomes a charge on the terminal.
+  app.post("/api/terminals/:id/voice", async (c) => {
+    const id = terminalId.safeParse(c.req.param("id"));
+    const terminal = id.success ? sales.store.getTerminal(id.data) : undefined;
+    const vendor = terminal && sales.store.getVendor(terminal.vendorId);
+    if (!terminal || !vendor) return c.json({ error: "TERMINAL_NOT_FOUND" }, 404);
+    const lang = c.req.query("lang") === "en" ? "en" : "es";
+    const mime = c.req.header("Content-Type") ?? "";
+    let text: string;
+    if (mime.startsWith("audio/")) {
+      const stt = deps.transcriber;
+      if (!stt) return c.json({ error: "TRANSCRIBE_UNAVAILABLE" }, 503);
+      const audio = new Uint8Array(await c.req.arrayBuffer());
+      if (audio.byteLength === 0) return c.json({ error: "INVALID_BODY" }, 400);
+      try {
+        text = (await stt.transcribe(audio, mime, lang)).trim();
+      } catch (err) {
+        console.error(
+          `stt failed: ${err instanceof Error ? err.message.slice(0, 120) : "unknown"}`,
+        );
+        return c.json({ error: "TRANSCRIBE_FAILED" }, 502);
+      }
+    } else if (mime.startsWith("application/json")) {
+      const body = terminalVoiceBody.safeParse(await readJson(c));
+      if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+      text = body.data.text;
+    } else {
+      return c.json({ error: "UNSUPPORTED_MEDIA_TYPE" }, 415);
+    }
+    const figure = SPOKEN_AMOUNT.exec(text)?.[0];
+    const amount = figure ? parseAmount(figure, vendor.currency) : undefined;
+    let input: { amount: number } | { lines: { sku: string; qty: number }[] } | undefined;
+    if (amount && amount > 0) input = { amount };
+    else {
+      const parsed = await parseVoice(text, vendor.catalog, deps.voiceEnv ?? {});
+      if (parsed.lines.length > 0)
+        input = { lines: parsed.lines.map((l) => ({ sku: l.sku, qty: l.qty })) };
+    }
+    if (!input) return c.json({ intent: "unknown", lang, text });
+    const sale = await sales.createSale(terminal.id, input);
+    return c.json({ intent: "charge", lang, text, sale }, 201);
   });
 
   // Firefox has no SpeechRecognition: the page records a clip and the server transcribes it.
