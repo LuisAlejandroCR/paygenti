@@ -84,7 +84,7 @@ describe("clip files", () => {
     for (const dir of [WEB, MOBILE])
       if (!existsSync(join(dir, "chime.wav"))) missing.push(`${dir}/chime.wav`);
     expect(missing).toEqual([]);
-  });
+  }, 30_000); // ~2 s alone, past 5 s when the whole suite runs in parallel
 
   it("cover the box's whole vocabulary, one file per key", () => {
     for (const lang of LANGS) {
