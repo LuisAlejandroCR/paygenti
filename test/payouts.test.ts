@@ -16,6 +16,7 @@ import { MemoryStore, type Store } from "../server/store";
 import { money } from "../shared/money";
 import type { Payout, Supplier } from "../shared/types";
 import { newPglite, pgliteClient } from "./pglite";
+import { leaksOf } from "./support/leak";
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -103,7 +104,7 @@ describe("suppliers allowlist", () => {
       "PIN_REQUIRED",
       "SUPPLIER_OK",
     ]);
-    expect(JSON.stringify(audit)).not.toContain(PIN);
+    expect(leaksOf(audit, PIN)).toEqual([]);
   });
 
   it("rejects receivers PayPal cannot pay and never leaks the allowlist publicly", async () => {
