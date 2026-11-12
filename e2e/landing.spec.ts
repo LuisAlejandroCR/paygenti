@@ -100,6 +100,20 @@ test.describe("landing page", () => {
     expect((await res.body()).length).toBeLessThan(4 * 1024 * 1024);
   });
 
+  test("Rosa's second take: muted loop with captions off and a real file", async ({ page }) => {
+    await page.goto("/landing.html");
+    const v = page.locator(".lp-rosa2 video");
+    for (const a of ["autoplay", "muted", "loop", "playsinline"])
+      await expect(v).toHaveAttribute(a, "");
+    await expect(v).toHaveAttribute("poster", "/media/rosa-2.jpg");
+    await expect
+      .poll(() => v.evaluate((el: HTMLVideoElement) => el.textTracks[0]?.mode))
+      .not.toBe("showing");
+    const res = await page.request.get("/media/rosa-2.mp4");
+    expect(res.ok()).toBe(true);
+    expect((await res.body()).length).toBeLessThan(4 * 1024 * 1024);
+  });
+
   test("reduced motion: nothing plays on its own", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/landing.html");
