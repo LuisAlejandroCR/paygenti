@@ -10,20 +10,21 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --touch: 56px;
 
-  --background: oklch(0.95 0.025 85);
-  --foreground: oklch(0.27 0.03 30);
-  --surface: oklch(0.985 0.012 85);
-  --card: oklch(0.985 0.012 85);
-  --muted: oklch(0.9 0.045 80);
-  --muted-foreground: oklch(0.46 0.04 50);
-  --border: oklch(0.85 0.04 75);
-  --primary: oklch(0.27 0.03 30);
+  --background: oklch(0.985 0.018 88);
+  --foreground: oklch(0.22 0.028 30);
+  --surface: oklch(1 0 0);
+  --card: oklch(1 0 0);
+  --muted: oklch(0.93 0.035 86);
+  --muted-foreground: oklch(0.39 0.035 50);
+  /* Borders hold 3:1 on white and on the page so cards and fields read in sunlight. */
+  --border: oklch(0.58 0.045 70);
+  --primary: oklch(0.22 0.028 30);
   --primary-foreground: oklch(0.985 0.006 90);
   /* Wine: every vendor action (Charge, mic, keypad toggle). */
-  --action: oklch(0.39 0.14 6);
+  --action: oklch(0.42 0.15 6);
   --action-foreground: oklch(0.985 0.006 90);
   /* Wine as text on the page background (links, active language). */
-  --action-text: oklch(0.39 0.14 6);
+  --action-text: oklch(0.36 0.14 6);
   /* PayPal blue: only on payment UI (open sale, checkout pay buttons). */
   --paypal: oklch(0.532 0.143 248);
   --paypal-foreground: oklch(1 0 0);
@@ -47,23 +48,23 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(0.21 0.03 25);
-    --foreground: oklch(0.94 0.025 75);
-    --surface: oklch(0.26 0.032 25);
-    --card: oklch(0.26 0.032 25);
-    --muted: oklch(0.3 0.035 30);
-    --muted-foreground: oklch(0.78 0.04 60);
-    --border: oklch(0.4 0.04 30);
-    --primary: oklch(0.94 0.025 75);
-    --primary-foreground: oklch(0.21 0.03 25);
-    --action: oklch(0.54 0.17 6);
+    --background: oklch(0.29 0.025 25);
+    --foreground: oklch(0.97 0.018 85);
+    --surface: oklch(0.35 0.028 25);
+    --card: oklch(0.37 0.03 25);
+    --muted: oklch(0.43 0.035 30);
+    --muted-foreground: oklch(0.88 0.035 70);
+    --border: oklch(0.7 0.045 40);
+    --primary: oklch(0.97 0.018 85);
+    --primary-foreground: oklch(0.29 0.025 25);
+    --action: oklch(0.53 0.17 6);
     --action-foreground: oklch(0.985 0.006 90);
-    --action-text: oklch(0.8 0.1 10);
+    --action-text: oklch(0.88 0.1 10);
     --paypal: oklch(0.72 0.13 252);
     --paypal-foreground: oklch(0.17 0.03 254);
     --success: oklch(0.78 0.1 190);
     --success-foreground: oklch(0.18 0.03 190);
-    --destructive: oklch(0.7 0.17 30);
+    --destructive: oklch(0.76 0.15 30);
     --destructive-foreground: oklch(0.17 0.03 30);
     --warning: oklch(0.82 0.15 75);
     --ring: oklch(0.76 0.12 8);
@@ -269,9 +270,15 @@ button.secondary:active:not(:disabled),
 .key:active {
   transform: scale(0.98);
 }
+/* Disabled stays legible (no opacity fade) and differs from enabled by shape, not only color:
+   muted fill, secondary text, dashed edge. Also used by the keypad's decimal key. */
 button:disabled {
-  opacity: 0.45;
-  cursor: default;
+  opacity: 1;
+  background: var(--muted) !important;
+  color: var(--muted-foreground) !important;
+  border: 2px dashed var(--muted-foreground) !important;
+  cursor: not-allowed;
+  transform: none;
 }
 button.link,
 a.link {
@@ -1228,6 +1235,40 @@ button.row-btn {
 /* Sign-in card on /backoffice, /backoffice/ledger and the owner page. */
 .login-card {
   max-width: 420px;
+}
+/* PIN unlock on the vendor screen: a card with a full-size field (the vendor page has no
+   .backoffice form rules). */
+.vendor .unlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px auto;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.25);
+}
+.vendor .unlock .big,
+.vendor .unlock .hint {
+  margin: 0;
+}
+.vendor .unlock label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+.vendor .unlock input {
+  font: inherit;
+  font-size: 1.4rem;
+  letter-spacing: 0.2em;
+  width: 100%;
+  min-height: var(--touch);
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--foreground);
 }
 .back-link {
   margin-top: 4px;

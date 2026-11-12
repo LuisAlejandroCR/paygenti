@@ -18,6 +18,21 @@
 - ⏳ Usuario: «PAGADO» en el aparato, variables de Render (`DATABASE_URL`, `DEVICE_TOKEN_SECRET`,
   `TRUSTED_IP_HEADER`, STT), pago y payout reales en sandbox, pruebas en dispositivos, video y repo público.
 
+## 2026-11-12 — Paleta más clara y legible al sol
+
+- Por qué: la terminal se usa en la calle con el celular; el fondo crema y los bordes suaves se perdían
+  al sol, el texto secundario quedaba gris claro y los botones deshabilitados (`opacity: 0.45`) no se
+  leían. El modo oscuro era casi negro y se veía apagado en la sombra.
+- Claro: superficies y tarjetas blancas sobre crema muy claro; texto secundario 9,3:1; bordes 3,3:1
+  (antes 1,9:1). Oscuro: fondo café medio (no negro), bordes 3:1, vino de acción más oscuro para que el
+  texto blanco del botón llegue a 4,5:1, rojo destructivo más claro.
+- Deshabilitado: relleno `--muted`, texto secundario y borde punteado; se distingue por forma, no solo
+  por color, y se lee igual que el resto (7,9:1 en claro).
+- El desbloqueo con PIN del vendedor ahora es tarjeta con campo de 56 px (antes era el input nativo).
+- Alto contraste negro/blanco/amarillo queda igual, como opción explícita. Todo medido con WCAG AA
+  (4,5:1 texto, 3:1 bordes) en claro, oscuro y alto contraste; única excepción: el relleno vino contra
+  el fondo oscuro (2,5:1), aceptable porque el botón lleva texto a 4,5:1.
+
 ## 2026-11-12 — La caja se oye más fuerte y la prueba muestra la cara
 
 - Probada en la caja real: las dos voces se oían, pero bajito, y en la prueba por serie la pantalla no
