@@ -1,9 +1,16 @@
 // web/src/landing.ts: behavior of the landing page (web/landing.html) — no framework.
 // Swaps the hero to the real charge-screen recording while Rosa's video is missing, lazy-loads the
 // product videos when they scroll into view, honors prefers-reduced-motion and shows the poster
-// with a text note when a video cannot play.
+// with a text note when a video cannot play. Also runs the ES/EN toggle: strings live in
+// landing-strings.ts, keyed by the data-i18n* attributes in landing.html; the locale (detection,
+// storage, <html lang>) is shared with the apps through i18n.ts.
 import "./styles.css";
 import "./landing.css";
+import { getLocale, type Locale, setLocale } from "./i18n";
+import { LANDING, type LandingKey } from "./landing-strings";
+
+let locale: Locale = getLocale();
+const tr = (key: LandingKey) => LANDING[locale][key];
 
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -23,7 +30,8 @@ function showPoster(video: HTMLVideoElement) {
   img.alt = "";
   const note = document.createElement("p");
   note.className = "lp-video-note";
-  note.textContent = "El video no se pudo cargar.";
+  note.dataset.i18n = "video.failed";
+  note.textContent = tr("video.failed");
   video.replaceWith(img);
   frame.append(note);
 }
@@ -37,7 +45,7 @@ function setupHero(video: HTMLVideoElement) {
     if (swapped) return;
     swapped = true;
     if (!fallback || !source) return showPoster(video);
-    video.querySelector("track")?.remove();
+    for (const track of video.querySelectorAll("track")) track.remove();
     video.poster = `/media/${fallback}.jpg`;
     // A fresh <source>, so a late error from Rosa's request cannot hit the fallback.
     const next = document.createElement("source");
@@ -46,9 +54,10 @@ function setupHero(video: HTMLVideoElement) {
     next.addEventListener("error", () => showPoster(video));
     source.replaceWith(next);
     const caption = document.querySelector("[data-caption]");
-    if (caption)
-      caption.textContent =
-        "Grabación real de la pantalla de cobro: desbloquear, cobrar $95, esperar y PAGADO.";
+    if (caption) {
+      caption.setAttribute("data-i18n", "hero.captionFallback");
+      caption.textContent = tr("hero.captionFallback");
+    }
     video.load();
     play(video);
   };
@@ -110,5 +119,46 @@ function setupDemo() {
     .catch(() => {});
 }
 
+/** Captions follow the language: if they are on, the track in the new language takes over. */
+function syncTracks() {
+  for (const video of document.querySelectorAll("video")) {
+    const tracks = [...video.textTracks];
+    if (!tracks.some((t) => t.mode === "showing")) continue;
+    for (const t of tracks) t.mode = t.language === locale ? "showing" : "disabled";
+  }
+}
+
+/** Paints every data-i18n* element, the title, the meta tags and the toggle in `next`. */
+function applyLocale(next: Locale) {
+  locale = next;
+  // Strings are constants from landing-strings.ts (some carry <strong>), never user input.
+  for (const el of document.querySelectorAll<HTMLElement>("[data-i18n]"))
+    el.innerHTML = tr(el.dataset.i18n as LandingKey);
+  for (const el of document.querySelectorAll<HTMLElement>("[data-i18n-label]"))
+    el.setAttribute("aria-label", tr(el.dataset.i18nLabel as LandingKey));
+  for (const el of document.querySelectorAll<HTMLElement>("[data-i18n-content]"))
+    el.setAttribute("content", tr(el.dataset.i18nContent as LandingKey));
+  document.title = tr("meta.title");
+  document
+    .querySelector('meta[property="og:locale"]')
+    ?.setAttribute("content", next === "es" ? "es_MX" : "en_US");
+  for (const b of document.querySelectorAll<HTMLButtonElement>("[data-lang]"))
+    b.setAttribute("aria-pressed", String(b.dataset.lang === next));
+  syncTracks();
+}
+
+function setupLang() {
+  for (const b of document.querySelectorAll<HTMLButtonElement>("[data-lang]")) {
+    b.addEventListener("click", () => {
+      const next = b.dataset.lang === "en" ? "en" : "es";
+      if (next === locale) return;
+      setLocale(next); // persists the choice (try/catch inside) and sets <html lang>
+      applyLocale(next);
+    });
+  }
+  applyLocale(locale);
+}
+
+setupLang();
 setupVideos();
 setupDemo();

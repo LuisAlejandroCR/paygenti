@@ -4,7 +4,9 @@
      decisiones (docs/memoria.md) ni el estado para un chat nuevo (docs/handoff.md). -->
 # Landing de Paygenti
 
-Página estática en español, mobile-first, que solo cuenta lo que la app ya hace.
+Página estática en español e inglés (botón ES / EN en el encabezado), mobile-first, que solo cuenta
+lo que la app ya hace. Primera visita: idioma del navegador (`es*` → ES, si no EN); la elección se
+guarda en `localStorage` (`paygent.locale`, la misma llave que usan las apps vía `web/src/i18n.ts`).
 
 | Dónde | URL |
 | --- | --- |
@@ -17,7 +19,8 @@ Página estática en español, mobile-first, que solo cuenta lo que la app ya ha
 | --- | --- |
 | `web/landing.html` | Marcado: hero, cómo funciona, producto, confianza, CTA final, Open Graph |
 | `web/src/landing.css` | Estilos solo de la landing, sobre los tokens de `web/src/styles.css` |
-| `web/src/landing.ts` | Videos: fallback, carga diferida, `prefers-reduced-motion` |
+| `web/src/landing.ts` | Videos: fallback, carga diferida, `prefers-reduced-motion`; botón ES / EN |
+| `web/src/landing-strings.ts` | Textos ES/EN, por llave `data-i18n*` de `landing.html` |
 | `web/public/media/` | Videos y posters (abajo) |
 | `e2e/landing.spec.ts` | axe AA claro/oscuro, sin desborde 320–1280, enlaces ≥44 px, fallbacks, teclado |
 | `scripts/record-landing.ts` | `npm run landing:record`: vuelve a grabar la app real a tamaño teléfono |
@@ -28,7 +31,7 @@ Página estática en español, mobile-first, que solo cuenta lo que la app ya ha
 | Archivo | Origen | Nota |
 | --- | --- | --- |
 | `hero-person.mp4` / `.jpg` | ElevenLabs, Veo 3.1 Lite, 6 s, 9:16, 720p | Rosa (clip 1). Sin texto, pantallas ni logos |
-| `hero-person.es.vtt` | A mano, tiempos con `silencedetect` | Subtítulos **apagados por defecto** |
+| `hero-person.es.vtt` / `.en.vtt` | A mano, tiempos con `silencedetect` | Subtítulos **apagados por defecto**; si se encienden, siguen el idioma elegido |
 | `app-charge.mp4` / `.jpg` | `npm run landing:record` | Pantalla de cobro real: PIN, $95, QR, PAGADO |
 | `app-checkout.mp4` / `.jpg` | `npm run landing:record` | Checkout real del cliente (pago simulado) |
 | `voicebox-real.mp4` / `.jpg` | Video del voice box grabado por el equipo | Estados reales del ESP32 |

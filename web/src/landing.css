@@ -51,6 +51,52 @@
   letter-spacing: -0.02em;
 }
 
+.lp-top {
+  flex-wrap: wrap;
+}
+.lp-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ES / EN toggle: same pill as the apps' .lang-toggle (styles.css), split into two buttons. */
+.lp-lang {
+  display: inline-flex;
+  align-items: stretch;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.lp-lang-btn {
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+.lp-lang-btn + .lp-lang-btn {
+  border-left: 1px solid var(--border);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.lp-lang-btn:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.lp-lang-btn[aria-pressed="true"] {
+  font-weight: 800;
+  color: var(--action-text);
+}
+
 /* ---------- Buttons (links styled as buttons) ---------- */
 .lp-btn {
   display: inline-flex;

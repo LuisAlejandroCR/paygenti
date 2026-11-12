@@ -2,13 +2,61 @@
 // no horizontal overflow from 320 px to desktop, every link at least 44 px tall, the hero video
 // with its captions off by default, the swap to the real app recording when Rosa's video is
 // missing, a poster when a video cannot load, and no autoplay under reduced motion, and the full-demo slot
-// (web/public/media/demo.mp4) hidden until that file exists.
+// (web/public/media/demo.mp4) hidden until that file exists. The copy checks run in Spanish; a
+// separate block covers the ES/EN toggle (browser-language default, switch, and persistence).
 import AxeBuilder from "@axe-core/playwright";
 import { expect, expectNoOverflow, test } from "./fixtures";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
+test.describe("landing language toggle", () => {
+  test("follows the browser language, switches ES/EN and remembers it", async ({ page }) => {
+    await page.goto("/landing.html");
+    const startsEs = await page.evaluate(() => navigator.language.toLowerCase().startsWith("es"));
+    const copy = {
+      es: { h1: /^Cobra con PayPal/, cta: "Probar la demo", lang: /^es/ },
+      en: { h1: /^Take PayPal payments/, cta: "Try the demo", lang: /^en/ },
+    };
+    const from = startsEs ? copy.es : copy.en;
+    const to = startsEs ? copy.en : copy.es;
+    const h1 = page.locator("h1");
+    await expect(h1).toHaveText(from.h1);
+    await expect(page.getByRole("link", { name: from.cta }).first()).toBeVisible();
+
+    const target = page.getByRole("button", { name: startsEs ? "EN" : "ES", exact: true });
+    await expect(target).toHaveAttribute("aria-pressed", "false");
+    await target.focus();
+    await page.keyboard.press("Enter");
+    await expect(target).toHaveAttribute("aria-pressed", "true");
+    await expect(h1).toHaveText(to.h1);
+    await expect(page.getByRole("link", { name: to.cta }).first()).toHaveAttribute(
+      "href",
+      "/judge",
+    );
+    await expect(page.locator("html")).toHaveAttribute("lang", to.lang);
+
+    await page.reload();
+    await expect(h1).toHaveText(to.h1);
+    await expect(page.getByRole("link", { name: to.cta }).first()).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("lang", to.lang);
+  });
+
+  test("English copy passes axe too", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("paygent.locale", "en"));
+    await page.goto("/landing.html");
+    await expect(page.locator("h1")).toHaveText(/^Take PayPal payments/);
+    const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+    const bad = violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+    expect(bad.map((v) => v.id)).toEqual([]);
+  });
+});
+
 test.describe("landing page", () => {
+  // These checks read the Spanish copy, so pin the language whatever the project's browser locale.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("paygent.locale", "es"));
+  });
+
   for (const scheme of ["light", "dark"] as const) {
     test(`axe passes in ${scheme}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
