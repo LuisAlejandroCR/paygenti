@@ -21,6 +21,10 @@ const config: ExpoConfig = {
       // Only HTTPS and OS-provided crypto: exempt from export-compliance documentation.
       ITSAppUsesNonExemptEncryption: false,
       NFCReaderUsageDescription: "paygent writes your stall's payment link to NFC stickers.",
+      // expo-file-system links the Photos framework (ITMS-90683). The app never reads photos today;
+      // the string only covers a file you would pick from your library yourself.
+      NSPhotoLibraryUsageDescription:
+        "paygent only opens your photo library if you choose a file from it yourself.",
     },
   },
   android: {
