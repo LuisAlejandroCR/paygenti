@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createApp, pickLang } from "../server/app";
 import { MockPayPal } from "../server/paypal/mock";
 import { DEFAULT_POLICY_CONFIG, decide } from "../server/policy/rules";
+import { SANDBOX_TEST_VISA } from "../shared/funding";
 import { money } from "../shared/money";
 import { paidAnnouncement } from "../web/src/announce";
 import { DICTIONARIES, detectLocale, reasonText, speechLang, translate } from "../web/src/i18n";
@@ -45,6 +46,15 @@ describe("dictionaries", () => {
 
   it("interpolates variables", () => {
     expect(translate("en", "vendor.chargeAmount", { amount: "$95.00" })).toBe("Charge $95.00");
+  });
+
+  it("sandbox checkout note names the test card and carries no login credentials", () => {
+    for (const locale of ["en", "es"] as const) {
+      const note = translate(locale, "checkout.sandboxNote", { card: SANDBOX_TEST_VISA });
+      expect(note).toContain("4012888888881881");
+      expect(note).toMatch(/sandbox/i);
+      expect(note).not.toMatch(/@|password|contraseña/i);
+    }
   });
 
   it("announces payment in both languages", () => {
