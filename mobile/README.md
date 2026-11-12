@@ -1,10 +1,11 @@
 <!-- mobile/README.md: guía de la app nativa (Expo, iOS + Android) — pantallas, cómo correrla, compilar con
-EAS, probar NFC/HCE y sus límites. Primero en inglés, luego sección en español.
-No confundir con README.md de la raíz (servidor + web) ni con docs/plan.md (estado y pendientes). -->
+     EAS (APK y TestFlight), probar NFC/HCE y sus límites. Primero en inglés, luego sección en español.
+     No confundir con README.md de la raíz (servidor + web) ni con docs/handoff.md (estado y pendientes). -->
 
 # paygent mobile (iOS + Android)
 
-React Native + Expo SDK 57 vendor app: push-to-talk sale, QR, live PAID (haptics + spoken amount),
+React Native + Expo SDK 57 vendor app: push-to-talk sale, QR, live PAID (haptics + the voice box's
+recorded chime, "¡Pagado!" and amount via `expo-audio`, #57),
 soundbox mode, NFC sticker writer, Android phone-to-phone tap (HCE), a PIN back office and a month
 summary. It talks to the existing paygent server API; money, currency and types come from the repo's
 `shared/` (Metro `watchFolders` + the `@shared/*` alias), never copied.
@@ -24,8 +25,8 @@ Needs a **dev client** (not Expo Go): NFC, HCE and speech recognition are native
 | `onboarding.tsx` | Stall name, country and charge currency |
 | `settings.tsx` | Server URL, terminal id, language |
 
-The month summary is built from the per-day back-office ledger (up to 62 calls, 4 at a time) and uses
-the phone's clock for "today"; near midnight it can differ by a day from the stall's time zone.
+The month summary makes two `/ledger-range` calls (this month and last) and uses the stall's own
+"today" from the server, not the phone's clock.
 
 ## Commands
 
@@ -66,21 +67,23 @@ git fetch && git status --short && git log --oneline -1 && git log --oneline -1 
 
 ```sh
 cd mobile && npx eas-cli login                       # Expo account alejoooo-team
-cd mobile && npx eas-cli init                        # once; writes projectId into app config
+# eas-cli init is already done: projectId lives in app.config.ts (EAS project @alejoooo-team/paygent, #59)
 cd mobile && npx eas-cli build -p android --profile development   # dev client APK
 cd mobile && npx eas-cli build -p android --profile preview       # internal APK
 cd mobile && npx eas-cli build -p ios --profile development       # needs Apple Developer account
 cd mobile && npx eas-cli build -p ios --profile production
-cd mobile && npx eas-cli submit -p ios --profile production       # ascAppId/appleTeamId already in eas.json (#25)
+cd mobile && npx eas-cli submit -p ios --profile production       # ascAppId/appleTeamId already in eas.json
 ```
 
 - Profiles (`eas.json`): `development` (dev client, internal), `preview` (internal; Android APK),
   `production` (store, `autoIncrement`, version source remote). Every profile sets
   `EXPO_PUBLIC_API_URL` because EAS builds do not read `.env` files.
 - **iOS has no local path here** (no Mac): it builds only on EAS cloud and needs a paid Apple
-  Developer account with the NFC Tag Reading capability (the config plugin adds the entitlement
-  `com.apple.developer.nfc.readersession.formats` and `NFCReaderUsageDescription`).
-- Bundle id / package: `com.paygent.app`.
+  Developer account with the NFC Tag Reading capability (the config plugin adds the `TAG` reader
+  entitlement and `NFCReaderUsageDescription`; no `NDEF` entry, App Store Connect rejects it). The HCE
+  pod is not linked on iOS. The iOS EAS build finished on 2026-11-12 (#59); not yet run on a device.
+- iOS bundle id `com.alejoooo.paygent`; Android package `com.paygent.app`.
+- The voice clips (#57) need one APK rebuild to ship `expo-audio`; if a clip cannot play, the app falls back to `expo-speech`.
 
 ## NFC testing
 
@@ -105,7 +108,7 @@ HCE limits:
 ## Español
 
 App de la vendedora en Expo SDK 57 (iOS + Android): venta por voz, QR, PAGADO en vivo con vibración
-y voz, modo bocina, grabado de stickers NFC, tap teléfono a teléfono en Android (HCE),
+y las grabaciones de la caja de voz (`expo-audio`), modo bocina, grabado de stickers NFC, tap teléfono a teléfono en Android (HCE),
 administración con PIN, Resumen del mes (verificado, autodeclarado y por confirmar, nunca sumados) y
 Perfil con cambio de puesto. Usa la API existente y el código de `shared/` (dinero, monedas, tipos).
 
@@ -114,7 +117,8 @@ Perfil con cambio de puesto. Usa la API existente y el código de `shared/` (din
   (worktrees de agentes); en ese caso copiar `mobile/` y `shared/` a otra carpeta.
 - ⏳ No hay registro de pruebas en un dispositivo real (NFC, HCE, TalkBack/VoiceOver, texto grande).
 - Android en Windows: `cd mobile && npx expo run:android` con el teléfono conectado por USB.
-- iOS: solo con EAS en la nube y una cuenta de Apple Developer; aquí no hay Mac.
+- iOS: solo con EAS en la nube y una cuenta de Apple Developer; aquí no hay Mac. El build de iOS en EAS
+  terminó el 2026-11-12 (#59), sin probar en un iPhone. Las voces (#57) piden recompilar el APK.
 - Antes de compilar: `git status --short && git log --oneline -1` debe coincidir con `origin/main`.
 - Servidor: `EXPO_PUBLIC_API_URL` o **Ajustes** en la app (para desarrollo local usa la IP de la PC).
 - Cobrar: la pantalla de venta pide el PIN del puesto una vez y guarda un token de dispositivo por 7 días
