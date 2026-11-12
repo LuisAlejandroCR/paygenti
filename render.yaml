@@ -39,6 +39,9 @@ services:
       # Only if the dashboard is deployed on its own origin: its exact URL.
       - key: CORS_ORIGINS
         sync: false
+      # Only if the Vercel front end proxies /api here: its exact URL, so its passkeys work.
+      - key: PASSKEY_ORIGINS
+        sync: false
       # PIN per extra stall ("beto:XXXX"); without it Don Beto keeps the demo PIN 5678.
       - key: STALL_PINS
         sync: false
