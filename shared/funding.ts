@@ -49,6 +49,13 @@ export function selectFundingSources(
   });
 }
 
+/**
+ * PayPal's published sandbox test Visa, shown on the sandbox checkout so a judge can pay as a guest
+ * (no buyer login). Source (read 2026-11-12): https://developer.paypal.com/tools/sandbox/card-testing/
+ * It only works against the sandbox; it is not a credential.
+ */
+export const SANDBOX_TEST_VISA = "4012888888881881";
+
 /** Sandbox stand-in buyer per currency, so a USD sale is tested as a US buyer would see it. */
 const SANDBOX_BUYER: Readonly<Record<string, string>> = Object.freeze({
   USD: "US",

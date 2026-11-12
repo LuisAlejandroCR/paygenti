@@ -7,7 +7,12 @@
 // Listens to the terminal's SSE feed so a vendor cancel (or paid/expired) shows up live. A sale that
 // can no longer be paid always says what to do next (nothing was charged; ask for a new charge).
 import { useEffect, useId, useRef, useState } from "preact/hooks";
-import { type FundingSource, fundingCandidates, sandboxBuyerCountry } from "../../shared/funding";
+import {
+  type FundingSource,
+  fundingCandidates,
+  SANDBOX_TEST_VISA,
+  sandboxBuyerCountry,
+} from "../../shared/funding";
 import { formatMoney, money, toPayPalValue } from "../../shared/money";
 import type { Sale, TerminalEvent } from "../../shared/types";
 import { type WalletId, walletCandidates } from "../../shared/wallets";
@@ -294,6 +299,7 @@ export function Checkout({ saleId, embedded = false }: { saleId: string; embedde
             </p>
           )}
           {shown?.length === 0 && <p class="hint">{t("checkout.noMethods")}</p>}
+          <p class="hint sandbox-note">{t("checkout.sandboxNote", { card: SANDBOX_TEST_VISA })}</p>
           <div
             ref={walletsRef}
             class="pp-buttons wallet-buttons"
