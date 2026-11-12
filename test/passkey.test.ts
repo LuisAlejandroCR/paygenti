@@ -253,6 +253,19 @@ describe("relyingParty", () => {
       origins: ["http://localhost:8787", "http://localhost:5173"],
     });
   });
+
+  it("binds to an allowed front-end origin (PASSKEY_ORIGINS), only when the request comes from it", () => {
+    const allowed = ["https://paygenti.vercel.app"];
+    expect(
+      relyingParty("https://paygent-rirl.onrender.com", "https://paygenti.vercel.app", allowed),
+    ).toEqual({ rpID: "paygenti.vercel.app", origins: ["https://paygenti.vercel.app"] });
+    expect(relyingParty("https://paygent-rirl.onrender.com", "https://evil.test", allowed)).toEqual(
+      {
+        rpID: "paygent-rirl.onrender.com",
+        origins: ["https://paygent-rirl.onrender.com"],
+      },
+    );
+  });
 });
 
 describe("passkey persistence", () => {

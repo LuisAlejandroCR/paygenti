@@ -95,6 +95,11 @@ export interface AppDeps {
    * browser. Empty means same-origin only. Auth is bearer tokens, never cookies, so no credentials.
    */
   corsOrigins?: readonly string[];
+  /**
+   * PASSKEY_ORIGINS: exact origins of a front end that proxies /api to this server (the Vercel
+   * deploy). Passkeys made there bind to that host, since WebAuthn ties them to the page's domain.
+   */
+  passkeyOrigins?: readonly string[];
 }
 
 /** "https://a.example, https://b.example" -> exact origins; anything that is not one is dropped. */
@@ -326,7 +331,8 @@ export function createApp(deps: AppDeps): Hono {
     const stall = terminal && stalls.get(terminal.vendorId);
     return terminal && stall ? { terminal, stall } : undefined;
   };
-  const rp = (c: Context) => relyingParty(base(c, deps), c.req.header("origin"));
+  const rp = (c: Context) =>
+    relyingParty(base(c, deps), c.req.header("origin"), deps.passkeyOrigins);
 
   app.post("/api/terminals/:id/passkey/register/options", async (c) => {
     const t = passkeyTerminal(c);
