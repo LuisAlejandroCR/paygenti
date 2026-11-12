@@ -4,8 +4,9 @@
 //
 // Checks per screen and mode: axe-core (serious/critical reported), horizontal overflow, interactive
 // targets under 44×44 px and console errors. Only the correct demo PIN (1234) is ever sent, so the
-// audit never trips the PIN lockout. Knobs: UX_BASE_URL (skip build and spawn), UX_SKIP_BUILD=1,
-// UX_ONLY=vendor,checkout (screen id substrings), UX_MODES=375-light-es (mode ids), UX_OUT=ux-shots.
+// audit never trips the PIN lockout; it unlocks the terminal once, as the vendor's phone does.
+// Knobs: UX_BASE_URL (skip build and spawn), UX_SKIP_BUILD=1, UX_ONLY=vendor,checkout (screen id
+// substrings), UX_MODES=375-light-es (mode ids), UX_OUT=ux-shots.
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -123,9 +124,21 @@ async function api<T>(path: string, init?: { method?: string; body?: unknown; to
   return data;
 }
 
+/** This run's charge token (POST /api/terminals/:id/unlock with the demo PIN), like the vendor's phone. */
+let deviceToken = "";
+async function unlockDevice() {
+  const { token } = await api<{ token: string }>(`/api/terminals/${TERMINAL}/unlock`, {
+    body: { pin: PIN },
+  });
+  deviceToken = token;
+}
+
 async function cancelOpen() {
   const d = await api<{ openSale: { id: string } | null }>(`/api/terminals/${TERMINAL}`);
-  if (d.openSale) await api(`/api/sales/${d.openSale.id}/cancel`, { body: {} }).catch(() => {});
+  if (d.openSale)
+    await api(`/api/sales/${d.openSale.id}/cancel`, { body: {}, token: deviceToken }).catch(
+      () => {},
+    );
 }
 
 let skus: string[] = [];
@@ -140,7 +153,10 @@ async function createSale(cart = true): Promise<SaleRef> {
           ],
         }
       : { amount: 4500 };
-  const { sale } = await api<{ sale: SaleRef }>(`/api/terminals/${TERMINAL}/sales`, { body });
+  const { sale } = await api<{ sale: SaleRef }>(`/api/terminals/${TERMINAL}/sales`, {
+    body,
+    token: deviceToken,
+  });
   return sale;
 }
 
@@ -160,6 +176,7 @@ async function seed(): Promise<Seed> {
     `/api/terminals/${TERMINAL}`,
   );
   skus = vendor.catalog.map((c) => c.sku);
+  await unlockDevice();
   await settle(await createSale(true));
   await settle(await createSale(false));
   const { token } = await api<{ token: string }>("/api/backoffice/session", {
@@ -787,6 +804,11 @@ async function main() {
         reducedMotion: "reduce",
         ...(mode.width < 768 && { isMobile: true, hasTouch: true }),
       });
+      // The vendor screens open already unlocked, as on a phone that entered the stall PIN once.
+      await context.addInitScript(
+        ([key, tk]: string[]) => localStorage.setItem(key, tk),
+        [`paygent.device.${TERMINAL}`, deviceToken],
+      );
       for (const screen of screens) {
         const r = await runScreen(context, screen, mode, s);
         results.push(r);
