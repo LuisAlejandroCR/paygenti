@@ -60,7 +60,7 @@
     --action: oklch(0.53 0.17 6);
     --action-foreground: oklch(0.985 0.006 90);
     --action-text: oklch(0.88 0.1 10);
-    --paypal: oklch(0.72 0.13 252);
+    --paypal: oklch(0.78 0.11 252);
     --paypal-foreground: oklch(0.17 0.03 254);
     --success: oklch(0.78 0.1 190);
     --success-foreground: oklch(0.18 0.03 190);
@@ -519,6 +519,26 @@ button.row-btn {
   margin: 0;
   padding: 0 16px;
   font-size: 1rem;
+}
+/* Narrow row (320 px phones, judge panel): the field, "Add" and the keypad toggle squeezed the input
+   to ~13 px. Below 340 px of row, "Add" drops under the field at full width. */
+.type-row {
+  container-type: inline-size;
+}
+.keypad-toggle {
+  align-self: flex-start;
+}
+@container (max-width: 340px) {
+  .type-order {
+    flex-wrap: wrap;
+  }
+  .type-field {
+    flex: 1 1 100%;
+  }
+  .type-order button.secondary {
+    flex: 1 1 100%;
+    min-height: 48px;
+  }
 }
 .keypad-toggle {
   display: grid;
@@ -1086,7 +1106,9 @@ button.row-btn {
 }
 /* Title keeps its own line; the actions wrap below it on phones. */
 .backoffice .bar .stall {
-  flex: 1 0 auto;
+  /* Shrinkable: a long title (verify, 320 px) wraps on its own line instead of widening the page. */
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 1.3rem;
 }
 .backoffice .panel {
@@ -1236,6 +1258,18 @@ button.row-btn {
 .login-card {
   max-width: 420px;
 }
+/* PIN label above a full-width field: inline it left a ~170 px box on a 375 px phone. 16 px font
+   keeps iOS Safari from zooming in on focus. */
+.login-card label {
+  display: grid;
+  gap: 6px;
+}
+.login-card input {
+  width: 100%;
+  min-height: 48px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
 /* PIN unlock on the vendor screen: a card with a full-size field (the vendor page has no
    .backoffice form rules). */
 .vendor .unlock {
@@ -1251,6 +1285,14 @@ button.row-btn {
 .vendor .unlock .big,
 .vendor .unlock .hint {
   margin: 0;
+}
+/* Title scales down on 320 px phones; the hint lines up with the field instead of centering. */
+.vendor .unlock .big {
+  font-size: clamp(1.45rem, 6.5vw, 1.8rem);
+  line-height: 1.15;
+}
+.vendor .unlock .hint {
+  text-align: left;
 }
 .vendor .unlock label {
   display: flex;
@@ -1886,6 +1928,10 @@ button.row-btn {
 :root[data-contrast="high"] textarea,
 :root[data-contrast="high"] .card {
   border: 2px solid currentColor;
+}
+/* Text links that are buttons stay plain underlined text, like the <a> next to them. */
+:root[data-contrast="high"] button.link {
+  border: 0;
 }
 /* Multi-paygent: stall switcher, approvals inbox, Claude access. */
 .stall-switcher select {
