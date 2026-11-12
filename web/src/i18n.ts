@@ -193,6 +193,10 @@ const en = {
   "judge.step2": "Vendor: tap “Charge”. The QR appears — that is what the customer would scan.",
   "judge.step3":
     "Customer: the checkout opens on the right. Tap “Pay (simulated)” or “Simulate decline”.",
+  "judge.step3Sandbox":
+    "Customer: the checkout opens on the right. Tap “Debit or Credit Card” and use PayPal's sandbox test Visa {card} (any future expiry, any 3-digit CVV), or log in with a PayPal sandbox buyer account. No real money moves.",
+  "judge.introSandbox":
+    "One screen, two phones: the vendor on the left, the customer on the right. Runs on the real PayPal sandbox: test money only.",
   "judge.step4": "Vendor: the screen turns PAID and the phone says the amount out loud.",
   "judge.step5":
     "Bonus: open /backoffice (PIN 1234) and try a refund — the policy lock asks for the PIN again.",
@@ -729,6 +733,10 @@ const es: Dict = {
   "judge.step2": "Vendedora: toca “Cobrar”. Aparece el QR — eso es lo que escanearía el cliente.",
   "judge.step3":
     "Cliente: el cobro se abre a la derecha. Toca “Pagar (simulado)” o “Simular rechazo”.",
+  "judge.step3Sandbox":
+    "Cliente: el cobro se abre a la derecha. Toca el botón de tarjeta (débito o crédito) y usa la Visa de prueba de sandbox de PayPal {card} (cualquier vencimiento futuro, cualquier CVV de 3 dígitos), o inicia sesión con una cuenta compradora de sandbox de PayPal. No se mueve dinero real.",
+  "judge.introSandbox":
+    "Una pantalla, dos teléfonos: la vendedora a la izquierda, el cliente a la derecha. Usa el sandbox real de PayPal: solo dinero de prueba.",
   "judge.step4": "Vendedora: la pantalla dice PAGADO y el teléfono anuncia el monto en voz alta.",
   "judge.step5":
     "Extra: abre /backoffice (PIN 1234) y prueba una devolución — el candado de políticas vuelve a pedir el PIN.",
