@@ -22,13 +22,15 @@ constexpr uint32_t MAX_SECONDS = 6;
 constexpr size_t MAX_SAMPLES = RATE * MAX_SECONDS;
 constexpr int MIC_SHIFT = 11;  // 24-bit sample in 32 bits -> int16 with ~8x gain (mic-check showed low levels).
 constexpr uint32_t PAY_TIMEOUT_MS = 5 * 60 * 1000;
-// The screen sits landscape in the box (320x240). Use 3 if the face shows upside down.
-constexpr uint8_t TFT_ROTATION = 1;
+// The panel is natively 320x240 (ILI9342-like) and sits portrait in the box. Logical size comes from
+// rotation 0 (240x320); MADCTL 0xE8 (MY|MX|MV|BGR) is the scan that fills it upright (rotation-check).
+constexpr uint8_t TFT_MADCTL = 0xE8;
 
 // RGB565 palette.
 constexpr uint16_t BG = 0xFFDF, INK = 0x2124, CHEEK = 0xFB56, GREEN = 0x2E8A, ORANGE = 0xFD20, WHITE = 0xFFFF;
 
 Adafruit_ILI9341 tft(&SPI, TFT_DC, TFT_CS, TFT_RST);
+GFXcanvas16 *canvas = nullptr;  // 320x240 frame drawn off-screen, then sent by present().
 I2SClass mic, amp;
 uint8_t *wav = nullptr;  // 44-byte header + PCM16, in PSRAM.
 
@@ -36,67 +38,79 @@ enum Face { IDLE, LISTEN, THINK, OPEN, PAID, CONFUSED, OFFLINE };
 
 // ---------- screen ----------
 
+/** Sends the off-screen frame to the panel in one go, so a face change never flickers. */
+void present() {
+  const int W = canvas->width(), H = canvas->height();
+  tft.startWrite();
+  tft.setAddrWindow(0, 0, W, H);
+  tft.writePixels(canvas->getBuffer(), W * H);
+  tft.endWrite();
+}
+
 void eyes(Face f, uint16_t bg) {
-  const int cx = tft.width() / 2, y = 80, lx = cx - 55, rx = cx + 55;
+  GFXcanvas16 &g = *canvas;
+  const int cx = g.width() / 2, y = 110, lx = cx - 45, rx = cx + 45;
   for (int x : {lx, rx}) {
     switch (f) {
       case IDLE:
       case OFFLINE:  // closed: thick line
-        tft.fillRoundRect(x - 20, y - 3, 40, 7, 3, INK);
+        g.fillRoundRect(x - 20, y - 3, 40, 7, 3, INK);
         break;
       case PAID:  // happy ^ ^
         for (int t = 0; t < 6; t++) {
-          tft.drawLine(x - 20, y + 8 + t / 2, x, y - 10 + t / 2, INK);
-          tft.drawLine(x, y - 10 + t / 2, x + 20, y + 8 + t / 2, INK);
+          g.drawLine(x - 20, y + 8 + t / 2, x, y - 10 + t / 2, INK);
+          g.drawLine(x, y - 10 + t / 2, x + 20, y + 8 + t / 2, INK);
         }
         break;
       case CONFUSED:
-        tft.fillCircle(x, y, 16, INK);
-        tft.fillCircle(x + 5, y - 6, 5, WHITE);
-        tft.fillRect(x - 22, y - 34, 44, 6, INK);  // brows
+        g.fillCircle(x, y, 16, INK);
+        g.fillCircle(x + 5, y - 6, 5, WHITE);
+        g.fillRect(x - 22, y - 34, 44, 6, INK);  // brows
         break;
       default: {  // open eyes; THINK looks up, LISTEN is bigger
         int r = f == LISTEN ? 22 : 18, dy = f == THINK ? -8 : 0;
-        tft.fillCircle(x, y, r, INK);
-        tft.fillCircle(x + 6, y - 7 + dy, r / 3, WHITE);
+        g.fillCircle(x, y, r, INK);
+        g.fillCircle(x + 6, y - 7 + dy, r / 3, WHITE);
       }
     }
   }
   if (f != OFFLINE) {
-    tft.fillCircle(cx - 100, 112, 12, CHEEK);
-    tft.fillCircle(cx + 100, 112, 12, CHEEK);
+    g.fillCircle(cx - 80, 145, 12, CHEEK);
+    g.fillCircle(cx + 80, 145, 12, CHEEK);
   }
   // Mouth: arc for smile, small "o" when listening.
   if (f == LISTEN) {
-    tft.fillCircle(cx, 122, 10, INK);
-    tft.fillCircle(cx, 122, 5, bg);
+    g.fillCircle(cx, 160, 10, INK);
+    g.fillCircle(cx, 160, 5, bg);
   } else if (f == CONFUSED) {
-    tft.fillRect(cx - 20, 120, 40, 5, INK);
+    g.fillRect(cx - 20, 160, 40, 5, INK);
   } else {
-    for (int t = 0; t < 4; t++) tft.drawCircleHelper(cx, 100 + t, 24, 0x4 | 0x8, INK);
+    for (int t = 0; t < 4; t++) g.drawCircleHelper(cx, 140 + t, 24, 0x4 | 0x8, INK);
   }
 }
 
 void face(Face f, const String &line1 = "", const String &line2 = "") {
+  GFXcanvas16 &g = *canvas;
   uint16_t bg = f == PAID ? GREEN : f == OFFLINE ? 0xC618 : BG;
-  tft.fillScreen(bg);
+  g.fillScreen(bg);
   eyes(f, bg);
-  tft.setTextColor(f == PAID ? WHITE : INK);
-  tft.setTextWrap(false);
+  g.setTextColor(f == PAID ? WHITE : INK);
+  g.setTextWrap(false);
   int16_t x, y;
   uint16_t w, h;
   if (line1.length()) {
-    tft.setTextSize(line1.length() > 10 ? 3 : 4);
-    tft.getTextBounds(line1, 0, 0, &x, &y, &w, &h);
-    tft.setCursor(max(0, (tft.width() - (int)w) / 2), 160);
-    tft.print(line1);
+    g.setTextSize(line1.length() > 10 ? 3 : 4);
+    g.getTextBounds(line1, 0, 0, &x, &y, &w, &h);
+    g.setCursor(max(0, (g.width() - (int)w) / 2), 210);
+    g.print(line1);
   }
   if (line2.length()) {
-    tft.setTextSize(2);
-    tft.getTextBounds(line2, 0, 0, &x, &y, &w, &h);
-    tft.setCursor(max(0, (tft.width() - (int)w) / 2), 208);
-    tft.print(line2);
+    g.setTextSize(2);
+    g.getTextBounds(line2, 0, 0, &x, &y, &w, &h);
+    g.setCursor(max(0, (g.width() - (int)w) / 2), 265);
+    g.print(line2);
   }
+  present();
 }
 
 // ---------- sound ----------
@@ -264,7 +278,11 @@ void setup() {
 
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI, TFT_CS);
   tft.begin(40000000);
-  tft.setRotation(TFT_ROTATION);
+  tft.setRotation(0);  // 240x320 logical size
+  const uint8_t madctl = TFT_MADCTL;
+  tft.sendCommand(ILI9341_MADCTL, &madctl, 1);
+  canvas = new GFXcanvas16(tft.width(), tft.height());
+  if (!canvas->getBuffer()) Serial.println("canvas alloc FAIL");
 
   wav = (uint8_t *)ps_malloc(44 + MAX_SAMPLES * 2);
   if (!wav) Serial.println("PSRAM alloc FAIL");
