@@ -34,3 +34,6 @@ firmware/voice-box/secrets.h
 landing-raw/
 
 .vercel
+
+# Generated UI snapshot (scripts/ui-static.ts); internal docs live in a private repo
+docs/ui/

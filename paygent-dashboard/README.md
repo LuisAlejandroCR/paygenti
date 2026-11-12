@@ -1,7 +1,7 @@
 <!-- paygent-dashboard/README.md: guía del dashboard web de la vendedora (TanStack Start) — qué es, modo mock
      vs. modo real, comandos, la capa de datos (api.ts + adapter.ts), invariantes y lo que sigue simulado.
      No confundir con README.md de la raíz (servidor + app web) ni con mobile/README.md (app Expo); el estado
-     del proyecto vive en docs/plan.md y docs/handoff.md. -->
+     del proyecto vive en un repo privado. -->
 
 # paygent dashboard
 
@@ -100,8 +100,7 @@ it the server sends no CORS headers, so serve the dashboard from the same origin
 5. Claude's proposals (approvals) appear as notices without the model's note, which is untrusted text.
 6. Amounts arrive in integer minor units and are converted with each currency's exponent.
 
-Colours and tokens follow `src/styles.css`; the design rules and the other two token copies are in
-[docs/design.md](../docs/design.md).
+Colours and tokens follow `src/styles.css`.
 
 ## Pending
 
