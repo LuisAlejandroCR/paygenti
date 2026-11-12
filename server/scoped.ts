@@ -7,6 +7,7 @@ import type {
   Approval,
   CatalogItem,
   McpToken,
+  PasskeyCredential,
   Payout,
   Sale,
   Supplier,
@@ -47,6 +48,16 @@ export class StallStore implements Store {
   }
   saveMcpToken(): void {
     throw new Error("stall store: MCP tokens belong to the owner");
+  }
+  passkeys(terminalId: string): PasskeyCredential[] {
+    return this.base.passkeys(terminalId).filter((p) => p.vendorId === this.vendorId);
+  }
+  getPasskey(id: string): PasskeyCredential | undefined {
+    const p = this.base.getPasskey(id);
+    return p?.vendorId === this.vendorId ? p : undefined;
+  }
+  savePasskey(passkey: PasskeyCredential): void {
+    this.base.savePasskey({ ...passkey, vendorId: this.vendorId });
   }
   approvals(): Approval[] {
     return this.base.approvals(this.vendorId);

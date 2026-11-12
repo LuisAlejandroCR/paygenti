@@ -6,8 +6,9 @@
 // state with its own tone and takes spoken commands (charge, cancel, more time, new sale, repeat).
 // An unknown terminal shows an error card instead of a keypad that could never charge.
 // Charging needs this device unlocked once with the stall PIN (token in localStorage, 7 days); until
-// then the keypad is replaced by a PIN card, and a refused token brings the card back.
-import { useEffect, useRef, useState } from "preact/hooks";
+// then the keypad is replaced by a PIN card, and a refused token brings the card back. After a PIN
+// unlock the phone may enrol Face ID / fingerprint (passkey); next time one tap earns the same token.
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { currencyInfo, decimalsOf } from "../../shared/currency";
 import { type Currency, formatMoney, fromPayPalValue, type Money } from "../../shared/money";
 import type { CartLine, CatalogItem, Sale, TerminalEvent } from "../../shared/types";
@@ -19,6 +20,7 @@ import { useT } from "./i18n";
 import { BackspaceIcon, ClockIcon, PaidCheck, XCircleIcon } from "./icons";
 import { LangToggle } from "./lang-toggle";
 import { Onboarding } from "./onboarding";
+import { passkeyClient, passkeyFlag, platformPasskeys } from "./passkey";
 import { StickerPanel } from "./sticker";
 import { useSpeechMode } from "./stt";
 import { VoiceCart } from "./voice";
@@ -77,6 +79,10 @@ export function VendorApp({
   const [missing, setMissing] = useState(false);
   const [locked, setLocked] = useState(() => !deviceToken.get(terminal));
   const [pin, setPin] = useState("");
+  const passkey = useMemo(() => passkeyClient(terminal), [terminal]);
+  const [canPasskey, setCanPasskey] = useState(false);
+  const [hasPasskey, setHasPasskey] = useState(() => passkeyFlag.get(terminal));
+  const [offerPasskey, setOfferPasskey] = useState(false);
   const saleRef = useRef<Sale | undefined>(undefined);
   saleRef.current = sale;
   const [voiceMode] = usePref("voice");
@@ -139,6 +145,58 @@ export function VendorApp({
       .catch(() => {});
   }, [terminal]);
 
+  useEffect(() => {
+    platformPasskeys().then(setCanPasskey);
+    setHasPasskey(passkeyFlag.get(terminal));
+  }, [terminal]);
+
+  // Fetch the passkey challenge before the tap, so Face ID opens straight from the click.
+  useEffect(() => {
+    if (locked && canPasskey && hasPasskey) passkey.prepareUnlock().catch(passkeyGone);
+  }, [locked, canPasskey, hasPasskey, passkey]);
+
+  /** The server has no passkey for this terminal any more: hide the button. */
+  function passkeyGone(err: unknown) {
+    if (err instanceof ApiError && err.code === "PASSKEY_NONE") {
+      passkeyFlag.set(terminal, false);
+      setHasPasskey(false);
+    }
+  }
+
+  async function unlockWithPasskey() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const { token } = await passkey.unlock();
+      deviceToken.set(terminal, token);
+      setLocked(false);
+    } catch (err) {
+      passkeyGone(err);
+      const code = err instanceof ApiError ? err.code : "";
+      setError(code === "PASSKEY_LOCKED" ? t("bo.pinLocked") : t("vendor.passkeyFailed"));
+      passkey.prepareUnlock().catch(passkeyGone);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function enrolPasskey() {
+    const token = deviceToken.get(terminal);
+    if (busy || !token) return;
+    setBusy(true);
+    setError("");
+    try {
+      await passkey.enrol(token);
+      setHasPasskey(true);
+      setOfferPasskey(false);
+    } catch {
+      setError(t("vendor.passkeyEnrolFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   /** The server refused this device's token: forget it and ask for the PIN again. */
   function authLost(err: unknown): boolean {
     if (!(err instanceof ApiError) || err.code !== "CHARGE_AUTH_REQUIRED") return false;
@@ -157,6 +215,10 @@ export function VendorApp({
       const { token } = await api.unlock(terminal, pin);
       deviceToken.set(terminal, token);
       setLocked(false);
+      if (canPasskey && !passkeyFlag.get(terminal)) {
+        setOfferPasskey(true);
+        passkey.prepareEnrol(token).catch(() => setOfferPasskey(false));
+      }
     } catch (err) {
       const code = err instanceof ApiError ? err.code : "";
       setError(
@@ -439,6 +501,11 @@ export function VendorApp({
             {t("vendor.unlockTitle")}
           </h2>
           <p class="hint">{t("vendor.unlockHint")}</p>
+          {canPasskey && hasPasskey && (
+            <button type="button" class="secondary" onClick={unlockWithPasskey} disabled={busy}>
+              {t("vendor.passkeyUnlock")}
+            </button>
+          )}
           <label>
             {t("bo.pin")}
             <input
@@ -453,6 +520,18 @@ export function VendorApp({
             {t("vendor.unlock")}
           </button>
         </form>
+      )}
+
+      {offerPasskey && !locked && (
+        <section class="panel login-card" aria-labelledby="passkey-offer">
+          <p id="passkey-offer">{t("vendor.passkeyOffer")}</p>
+          <button type="button" class="primary" onClick={enrolPasskey} disabled={busy}>
+            {t("vendor.passkeyEnrol")}
+          </button>
+          <button type="button" class="ghost" onClick={() => setOfferPasskey(false)}>
+            {t("vendor.passkeyLater")}
+          </button>
+        </section>
       )}
 
       {phase === "entry" && !locked && vendorId && (

@@ -186,3 +186,19 @@ export interface McpToken {
   createdAt: string;
   revokedAt?: string;
 }
+
+/**
+ * A Face ID / fingerprint passkey enrolled on one terminal (WebAuthn, server only). Only the public
+ * key is kept; the private key never leaves the vendor's phone.
+ */
+export interface PasskeyCredential {
+  /** Credential id, base64url. */
+  id: string;
+  terminalId: string;
+  vendorId: string;
+  /** COSE public key, base64url. */
+  publicKey: string;
+  counter: number;
+  transports?: string[];
+  createdAt: string;
+}
