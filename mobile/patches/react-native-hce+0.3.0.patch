@@ -1,0 +1,165 @@
+diff --git a/node_modules/react-native-hce/android/build.gradle b/node_modules/react-native-hce/android/build.gradle
+index 25c6ac4..ce0d15c 100644
+--- a/node_modules/react-native-hce/android/build.gradle
++++ b/node_modules/react-native-hce/android/build.gradle
+@@ -1,134 +1,34 @@
+-buildscript {
+-  // Buildscript is evaluated before everything else so we can't use getExtOrDefault
+-  def kotlin_version = rootProject.ext.has('kotlinVersion') ? rootProject.ext.get('kotlinVersion') : project.properties['Hce_kotlinVersion']
+-
+-  repositories {
+-    google()
+-    jcenter()
+-  }
+-
+-  dependencies {
+-    classpath 'com.android.tools.build:gradle:3.5.4'
+-    // noinspection DifferentKotlinGradleVersion
+-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+-  }
++// Patched by paygent (patches/react-native-hce+0.3.0.patch): the published file uses jcenter(),
++// AGP 3.5 and the Kotlin plugin, which Gradle 9 / AGP 8 (Expo SDK 57) reject. Sources are Java only.
++def safeExtGet(prop, fallback) {
++  rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+ }
+ 
+ apply plugin: 'com.android.library'
+-apply plugin: 'kotlin-android'
+-
+-def getExtOrDefault(name) {
+-  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties['Hce_' + name]
+-}
+-
+-def getExtOrIntegerDefault(name) {
+-  return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties['Hce_' + name]).toInteger()
+-}
+ 
+ android {
+-  compileSdkVersion getExtOrIntegerDefault('compileSdkVersion')
+-  buildToolsVersion getExtOrDefault('buildToolsVersion')
++  namespace "com.reactnativehce"
++  compileSdkVersion safeExtGet('compileSdkVersion', 36)
+   defaultConfig {
+-    minSdkVersion 23
+-    targetSdkVersion getExtOrIntegerDefault('targetSdkVersion')
+-    versionCode 1
+-    versionName "1.0"
+-
+-  }
+-
+-  buildTypes {
+-    release {
+-      minifyEnabled false
+-    }
++    minSdkVersion safeExtGet('minSdkVersion', 24)
++    targetSdkVersion safeExtGet('targetSdkVersion', 36)
+   }
+   lintOptions {
+-    disable 'GradleCompatible'
++    abortOnError false
+   }
+   compileOptions {
+-    sourceCompatibility JavaVersion.VERSION_1_8
+-    targetCompatibility JavaVersion.VERSION_1_8
++    sourceCompatibility JavaVersion.VERSION_17
++    targetCompatibility JavaVersion.VERSION_17
+   }
+ }
+ 
+ repositories {
+-  mavenCentral()
+-  jcenter()
+   google()
+-
+-  def found = false
+-  def defaultDir = null
+-  def androidSourcesName = 'React Native sources'
+-
+-  if (rootProject.ext.has('reactNativeAndroidRoot')) {
+-    defaultDir = rootProject.ext.get('reactNativeAndroidRoot')
+-  } else {
+-    defaultDir = new File(
+-            projectDir,
+-            '/../../../node_modules/react-native/android'
+-    )
+-  }
+-
+-  if (defaultDir.exists()) {
+-    maven {
+-      url defaultDir.toString()
+-      name androidSourcesName
+-    }
+-
+-    logger.info(":${project.name}:reactNativeAndroidRoot ${defaultDir.canonicalPath}")
+-    found = true
+-  } else {
+-    def parentDir = rootProject.projectDir
+-
+-    1.upto(5, {
+-      if (found) return true
+-      parentDir = parentDir.parentFile
+-
+-      def androidSourcesDir = new File(
+-              parentDir,
+-              'node_modules/react-native'
+-      )
+-
+-      def androidPrebuiltBinaryDir = new File(
+-              parentDir,
+-              'node_modules/react-native/android'
+-      )
+-
+-      if (androidPrebuiltBinaryDir.exists()) {
+-        maven {
+-          url androidPrebuiltBinaryDir.toString()
+-          name androidSourcesName
+-        }
+-
+-        logger.info(":${project.name}:reactNativeAndroidRoot ${androidPrebuiltBinaryDir.canonicalPath}")
+-        found = true
+-      } else if (androidSourcesDir.exists()) {
+-        maven {
+-          url androidSourcesDir.toString()
+-          name androidSourcesName
+-        }
+-
+-        logger.info(":${project.name}:reactNativeAndroidRoot ${androidSourcesDir.canonicalPath}")
+-        found = true
+-      }
+-    })
+-  }
+-
+-  if (!found) {
+-    throw new GradleException(
+-            "${project.name}: unable to locate React Native android sources. " +
+-                    "Ensure you have you installed React Native as a dependency in your project and try again."
+-    )
+-  }
++  mavenCentral()
+ }
+ 
+-def kotlin_version = getExtOrDefault('kotlinVersion')
+-
+ dependencies {
+-  def lifecycle_version = "2.4.0"
+-
+-  // noinspection GradleDynamicVersion
+-  api 'com.facebook.react:react-native:+'
+-  implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+-  implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version"
+-  implementation "androidx.lifecycle:lifecycle-viewmodel-compose:$lifecycle_version"
++  implementation 'com.facebook.react:react-android'
++  implementation "androidx.lifecycle:lifecycle-viewmodel:2.6.2"
++  implementation "androidx.lifecycle:lifecycle-livedata-core:2.6.2"
+ }
+diff --git a/node_modules/react-native-hce/android/src/main/AndroidManifest.xml b/node_modules/react-native-hce/android/src/main/AndroidManifest.xml
+index 8d67963..8bdb7e1 100644
+--- a/node_modules/react-native-hce/android/src/main/AndroidManifest.xml
++++ b/node_modules/react-native-hce/android/src/main/AndroidManifest.xml
+@@ -1,5 +1,4 @@
+ <?xml version="1.0" encoding="utf-8"?>
+-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+-          package="com.reactnativehce">
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ 
+ </manifest>
