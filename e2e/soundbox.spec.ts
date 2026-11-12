@@ -86,6 +86,10 @@ test("judge links to the soundbox and the app is installable", async ({ page, re
   );
   const manifest = await request.get("/manifest.webmanifest");
   expect(manifest.ok()).toBe(true);
+  // "Add to home screen" opens the charge screen; the soundbox is a long-press shortcut.
+  const m = (await manifest.json()) as { start_url: string; shortcuts: { url: string }[] };
+  expect(m.start_url).toBe("/");
+  expect(m.shortcuts.map((s) => s.url)).toEqual(["/", "/soundbox?terminal=rosa-01"]);
   expect((await request.get("/sw.js")).ok()).toBe(true);
   expect((await request.get("/icon-192.png")).ok()).toBe(true);
 });

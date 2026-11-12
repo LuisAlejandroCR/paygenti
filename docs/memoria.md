@@ -4,6 +4,20 @@
 
 # Memoria — paygent
 
+## 2026-11-12 — Cierre de pendientes chicos antes del video
+
+- **`ux:audit` vuelve a sembrar:** desbloquea la terminal una vez con el PIN demo (`/unlock`, como el
+  teléfono de la vendedora), manda ese token al crear y cancelar ventas y lo deja en `localStorage` de
+  cada contexto para que las pantallas de cobro abran desbloqueadas. El servidor no cambió.
+  Resultado: 280 corridas, 0 fallos, 0 axe, 0 overflow, 0 objetivos chicos fuera de línea/grilla.
+- **Manifest:** `start_url` pasa de la soundbox a `/` (el cobro, que es lo que sale en el video) y se
+  agregan `shortcuts` para Cobrar y Soundbox (pulsación larga en el ícono). e2e lo comprueba.
+- **NFC:** el sticker comprado es NTAG215, no NTAG213 (`docs/voice-box-hardware.md`).
+- **Hueco anotado, sin cerrar:** `POST /api/terminals/:id/voice` crea ventas sin token. Cerrarlo pide
+  tocar el firmware (#54 abierto); queda en `voice-box-hardware.md` §6.3.4.
+- ⏳ Usuario: «PAGADO» en el aparato, variables de Render (`DATABASE_URL`, `DEVICE_TOKEN_SECRET`,
+  `TRUSTED_IP_HEADER`, STT), pago y payout reales en sandbox, pruebas en dispositivos, video y repo público.
+
 ## 2026-11-12 — La caja se oye más fuerte y la prueba muestra la cara
 
 - Probada en la caja real: las dos voces se oían, pero bajito, y en la prueba por serie la pantalla no

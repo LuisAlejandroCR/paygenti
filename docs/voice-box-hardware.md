@@ -20,7 +20,7 @@ Otras decisiones del día:
 - **Botón para hablar, no palabra de activación.** Se mantiene lo de la spec (§2.2).
 - **El QR va impreso, no en pantalla.** El QR de paygent es fijo por terminal (`/t/:terminal`), así
   que la pantalla muestra la cara, el monto y «PAGADO», no el QR. Junto al QR va un sticker NFC
-  NTAG213 con la misma URL. El teléfono del cliente lo lee, y la caja no necesita módulo NFC.
+  NTAG215 con la misma URL. El teléfono del cliente lo lee, y la caja no necesita módulo NFC.
 - **Una cara en la pantalla**, inspirada en el robot «Jolly» que se vio en LinkedIn. Su pantalla es
   táctil y no se pudo identificar el modelo exacto. Cada estado de la caja tiene su cara (§5).
 - **Didácticas Electrónicas no sirvió**: tenía agotados el INMP441 y el MAX98357A, y tarda de 2 a 4
@@ -34,7 +34,7 @@ Otras decisiones del día:
 |---|---|---|---|---|
 | 1 (Full) | — | ESP32-S3 DevKitC **N16R8** (16 MB de flash, 8 MB de PSRAM, dos USB-C) | 2 | 80.000 |
 | 1 (Full) | — | Cables dupont macho-hembra de 20 cm × 40 | 1 | 11.000 |
-| 1 (Full) | — | Stickers NFC NTAG213 × 20 | 1 | 26.990 |
+| 1 (Full) | — | Stickers NFC NTAG215 × 20 | 1 | 26.990 |
 | 2 | Yorobotics | Micrófono INMP441 (I2S) | 1 | 48.195 |
 | 3 | Mactrónica | Pantalla TFT táctil de 2,8", 240×320 (ver §2.3) | 1 | 67.000 |
 | 4 | Electronilab | Amplificador MAX98357A (I2S, 3 W) | 1 | 29.990 + 9.700 de envío |
@@ -222,8 +222,9 @@ plantilla en `secrets.example.h`). Las voces se regeneran con `npm run voice:cli
    apuntar la caja a `https://…onrender.com` el firmware necesita `WiFiClientSecure` (hoy solo `http`).
 3. **Caja virtual en `/judge`** (micrófono del navegador contra el mismo endpoint) para que el jurado
    pruebe sin hardware. Sin empezar.
-4. **Token de dispositivo `pgd_`:** hoy `POST /api/terminals/:id/voice` es abierto, igual que
-   `POST /api/terminals/:id/sales` (spec `docs/voice-box.md` §3).
+4. **Token de dispositivo `pgd_`:** hoy `POST /api/terminals/:id/voice` es abierto y crea ventas sin
+   token, mientras `POST /api/terminals/:id/sales` ya pide el desbloqueo con PIN (#50). Cerrarlo pide
+   cambiar el firmware para mandar el token (spec `docs/voice-box.md` §3).
 5. Después: más volumen (soldar IN-OUT y pasar el amplificador a 5V),
    e intenciones de ventas y consejos (spec §5).
 
