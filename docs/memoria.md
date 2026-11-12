@@ -55,6 +55,31 @@
   (4,5:1 texto, 3:1 bordes) en claro, oscuro y alto contraste; única excepción: el relleno vino contra
   el fondo oscuro (2,5:1), aceptable porque el botón lleva texto a 4,5:1.
 
+## 2026-11-12 — Una sola voz: la web y la app hablan con las grabaciones de la caja
+
+- Pedido: no puede haber una voz en la caja y otra en el teléfono. Antes la web usaba `speechSynthesis`
+  y la app `expo-speech`, con otra voz y otras palabras («Recibido: 95 pesos»).
+- `scripts/voice-clips.ts` ahora escribe, además de `clips.h`, cada clip como WAV PCM de 16 bits a
+  16 kHz en `web/public/voice/<lang>/` y `mobile/assets/voice/<lang>/`, más `chime.wav` (la campanita
+  de `chimePaid()`, misma fórmula). Los WAV son el µ-law **decodificado**, no el PCM de antes de
+  comprimir: así suenan igual que la bocina, muestra por muestra. µ-law de 8 bits pesaría la mitad,
+  pero Android no lo garantiza en WAV. Son 3,9 MB por carpeta.
+- Nombres de archivo sin tildes (`dieciseis.wav`, `dolares.wav`) para URLs y Metro; la prueba
+  revisa que no choquen. Metro solo empaqueta `require()` literales, por eso el script genera
+  `mobile/assets/voice/index.ts` con la tabla clave → asset.
+- `shared/spoken.ts` suma `paidClipKeys()` («paid» + palabras, sin las que no tienen clip, como la
+  caja), `PHRASE_KEYS`, `WORD_GAP_MS` y `clipFile()`. Web: `playClips()` con `AudioContext`, baja solo
+  los clips de ese monto y programa cada uno con 60 ms de pausa (ninguna tras la campanita); si el
+  audio está bloqueado, la campanita de dos notas de siempre. App: `expo-audio` (57.0.5, la del SDK).
+- `speechSynthesis` queda solo en `speak()` de `web/src/a11y.ts` para el modo voz (líneas sin clip:
+  «escribe el monto», tiempo restante, «repite», activar/desactivar) y como respaldo si un clip falla;
+  `expo-speech` queda solo como respaldo en la app. El service worker ahora guarda `/voice/*`.
+- Verificado: `npm run voice:clips` deja `clips.h` idéntico; `npm run check` (388 pruebas) y
+  `npm run build` pasan; en el soundbox web un pago de 85,50 MXN bajó los 8 WAV (200) y los programó
+  en orden. `npm run voice:preview -- es 85.50 MXN out.wav` arma la secuencia en un WAV para
+  compararla con la caja. Las pruebas jest de `mobile/` no corren dentro de `.claude/worktrees/`
+  (testMatch no ve rutas con punto); `tsc` y `expo lint` de la app sí pasan.
+
 ## 2026-11-12 — La caja se oye más fuerte y la prueba muestra la cara
 
 - Probada en la caja real: las dos voces se oían, pero bajito, y en la prueba por serie la pantalla no
