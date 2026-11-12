@@ -107,6 +107,8 @@ const app = createApp({
   deviceTokens,
   // The dashboard (paygent-dashboard) on its own origin; unset keeps the API same-origin only.
   corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
+  // The Vercel front end (same /api through its rewrite): passkeys there bind to its host.
+  passkeyOrigins: parseCorsOrigins(process.env.PASSKEY_ORIGINS),
   staticRoot: existsSync(webRoot) ? webRoot : undefined,
 });
 
