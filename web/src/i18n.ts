@@ -410,6 +410,8 @@ const en = {
   "verify.invalidHint":
     "The signature does not match: the figures were changed or the passport was not issued by this server.",
   "checkout.payWith": "Choose how to pay",
+  "checkout.sandboxNote":
+    "Sandbox demo: no real money. Log in with a PayPal sandbox buyer account (not a real one), or tap “Debit or Credit Card” and use PayPal's test Visa {card}, any future expiry, any 3-digit CVV.",
   "checkout.loadingMethods": "Loading payment methods…",
   "checkout.noMethods": "No payment method is available for this purchase right now.",
   "checkout.paymentClosed":
@@ -945,6 +947,8 @@ const es: Dict = {
   "verify.invalidHint":
     "La firma no coincide: las cifras se cambiaron o el pasaporte no lo emitió este servidor.",
   "checkout.payWith": "Elige cómo pagar",
+  "checkout.sandboxNote":
+    "Demo en sandbox: no se mueve dinero real. Inicia sesión con una cuenta compradora de sandbox de PayPal (no una real), o toca el botón de tarjeta (débito o crédito) y usa la Visa de prueba de PayPal {card}, cualquier vencimiento futuro y cualquier CVV de 3 dígitos.",
   "checkout.loadingMethods": "Cargando métodos de pago…",
   "checkout.noMethods": "Ahora no hay un método de pago disponible para esta compra.",
   "checkout.paymentClosed":
