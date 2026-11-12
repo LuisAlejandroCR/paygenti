@@ -1,0 +1,320 @@
+/* web/src/landing.css: layout of the landing page (web/landing.html) only — mobile-first sections,
+   phone-shaped video frames, cards and big CTAs on the shared tokens from styles.css. */
+
+.lp {
+  --lp-max: 1120px;
+  --lp-gutter: clamp(16px, 4vw, 32px);
+  overflow-x: hidden;
+}
+.lp-main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Skip link: hidden until focused. */
+.lp-skip {
+  position: absolute;
+  left: 8px;
+  top: -100px;
+  z-index: 10;
+  padding: 12px 16px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+.lp-skip:focus {
+  top: 8px;
+}
+
+/* ---------- Header ---------- */
+.lp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  padding: 12px var(--lp-gutter);
+}
+.lp-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--foreground);
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.3rem;
+  letter-spacing: -0.02em;
+}
+
+/* ---------- Buttons (links styled as buttons) ---------- */
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch);
+  padding: 12px 24px;
+  border-radius: var(--radius);
+  background: var(--action);
+  color: var(--action-foreground);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-decoration: none;
+  text-align: center;
+  border: 2px solid var(--action);
+}
+.lp-btn:hover {
+  filter: brightness(1.08);
+}
+.lp-btn-quiet {
+  background: var(--surface);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+.lp-btn-small {
+  min-height: 44px;
+  padding: 8px 16px;
+  font-size: 1rem;
+}
+.lp-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+.lp-ctas .lp-btn {
+  flex: 1 1 220px;
+}
+.lp-ctas-center {
+  justify-content: center;
+}
+
+/* ---------- Hero ---------- */
+.lp-hero {
+  display: grid;
+  gap: 32px;
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  padding: 16px var(--lp-gutter) 48px;
+}
+.lp-eyebrow {
+  margin: 0 0 8px;
+  color: var(--action-text);
+  font-weight: 600;
+}
+.lp-hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 7vw, 3.4rem);
+  line-height: 1.08;
+  font-weight: 800;
+  text-wrap: balance;
+}
+.lp-lead {
+  margin: 16px 0 0;
+  font-size: clamp(1.08rem, 2.6vw, 1.25rem);
+  color: var(--foreground);
+  max-width: 34em;
+}
+.lp-note {
+  margin: 16px 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.95rem;
+}
+.lp-hero-media {
+  margin: 0;
+  justify-self: center;
+  width: min(100%, 360px);
+}
+
+/* ---------- Video frames ---------- */
+.lp-frame {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  box-shadow: 0 18px 40px -24px oklch(0.22 0.028 30 / 0.45);
+}
+.lp-video,
+.lp-poster {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.lp-video-note {
+  position: absolute;
+  inset: auto 12px 12px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.95rem;
+}
+.lp-caption {
+  margin-top: 12px;
+  color: var(--muted-foreground);
+  font-size: 0.98rem;
+}
+.lp-caption strong {
+  color: var(--foreground);
+}
+
+/* ---------- Sections ---------- */
+.lp-section {
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  padding: 48px var(--lp-gutter);
+  border-top: 1px solid var(--border);
+}
+.lp-section h2,
+.lp-final h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+.lp-section-lead {
+  margin: 12px 0 0;
+  color: var(--muted-foreground);
+  font-size: 1.05rem;
+}
+.lp-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.25);
+  padding: 20px;
+}
+.lp-card h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.lp-card p {
+  margin: 8px 0 0;
+}
+
+.lp-steps,
+.lp-trust {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lp-step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--action);
+  color: var(--action-foreground);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.25rem;
+}
+
+.lp-gallery {
+  display: grid;
+  gap: 32px;
+  margin-top: 24px;
+}
+.lp-shot {
+  margin: 0;
+  justify-self: center;
+  width: min(100%, 320px);
+}
+
+.lp-honest {
+  margin: 24px 0 0;
+  padding: 16px;
+  border-left: 4px solid var(--action);
+  background: var(--muted);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* ---------- Final CTA ---------- */
+.lp-final {
+  max-width: var(--lp-max);
+  margin: 0 auto 48px;
+  padding: 40px var(--lp-gutter);
+  text-align: center;
+}
+.lp-final > p {
+  max-width: 34em;
+  margin: 12px auto 0;
+  font-size: 1.08rem;
+}
+
+/* ---------- Footer ---------- */
+.lp-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  align-items: center;
+  justify-content: space-between;
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  padding: 24px var(--lp-gutter) 40px;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+.lp-footer p {
+  margin: 0;
+}
+.lp-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 20px;
+}
+.lp-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* ---------- Wider screens ---------- */
+@media (min-width: 720px) {
+  .lp-steps,
+  .lp-trust {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .lp-gallery {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .lp-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (min-width: 960px) {
+  .lp-hero {
+    grid-template-columns: 1.2fr 0.8fr;
+    align-items: center;
+    padding-top: 40px;
+    padding-bottom: 72px;
+  }
+  .lp-ctas .lp-btn {
+    flex: 0 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp * {
+    scroll-behavior: auto;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.lp) {
+    scroll-behavior: smooth;
+  }
+}

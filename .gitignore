@@ -29,3 +29,6 @@ ux-shots/
 
 # Voice box Wi-Fi and server settings (firmware/voice-box/secrets.example.h is the template).
 firmware/voice-box/secrets.h
+
+# Raw landing recordings (npm run landing:record); the mp4s land in web/public/media/
+landing-raw/
