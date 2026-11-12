@@ -98,6 +98,42 @@
             Rosa cuenta cómo cobra con Paygenti desde su teléfono.
           </figcaption>
         </figure>
+
+        <!-- Sale simulator: four static screens, landing.ts shows one at a time. No API calls. -->
+        <div class="lp-sim lp-card" role="region" aria-labelledby="sim-title" data-sim>
+          <div class="lp-sim-head">
+            <h2 id="sim-title" class="lp-sim-title" data-i18n="sim.title">Simula una venta</h2>
+            <p class="lp-sim-badge" data-i18n="sim.badge">Simulación: no cobra ni llama a PayPal</p>
+          </div>
+          <ol class="lp-sim-steps">
+            <li data-sim-dot="1" aria-current="step" data-i18n="sim.step1">Rosa dice el monto</li>
+            <li data-sim-dot="2" data-i18n="sim.step2">La caja muestra el QR</li>
+            <li data-sim-dot="3" data-i18n="sim.step3">El cliente paga con PayPal</li>
+            <li data-sim-dot="4" data-i18n="sim.step4">PayPal captura: ¡Pagado!</li>
+          </ol>
+          <div class="lp-sim-box" aria-live="polite">
+            <div class="lp-sim-screen" data-sim-screen="1">
+              <p class="lp-sim-big" data-i18n="sim.s1.big">Te escucho…</p>
+              <p data-i18n="sim.s1.text">Rosa: «Son cuarenta pesos».</p>
+            </div>
+            <div class="lp-sim-screen" data-sim-screen="2" hidden>
+              <img class="lp-sim-qr" src="/qr-judge.svg" alt="" width="96" height="96" />
+              <p class="lp-sim-big" data-i18n="sim.s2.big">40 MXN · Escanea para pagar</p>
+            </div>
+            <div class="lp-sim-screen" data-sim-screen="3" hidden>
+              <p class="lp-sim-big" data-i18n="sim.s3.big">Esperando pago…</p>
+              <p data-i18n="sim.s3.text">El cliente paga con PayPal desde su teléfono. Todavía no dice PAGADO: falta que PayPal capture el pago.</p>
+            </div>
+            <div class="lp-sim-screen lp-sim-paid" data-sim-screen="4" hidden>
+              <p class="lp-sim-big" data-i18n="sim.s4.big">¡Pagado! 40 MXN</p>
+              <p data-i18n="sim.s4.text">Solo ahora, con el pago capturado por PayPal, la caja dice PAGADO en voz alta.</p>
+            </div>
+          </div>
+          <div class="lp-sim-controls">
+            <button type="button" class="lp-btn" data-sim-next data-i18n="sim.next">Siguiente paso</button>
+            <button type="button" class="lp-btn lp-btn-quiet" data-sim-play data-i18n="sim.play">Reproducir solo</button>
+          </div>
+        </div>
       </section>
 
       <!-- 1b. Full demo video: SLOT. Drop the file at web/public/media/demo.mp4 (+ demo.jpg poster)
@@ -330,6 +366,28 @@
           Paygenti es un prototipo para el PayPal AI Hackathon. Esta demo corre en el sandbox de
           PayPal y no mueve dinero real.
         </p>
+      </section>
+
+      <!-- 4b. Open it on your phone: static QR (web/public/qr-judge.svg) to the hosted demo. -->
+      <section class="lp-section" aria-labelledby="phone-title">
+        <div class="lp-phone lp-card" data-phone-card>
+          <img
+            class="lp-phone-qr"
+            src="/qr-judge.svg"
+            width="160"
+            height="160"
+            alt="Código QR que abre paygenti.vercel.app/judge"
+            data-i18n-alt="phone.qrAlt"
+          />
+          <div>
+            <h2 id="phone-title" data-i18n="phone.title">Ábrelo en tu teléfono</h2>
+            <p data-i18n="phone.body">
+              Escanea el código con la cámara para probar la demo en tu propio teléfono, o abre el
+              enlace.
+            </p>
+            <a class="lp-btn lp-btn-quiet" href="https://paygenti.vercel.app/judge">paygenti.vercel.app/judge</a>
+          </div>
+        </div>
       </section>
 
       <!-- 5. Final CTA -->

@@ -3,7 +3,8 @@
 // with its captions off by default, the swap to the real app recording when Rosa's video is
 // missing, a poster when a video cannot load, and no autoplay under reduced motion, and the full-demo slot
 // (web/public/media/demo.mp4) hidden until that file exists. The copy checks run in Spanish; a
-// separate block covers the ES/EN toggle (browser-language default, switch, and persistence).
+// separate block covers the ES/EN toggle (browser-language default, switch, and persistence). Also
+// the hero sale simulator (keyboard to PAID, no API calls) and the open-on-your-phone QR card.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, expectNoOverflow, test } from "./fixtures";
 
@@ -39,6 +40,16 @@ test.describe("landing language toggle", () => {
     await expect(h1).toHaveText(to.h1);
     await expect(page.getByRole("link", { name: to.cta }).first()).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", to.lang);
+  });
+
+  test("simulator and phone card switch language too", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("paygent.locale", "en"));
+    await page.goto("/landing.html");
+    const sim = page.locator("[data-sim]");
+    await sim.getByRole("button", { name: "Next step" }).click();
+    await expect(sim.getByText("40 MXN · Scan to pay")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Open it on your phone" })).toBeVisible();
+    await expect(page.getByRole("img", { name: /QR code that opens/ })).toBeVisible();
   });
 
   test("English copy passes axe too", async ({ page }) => {
@@ -171,6 +182,54 @@ test.describe("landing page", () => {
       (vs) => vs.filter((v) => !(v as HTMLVideoElement).paused).length,
     );
     expect(playing).toBe(0);
+  });
+
+  test("sale simulator steps by keyboard to the paid screen, labelled as a simulation", async ({
+    page,
+  }) => {
+    const calls: string[] = [];
+    page.on("request", (r) => {
+      if (r.url().includes("/api/")) calls.push(r.url());
+    });
+    await page.goto("/landing.html");
+    const sim = page.locator("[data-sim]");
+    await expect(sim.getByText("Simulación")).toBeVisible();
+    await expect(sim.getByText("Te escucho…")).toBeVisible();
+    const next = sim.getByRole("button", { name: "Siguiente paso" });
+    await next.focus();
+    await page.keyboard.press("Enter");
+    await expect(sim.getByText("40 MXN · Escanea para pagar")).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(sim.getByText("Esperando pago…")).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(sim.getByText("¡Pagado! 40 MXN")).toBeVisible();
+    await expect(sim.locator('[aria-current="step"]')).toHaveAttribute("data-sim-dot", "4");
+    await expect(sim.getByRole("button", { name: "Otra vez" })).toBeVisible();
+    expect(calls).toEqual([]);
+  });
+
+  test("sale simulator can play itself, but not under reduced motion", async ({ page }) => {
+    await page.goto("/landing.html");
+    const sim = page.locator("[data-sim]");
+    await sim.getByRole("button", { name: "Reproducir solo" }).click();
+    await expect(sim.getByText("¡Pagado! 40 MXN")).toBeVisible({ timeout: 10_000 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.reload();
+    await expect(sim.getByRole("button", { name: "Reproducir solo" })).toBeHidden();
+    await expect(sim.getByRole("button", { name: "Siguiente paso" })).toBeVisible();
+  });
+
+  test("open-it-on-your-phone card has a QR and a link to /judge", async ({ page }) => {
+    await page.goto("/landing.html");
+    const card = page.locator("[data-phone-card]");
+    await expect(card.getByRole("heading", { name: "Ábrelo en tu teléfono" })).toBeVisible();
+    await expect(card.getByRole("img")).toHaveAttribute("src", "/qr-judge.svg");
+    await expect(card.getByRole("link")).toHaveAttribute(
+      "href",
+      "https://paygenti.vercel.app/judge",
+    );
+    const res = await page.request.get("/qr-judge.svg");
+    expect(res.ok()).toBe(true);
   });
 
   test("keyboard: skip link is first and moves focus to the content", async ({ page }) => {

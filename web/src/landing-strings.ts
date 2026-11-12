@@ -73,6 +73,28 @@ const es = {
     "Abre la demo: a la izquierda cobras como vendedora, a la derecha pagas como cliente. PIN de prueba: <strong>1234</strong>.",
   "footer.note": "Paygenti · Prototipo del PayPal AI Hackathon. No es un producto de PayPal.",
   "footer.backoffice": "Oficina del puesto",
+  "sim.title": "Simula una venta",
+  "sim.badge": "Simulación: no cobra ni llama a PayPal",
+  "sim.step1": "Rosa dice el monto",
+  "sim.step2": "La caja muestra el QR",
+  "sim.step3": "El cliente paga con PayPal",
+  "sim.step4": "PayPal captura: ¡Pagado!",
+  "sim.s1.big": "Te escucho…",
+  "sim.s1.text": "Rosa: «Son cuarenta pesos».",
+  "sim.s2.big": "40 MXN · Escanea para pagar",
+  "sim.s3.big": "Esperando pago…",
+  "sim.s3.text":
+    "El cliente paga con PayPal desde su teléfono. Todavía no dice PAGADO: falta que PayPal capture el pago.",
+  "sim.s4.big": "¡Pagado! 40 MXN",
+  "sim.s4.text":
+    "Solo ahora, con el pago capturado por PayPal, la caja anuncia el pago en voz alta.",
+  "sim.next": "Siguiente paso",
+  "sim.again": "Otra vez",
+  "sim.play": "Reproducir solo",
+  "phone.title": "Ábrelo en tu teléfono",
+  "phone.body":
+    "Escanea el código con la cámara para probar la demo en tu propio teléfono, o abre el enlace.",
+  "phone.qrAlt": "Código QR que abre paygenti.vercel.app/judge",
 };
 
 export type LandingKey = keyof typeof es;
@@ -147,6 +169,28 @@ const en: Record<LandingKey, string> = {
     "Open the demo: on the left you charge as the vendor, on the right you pay as the customer. Test PIN: <strong>1234</strong>.",
   "footer.note": "Paygenti · A PayPal AI Hackathon prototype. Not a PayPal product.",
   "footer.backoffice": "Stall back office",
+  "sim.title": "Simulate a sale",
+  "sim.badge": "Simulation: no charge, no call to PayPal",
+  "sim.step1": "Rosa says the amount",
+  "sim.step2": "The box shows the QR code",
+  "sim.step3": "The customer pays with PayPal",
+  "sim.step4": "PayPal captures it: Paid!",
+  "sim.s1.big": "Listening…",
+  "sim.s1.text": "Rosa: “That's forty pesos.”",
+  "sim.s2.big": "40 MXN · Scan to pay",
+  "sim.s3.big": "Waiting for payment…",
+  "sim.s3.text":
+    "The customer pays with PayPal on their own phone. It doesn't say PAID yet: PayPal still has to capture the payment.",
+  "sim.s4.big": "Paid! 40 MXN",
+  "sim.s4.text":
+    "Only now, with the payment captured by PayPal, does the box announce the payment out loud.",
+  "sim.next": "Next step",
+  "sim.again": "Start over",
+  "sim.play": "Play it for me",
+  "phone.title": "Open it on your phone",
+  "phone.body":
+    "Scan the code with your camera to try the demo on your own phone, or just open the link.",
+  "phone.qrAlt": "QR code that opens paygenti.vercel.app/judge",
 };
 
 export const LANDING: Record<Locale, Record<LandingKey, string>> = { es, en };

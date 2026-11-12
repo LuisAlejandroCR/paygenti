@@ -21,6 +21,11 @@ guarda en `localStorage` (`paygent.locale`, la misma llave que usan las apps ví
 | `web/src/landing.css` | Estilos solo de la landing, sobre los tokens de `web/src/styles.css` |
 | `web/src/landing.ts` | Videos: fallback, carga diferida, `prefers-reduced-motion`; botón ES / EN |
 | `web/src/landing-strings.ts` | Textos ES/EN, por llave `data-i18n*` de `landing.html` |
+| `web/public/qr-judge.svg` | QR estático a `https://paygenti.vercel.app/judge` (tarjeta "Ábrelo en tu teléfono" y simulador) |
+
+El hero incluye un **simulador de venta** de 4 pasos (solo front-end, rotulado como simulación, sin
+llamadas a la API): "Siguiente paso" a mano, "Reproducir solo" con temporizador, oculto con
+`prefers-reduced-motion`.
 | `web/public/media/` | Videos y posters (abajo) |
 | `e2e/landing.spec.ts` | axe AA claro/oscuro, sin desborde 320–1280, enlaces ≥44 px, fallbacks, teclado |
 | `scripts/record-landing.ts` | `npm run landing:record`: vuelve a grabar la app real a tamaño teléfono |

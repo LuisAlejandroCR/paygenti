@@ -1,7 +1,7 @@
 // web/src/landing.ts: behavior of the landing page (web/landing.html) — no framework.
 // Swaps the hero to the real charge-screen recording while Rosa's video is missing, lazy-loads the
 // product videos when they scroll into view, honors prefers-reduced-motion and shows the poster
-// with a text note when a video cannot play. Also runs the ES/EN toggle: strings live in
+// with a text note when a video cannot play. Steps the hero sale simulator. Also runs the ES/EN toggle: strings live in
 // landing-strings.ts, keyed by the data-i18n* attributes in landing.html; the locale (detection,
 // storage, <html lang>) is shared with the apps through i18n.ts.
 import "./styles.css";
@@ -138,6 +138,8 @@ function applyLocale(next: Locale) {
     el.setAttribute("aria-label", tr(el.dataset.i18nLabel as LandingKey));
   for (const el of document.querySelectorAll<HTMLElement>("[data-i18n-content]"))
     el.setAttribute("content", tr(el.dataset.i18nContent as LandingKey));
+  for (const el of document.querySelectorAll<HTMLElement>("[data-i18n-alt]"))
+    el.setAttribute("alt", tr(el.dataset.i18nAlt as LandingKey));
   document.title = tr("meta.title");
   document
     .querySelector('meta[property="og:locale"]')
@@ -159,6 +161,59 @@ function setupLang() {
   applyLocale(locale);
 }
 
+/**
+ * Hero sale simulator: four static screens (landing.html) shown one at a time. "Next step" moves
+ * by hand; "Play it for me" walks through on a timer and is hidden under reduced motion. It only
+ * toggles `hidden`; nothing here talks to the server or PayPal.
+ */
+function setupSim() {
+  const root = document.querySelector<HTMLElement>("[data-sim]");
+  if (!root) return;
+  const screens = [...root.querySelectorAll<HTMLElement>("[data-sim-screen]")];
+  const dots = [...root.querySelectorAll<HTMLElement>("[data-sim-dot]")];
+  const next = root.querySelector<HTMLButtonElement>("[data-sim-next]");
+  const playBtn = root.querySelector<HTMLButtonElement>("[data-sim-play]");
+  const last = screens.length;
+  let step = 1;
+  let timer: number | undefined;
+
+  const show = (n: number) => {
+    step = n;
+    root.dataset.step = String(n);
+    for (const s of screens) s.hidden = s.dataset.simScreen !== String(n);
+    for (const d of dots) {
+      if (d.dataset.simDot === String(n)) d.setAttribute("aria-current", "step");
+      else d.removeAttribute("aria-current");
+    }
+    if (next) {
+      next.dataset.i18n = n === last ? "sim.again" : "sim.next";
+      next.textContent = tr(next.dataset.i18n as LandingKey);
+    }
+  };
+  const stop = () => {
+    if (timer !== undefined) window.clearInterval(timer);
+    timer = undefined;
+  };
+
+  next?.addEventListener("click", () => {
+    stop();
+    show(step >= last ? 1 : step + 1);
+  });
+  if (playBtn) {
+    if (reduceMotion.matches) playBtn.hidden = true;
+    playBtn.addEventListener("click", () => {
+      stop();
+      show(1);
+      timer = window.setInterval(() => {
+        if (step >= last) return stop();
+        show(step + 1);
+      }, 1800);
+    });
+  }
+  show(1);
+}
+
 setupLang();
+setupSim();
 setupVideos();
 setupDemo();
