@@ -82,10 +82,22 @@ test.describe("landing page", () => {
   test("a product video that cannot load shows its poster and a note", async ({ page }) => {
     await page.route("**/media/app-checkout.mp4", (r) => r.fulfill({ status: 404, body: "" }));
     await page.goto("/landing.html");
-    const shot = page.locator(".lp-shot").nth(1);
+    const shot = page.locator(".lp-shot", { has: page.locator("#cap-checkout") });
     await shot.scrollIntoViewIfNeeded();
     await expect(shot.locator("img.lp-poster")).toBeVisible();
     await expect(shot.getByText("El video no se pudo cargar.")).toBeVisible();
+  });
+
+  test("paid moment: real voice box clip loops muted with a poster", async ({ page }) => {
+    await page.goto("/landing.html");
+    const v = page.locator("#pagado video");
+    for (const a of ["autoplay", "muted", "loop", "playsinline"])
+      await expect(v).toHaveAttribute(a, "");
+    await expect(v).toHaveAttribute("poster", "/media/voicebox-paid.jpg");
+    await expect(v.locator("source")).toHaveAttribute("src", "/media/voicebox-paid.mp4");
+    const res = await page.request.get("/media/voicebox-paid.mp4");
+    expect(res.ok()).toBe(true);
+    expect((await res.body()).length).toBeLessThan(4 * 1024 * 1024);
   });
 
   test("reduced motion: nothing plays on its own", async ({ page }) => {

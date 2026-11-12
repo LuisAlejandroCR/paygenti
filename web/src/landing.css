@@ -290,6 +290,11 @@
   min-height: 44px;
 }
 
+/* ---------- Paid moment ---------- */
+.lp-paid .lp-shot {
+  margin-top: 24px;
+}
+
 /* ---------- Wider screens ---------- */
 @media (min-width: 720px) {
   .lp-steps,
@@ -305,6 +310,15 @@
   }
 }
 @media (min-width: 960px) {
+  .lp-paid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 32px;
+    align-items: center;
+  }
+  .lp-paid .lp-shot {
+    margin-top: 0;
+  }
   .lp-hero {
     grid-template-columns: 1.2fr 0.8fr;
     align-items: center;
