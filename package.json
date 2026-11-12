@@ -13,7 +13,8 @@
     "lint:fix": "biome check --write .",
     "check": "npm run lint && npm run typecheck && npm test",
     "e2e": "playwright test",
-    "ux:audit": "tsx scripts/ux-audit.ts"
+    "ux:audit": "tsx scripts/ux-audit.ts",
+    "voice:clips": "tsx scripts/voice-clips.ts"
   },
   "repository": {
     "type": "git",

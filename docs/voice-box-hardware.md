@@ -188,9 +188,11 @@ descartados por tiempo. Todo vive en `firmware/`:
 | `pin-scan/` | Dice en qué GPIO está de verdad un botón |
 | `display-check/`, `rotation-check/` | Chip y orientación de la pantalla |
 
-Cargar: `arduino-cli compile --fqbn "esp32:esp32:esp32s3:FlashSize=16M,PSRAM=opi" --upload -p COM3
-firmware/voice-box`. Wi-Fi, URL del servidor y terminal van en `firmware/voice-box/secrets.h`
-(gitignored; plantilla en `secrets.example.h`).
+Cargar: `arduino-cli compile --fqbn
+"esp32:esp32:esp32s3:FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB" --upload -p COM3
+firmware/voice-box` (la partición de 3 MB hace falta por las voces, §6.4: quedan en 2,96 MB, el 94 %;
+compilar tarda ≈ 1,5 min). Wi-Fi, URL del servidor y terminal van en `firmware/voice-box/secrets.h` (gitignored;
+plantilla en `secrets.example.h`). Las voces se regeneran con `npm run voice:clips` (solo Windows).
 
 ### 6.1 Lo que se verificó en el aparato real
 
@@ -222,8 +224,33 @@ firmware/voice-box`. Wi-Fi, URL del servidor y terminal van en `firmware/voice-b
    pruebe sin hardware. Sin empezar.
 4. **Token de dispositivo `pgd_`:** hoy `POST /api/terminals/:id/voice` es abierto, igual que
    `POST /api/terminals/:id/sales` (spec `docs/voice-box.md` §3).
-5. Después: más volumen (soldar IN-OUT y pasar el amplificador a 5V), respuesta hablada por la bocina,
+5. Después: más volumen (soldar IN-OUT y pasar el amplificador a 5V),
    e intenciones de ventas y consejos (spec §5).
+
+### 6.4 La caja habla por la bocina (spec, 2026-11-12)
+
+Hasta aquí la caja solo pitaba. Ahora dice el resultado en voz alta.
+
+| # | Criterio de aceptación |
+|---|---|
+| 1 | Pago capturado: campanita y luego «Pagado, cuarenta pesos». Con centavos: «ochenta y cinco pesos con cincuenta centavos» |
+| 2 | Cada error dice cuál es: sin wifi, sin servidor, no entendió el monto, voz a texto apagado o fallido, PayPal rechazó, caja no registrada, error del servidor, cobro cancelado, vencido o fallido |
+| 3 | Los errores de red se dicen sin red: las voces van dentro del firmware, no se piden al servidor |
+| 4 | El monto en palabras lo arma el servidor (`spoken` en la respuesta de `/voice`, `shared/spoken.ts`), con pruebas |
+| 5 | También en inglés: «Paid! Forty pesos», «eighty-five pesos and fifty cents», los mismos errores y la pantalla en inglés. El idioma sale de `BOX_LANG` en `secrets.h` (`"es"` por defecto) y se cambia en caliente con `lang en` / `lang es` por el monitor serie |
+| 6 | Se oye fuerte sin recortar: voces comprimidas (+3 dB) y al 100 % de la escala en vez de 40 % (+8 dB). La campanita sube igual |
+| 7 | La prueba por el monitor serie muestra la misma cara y título que el flujo real: `paid cuarenta pesos` → PAGADO en verde, `err_amount` → «Sin monto» |
+| 8 | Cada resultado tiene su color y su cara: **verde** y feliz = pagado; **amarillo** con «!» = aviso, no se rompió nada (no entendió, sin monto, cancelado, vencido); **rojo** con «X» y cara preocupada = falló algo (sin internet, sin servidor, error del servidor, voz a texto, PayPal, caja sin registro, pago fallido) |
+
+Cómo: las voces de Windows **Sabina (es-MX)** y **Zira (en-US)** graban cada palabra y frase una vez;
+`scripts/voice-clips.ts` las recorta, las comprime, las pasa a µ-law de 16 kHz y escribe `firmware/voice-box/clips.h`
+con una tabla por idioma. El firmware une las palabras de `spoken` («paid ochenta y cinco pesos…»),
+como hacen las cajas de QR del mercado. Por el tamaño de las voces, el firmware usa la partición de
+3 MB de app (`PartitionScheme=app3M_fat9M_16MB`). Prueba sin hablarle: escribir claves por el monitor
+serie (115200), por ejemplo `paid cuarenta pesos`, y la caja las dice.
+
+Si aún se oye bajo, el resto es hardware: VIN del MAX98357A a 5V, y el pin GAIN (hoy libre, 9 dB) a
+GND da 12 dB, o a GND con una resistencia de 100 kΩ da 15 dB.
 
 ## 7. La competencia: Bold Sono QR
 
