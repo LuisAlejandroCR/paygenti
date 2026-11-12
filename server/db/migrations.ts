@@ -166,6 +166,21 @@ CREATE TABLE approvals (
 );
 CREATE INDEX approvals_vendor ON approvals (vendor_id, seq);`,
   },
+  {
+    // Face ID / fingerprint passkeys per terminal: public key and signature counter, never a secret.
+    version: 5,
+    sql: `
+CREATE TABLE passkeys (
+  id text PRIMARY KEY,
+  terminal_id text NOT NULL,
+  vendor_id text NOT NULL,
+  public_key text NOT NULL,
+  counter bigint NOT NULL,
+  transports jsonb,
+  created_at timestamptz NOT NULL
+);
+CREATE INDEX passkeys_terminal ON passkeys (terminal_id);`,
+  },
 ];
 
 const LOCK_KEY = 4_206_901; // arbitrary, constant advisory-lock id for paygent migrations

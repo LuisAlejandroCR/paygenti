@@ -505,6 +505,12 @@ const en = {
     "Enter the stall PIN once. This phone can then open and cancel charges for 7 days; nobody else can.",
   "vendor.unlock": "Unlock",
   "vendor.unlockAgain": "This phone needs the stall PIN again to charge.",
+  "vendor.passkeyUnlock": "Unlock with Face ID / fingerprint",
+  "vendor.passkeyOffer": "Skip the PIN next time: unlock this phone with your face or fingerprint.",
+  "vendor.passkeyEnrol": "Use Face ID / fingerprint next time",
+  "vendor.passkeyLater": "Not now",
+  "vendor.passkeyFailed": "Face ID / fingerprint did not work. Use the stall PIN.",
+  "vendor.passkeyEnrolFailed": "Could not set up Face ID / fingerprint. The PIN still works.",
   "checkout.payTo": "You are paying",
   "checkout.nextStep": "Nothing was charged. Ask the vendor for a new charge and scan again.",
   "bo.loginHint":
@@ -1032,6 +1038,13 @@ const es: Dict = {
     "Escribe el PIN del puesto una vez. Este teléfono podrá abrir y cancelar cobros por 7 días; nadie más.",
   "vendor.unlock": "Desbloquear",
   "vendor.unlockAgain": "Este teléfono necesita otra vez el PIN del puesto para cobrar.",
+  "vendor.passkeyUnlock": "Desbloquear con Face ID / huella",
+  "vendor.passkeyOffer":
+    "Sáltate el PIN la próxima vez: desbloquea este teléfono con tu cara o tu huella.",
+  "vendor.passkeyEnrol": "Usar Face ID / huella la próxima vez",
+  "vendor.passkeyLater": "Ahora no",
+  "vendor.passkeyFailed": "No funcionó Face ID / huella. Usa el PIN del puesto.",
+  "vendor.passkeyEnrolFailed": "No se pudo activar Face ID / huella. El PIN sigue funcionando.",
   "checkout.payTo": "Le pagas a",
   "checkout.nextStep": "No se cobró nada. Pide a la vendedora un cobro nuevo y vuelve a escanear.",
   "bo.loginHint":

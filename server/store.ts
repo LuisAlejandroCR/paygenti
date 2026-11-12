@@ -11,6 +11,7 @@ import type {
   Approval,
   CatalogItem,
   McpToken,
+  PasskeyCredential,
   Payout,
   Sale,
   Supplier,
@@ -57,6 +58,11 @@ export interface Store extends PolicyStore {
   /** Owner-issued MCP tokens (hash only), oldest first. */
   mcpTokens(): McpToken[];
   saveMcpToken(token: McpToken): void;
+  /** Face ID / fingerprint passkeys enrolled for one terminal, oldest first. */
+  passkeys(terminalId: string): PasskeyCredential[];
+  getPasskey(id: string): PasskeyCredential | undefined;
+  /** Inserts, or updates the signature counter of, a passkey. */
+  savePasskey(passkey: PasskeyCredential): void;
   /** Proposals from Claude, newest first; `vendorId` filters to one stall. */
   approvals(vendorId?: string): Approval[];
   getApproval(id: string): Approval | undefined;
@@ -246,6 +252,7 @@ export class MemoryStore implements Store {
   protected readonly goalMap = new Map<string, SavingsGoal>();
   protected readonly tokenMap = new Map<string, McpToken>();
   protected readonly approvalMap = new Map<string, Approval>();
+  protected readonly passkeyMap = new Map<string, PasskeyCredential>();
 
   vendors(): Vendor[] {
     return [...this.vendorMap.values()];
@@ -257,6 +264,21 @@ export class MemoryStore implements Store {
 
   mcpTokens(): McpToken[] {
     return [...this.tokenMap.values()].map((t) => structuredClone(t));
+  }
+
+  passkeys(terminalId: string): PasskeyCredential[] {
+    return [...this.passkeyMap.values()]
+      .filter((p) => p.terminalId === terminalId)
+      .map((p) => structuredClone(p));
+  }
+
+  getPasskey(id: string): PasskeyCredential | undefined {
+    const p = this.passkeyMap.get(id);
+    return p && structuredClone(p);
+  }
+
+  savePasskey(passkey: PasskeyCredential): void {
+    this.passkeyMap.set(passkey.id, structuredClone(passkey));
   }
 
   saveMcpToken(token: McpToken): void {

@@ -276,6 +276,11 @@ export class PolicyEngine {
     return result;
   }
 
+  /** True when the PIN guard locks this client (or everyone) right now; records nothing. */
+  pinLocked(client?: readonly string[]): boolean {
+    return this.#pin.isLocked(client);
+  }
+
   /** Committed totals for the current local day. */
   totals(): { day: string; refunded: Money; paidOut: Money } {
     this.#roll(this.#now());

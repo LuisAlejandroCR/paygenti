@@ -37,6 +37,7 @@ import { type Lang, pickLang } from "./lang";
 import { mcpRoutes } from "./owner/mcp";
 import { ownerRoutes } from "./owner/routes";
 import { createStall, DEMO_STALL_PINS, type Stall } from "./owner/stalls";
+import { Passkeys, relyingParty } from "./passkey";
 import { PassportSigner } from "./passport";
 import { PayPalError, type PayPalGateway } from "./paypal/gateway";
 import { MockPayPal } from "./paypal/mock";
@@ -131,6 +132,13 @@ const railBody = z.strictObject({
   rail: z.enum(["paypal", "applepay", "googlepay", "oxxo", "pix", "spei", "breb"]),
 });
 const pinBody = z.strictObject({ pin: z.string().max(16) });
+/** A WebAuthn response from @simplewebauthn/browser; the library checks every field it reads. */
+const passkeyBody = z.strictObject({
+  response: z.looseObject({
+    id: z.string().min(1).max(1024),
+    response: z.record(z.string(), z.unknown()),
+  }),
+});
 const BEARER = /^Bearer (\S{1,200})$/;
 const approveBody = z.strictObject({ decline: z.boolean().optional() });
 const webhookBody = z.object({
@@ -174,6 +182,7 @@ export function createApp(deps: AppDeps): Hono {
   const clientIp = clientIpResolver(deps.proxyTrust);
   const devices = deps.deviceTokens ?? new DeviceTokens({ now: deps.clock });
   const chargeAuth = deps.chargeAuth ?? "on";
+  const passkeys = new Passkeys({ store: sales.store, now: deps.clock });
 
   // One stall per vendor, each with its own PIN, caps, sessions and inbox. The lock follows each
   // stall's charge currency (caps per currency; MXN keeps its defaults).
@@ -203,7 +212,7 @@ export function createApp(deps: AppDeps): Hono {
   /** Undefined when the caller may charge for this stall; otherwise the 401 to return. */
   const denyCharge = (c: Context, vendorId: string) => {
     if (chargeAuth === "off") return undefined;
-    const token = BEARER.exec(c.req.header("authorization") ?? "")?.[1] ?? "";
+    const token = bearer(c);
     const stall = stalls.get(vendorId);
     const now = (deps.clock ?? Date.now)();
     if (
@@ -308,6 +317,58 @@ export function createApp(deps: AppDeps): Hono {
     const result = stall.policy.verifyPin("vendor", body.data.pin, [clientIp(c)]);
     if (!result.ok) return c.json({ error: result.code }, result.code === "PIN_LOCKED" ? 429 : 401);
     return c.json(devices.issue(stall.id));
+  });
+
+  // Face ID / fingerprint: enrol with the PIN's device token, then a passkey earns the same token.
+  const passkeyTerminal = (c: Context) => {
+    const id = terminalId.safeParse(c.req.param("id"));
+    const terminal = id.success ? sales.store.getTerminal(id.data) : undefined;
+    const stall = terminal && stalls.get(terminal.vendorId);
+    return terminal && stall ? { terminal, stall } : undefined;
+  };
+  const rp = (c: Context) => relyingParty(base(c, deps), c.req.header("origin"));
+
+  app.post("/api/terminals/:id/passkey/register/options", async (c) => {
+    const t = passkeyTerminal(c);
+    if (!t) return c.json({ error: "TERMINAL_NOT_FOUND" }, 404);
+    if (!devices.verify(bearer(c), t.stall.id))
+      return c.json({ error: "CHARGE_AUTH_REQUIRED" }, 401);
+    return c.json(await passkeys.registrationOptions(t.terminal, rp(c)));
+  });
+
+  app.post("/api/terminals/:id/passkey/register", async (c) => {
+    const t = passkeyTerminal(c);
+    if (!t) return c.json({ error: "TERMINAL_NOT_FOUND" }, 404);
+    if (!devices.verify(bearer(c), t.stall.id))
+      return c.json({ error: "CHARGE_AUTH_REQUIRED" }, 401);
+    const body = passkeyBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const ok = await passkeys.register(t.terminal, body.data.response as never, rp(c));
+    return ok ? c.json({ ok: true }) : c.json({ error: "PASSKEY_FAILED" }, 401);
+  });
+
+  app.post("/api/terminals/:id/passkey/options", async (c) => {
+    const t = passkeyTerminal(c);
+    if (!t) return c.json({ error: "TERMINAL_NOT_FOUND" }, 404);
+    const client = [clientIp(c)];
+    if (passkeys.retryAfterMs(client) > 0 || t.stall.policy.pinLocked(client))
+      return c.json({ error: "PASSKEY_LOCKED" }, 429);
+    const options = await passkeys.authenticationOptions(t.terminal, rp(c));
+    return options ? c.json(options) : c.json({ error: "PASSKEY_NONE" }, 404);
+  });
+
+  app.post("/api/terminals/:id/passkey/unlock", async (c) => {
+    const t = passkeyTerminal(c);
+    if (!t) return c.json({ error: "TERMINAL_NOT_FOUND" }, 404);
+    const client = [clientIp(c)];
+    // A client the PIN guard locked is locked for passkeys too: no way around the lockout.
+    if (t.stall.policy.pinLocked(client)) return c.json({ error: "PASSKEY_LOCKED" }, 429);
+    const body = passkeyBody.safeParse(await readJson(c));
+    if (!body.success) return c.json({ error: "INVALID_BODY" }, 400);
+    const result = await passkeys.verify(t.terminal, body.data.response as never, rp(c), client);
+    if (!result.ok)
+      return c.json({ error: result.code }, result.code === "PASSKEY_LOCKED" ? 429 : 401);
+    return c.json(devices.issue(t.stall.id));
   });
 
   app.post("/api/terminals/:id/sales", async (c) => {
@@ -656,6 +717,10 @@ export function createApp(deps: AppDeps): Hono {
   }
 
   return app;
+}
+
+function bearer(c: Context): string {
+  return BEARER.exec(c.req.header("authorization") ?? "")?.[1] ?? "";
 }
 
 function base(c: Context, deps: AppDeps): string {
