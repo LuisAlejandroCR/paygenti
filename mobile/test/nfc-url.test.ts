@@ -1,7 +1,7 @@
 // test/nfc-url.test.ts: the sticker/HCE URL is PUBLIC_URL/t/:terminal, base URLs are normalised,
-// bad input is refused and the NDEF size check matches the NTAG213 limit of 144 bytes.
+// bad input is refused and the NDEF size check matches the NTAG215 limit of 504 bytes.
 import {
-  fitsNtag213,
+  fitsNtag215,
   ndefTagBytes,
   normalizeBaseUrl,
   terminalPayUrl,
@@ -35,11 +35,11 @@ describe("NDEF sizing", () => {
     expect(uriPayload("http://www.a.co")[0]).toBe(0x01);
   });
 
-  it("fits the production link on an NTAG213 and refuses a huge one", () => {
+  it("fits the production link on an NTAG215 and refuses a huge one", () => {
     const url = "https://paygent-rirl.onrender.com/t/rosa-01";
     // TLV tag+len (2) + record header/typeLen/payloadLen/type (4) + payload + terminator (1)
     expect(ndefTagBytes(url)).toBe(2 + 4 + (1 + url.length - "https://".length) + 1);
-    expect(fitsNtag213(url)).toBe(true);
-    expect(fitsNtag213(`https://${"a".repeat(200)}.com/t/x`)).toBe(false);
+    expect(fitsNtag215(url)).toBe(true);
+    expect(fitsNtag215(`https://${"a".repeat(600)}.com/t/x`)).toBe(false);
   });
 });

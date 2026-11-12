@@ -58,6 +58,8 @@ const config: ExpoConfig = {
     "./plugins/with-hce",
   ],
   experiments: { typedRoutes: false, tsconfigPaths: true },
+  // EAS project @alejoooo-team/paygent; EAS builds need it and cannot write it into a .ts config.
+  extra: { eas: { projectId: "fa346fc6-7da1-45f1-b178-0fb572349053" } },
 };
 
 export default config;

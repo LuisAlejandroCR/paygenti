@@ -86,7 +86,7 @@ cd mobile && npx eas-cli submit -p ios --profile production       # ascAppId/app
 
 Sticker (iOS + Android): **NFC** screen → *Write sticker* → hold an NTAG213/215/216 to the phone.
 The app writes one NDEF URI record with `PUBLIC_URL/t/:terminal` (from `GET /api/config`); it refuses
-links larger than an NTAG213's 144 bytes. Check with any phone: tapping the sticker opens the pay page.
+links larger than an NTAG215's 504 bytes (the sticker on the voice box). Check with any phone: tapping the sticker opens the pay page.
 
 Phone-to-phone tap (Android only): **NFC** → *Start tap mode*; keep the screen on and unlocked; the
 customer holds their phone to the back. The app emulates an NFC Forum Type 4 tag (AID
