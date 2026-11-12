@@ -1,7 +1,8 @@
 // e2e/landing.spec.ts: the public landing page (/landing.html) — axe WCAG 2.2 AA in light and dark,
 // no horizontal overflow from 320 px to desktop, every link at least 44 px tall, the hero video
 // with its captions off by default, the swap to the real app recording when Rosa's video is
-// missing, a poster when a video cannot load, and no autoplay under reduced motion.
+// missing, a poster when a video cannot load, and no autoplay under reduced motion, and the full-demo slot
+// (web/public/media/demo.mp4) hidden until that file exists.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, expectNoOverflow, test } from "./fixtures";
 
@@ -60,6 +61,22 @@ test.describe("landing page", () => {
     await expect(hero.locator("source")).toHaveAttribute("src", "/media/app-charge.mp4");
     await expect(hero).toHaveAttribute("poster", "/media/app-charge.jpg");
     await expect(page.locator("[data-caption]")).toContainText("Grabación real");
+  });
+
+  test("the full-demo slot stays hidden without demo.mp4 and appears when it exists", async ({
+    page,
+  }) => {
+    await page.route("**/media/demo.mp4", (r) => r.fulfill({ status: 404, body: "" }));
+    await page.goto("/landing.html");
+    await page.waitForTimeout(300);
+    await expect(page.locator("#demo")).toBeHidden();
+    await page.unroute("**/media/demo.mp4");
+    await page.route("**/media/demo.mp4", (r) =>
+      r.fulfill({ status: 200, contentType: "video/mp4", body: "" }),
+    );
+    await page.reload();
+    await expect(page.locator("#demo")).toBeVisible();
+    await expect(page.locator("#demo video source")).toHaveAttribute("src", "/media/demo.mp4");
   });
 
   test("a product video that cannot load shows its poster and a note", async ({ page }) => {

@@ -99,4 +99,16 @@ function setupVideos() {
   for (const v of lazy) seen.observe(v);
 }
 
+/** Full-demo slot: reveal the section only once /media/demo.mp4 is a real video file. */
+function setupDemo() {
+  const section = document.querySelector<HTMLElement>("[data-demo]");
+  if (!section) return;
+  fetch("/media/demo.mp4", { method: "HEAD" })
+    .then((r) => {
+      if (r.ok && r.headers.get("content-type")?.startsWith("video/")) section.hidden = false;
+    })
+    .catch(() => {});
+}
+
 setupVideos();
+setupDemo();

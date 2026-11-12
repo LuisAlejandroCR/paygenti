@@ -32,3 +32,5 @@ firmware/voice-box/secrets.h
 
 # Raw landing recordings (npm run landing:record); the mp4s land in web/public/media/
 landing-raw/
+
+.vercel

@@ -91,6 +91,35 @@
         </figure>
       </section>
 
+      <!-- 1b. Full demo video: SLOT. Drop the file at web/public/media/demo.mp4 (+ demo.jpg poster)
+           and rebuild. The section stays hidden until /media/demo.mp4 answers as a real video,
+           so the page never shows a broken player (see docs/landing.md, "Video de la demo"). -->
+      <section id="demo" class="lp-section" aria-labelledby="demo-title" data-demo hidden>
+        <h2 id="demo-title">Mira la demo completa</h2>
+        <p class="lp-section-lead">
+          Una venta de principio a fin: la vendedora cobra, el cliente paga y la pantalla dice
+          PAGADO. Activa el sonido para escucharla.
+        </p>
+        <figure class="lp-demo">
+          <div class="lp-frame lp-frame-wide">
+            <video
+              class="lp-video"
+              controls
+              playsinline
+              preload="none"
+              poster="/media/demo.jpg"
+              aria-describedby="cap-demo"
+            >
+              <source src="/media/demo.mp4" type="video/mp4" />
+              <p>Tu navegador no puede reproducir este video.</p>
+            </video>
+          </div>
+          <figcaption id="cap-demo" class="lp-caption">
+            Grabación real de la demo en el sandbox de PayPal: ningún pago es real.
+          </figcaption>
+        </figure>
+      </section>
+
       <!-- 2. How it works -->
       <section id="como-funciona" class="lp-section" aria-labelledby="how-title">
         <h2 id="how-title">Tres pasos en cada venta</h2>

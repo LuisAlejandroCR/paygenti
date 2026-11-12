@@ -223,6 +223,14 @@
   font-size: 1.25rem;
 }
 
+/* Full demo slot (web/public/media/demo.mp4): landscape screen recording. */
+.lp-demo {
+  margin: 24px 0 0;
+}
+.lp-frame.lp-frame-wide {
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+}
 .lp-gallery {
   display: grid;
   gap: 32px;

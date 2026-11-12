@@ -40,6 +40,17 @@ Página estática en español, mobile-first, que solo cuenta lo que la app ya ha
   y `hero-person.jpg`, y ajustar los tiempos de `hero-person.es.vtt`. Si `hero-person.mp4` falta o no
   es un video, el hero muestra solo la grabación real `app-charge.mp4` y cambia su pie de foto.
 
+### Video de la demo (hueco listo)
+
+- **Dónde:** `web/public/media/demo.mp4` y su póster `web/public/media/demo.jpg` (mismos nombres
+  exactos). Se muestra en la sección "Mira la demo completa" (`#demo`), debajo del hero.
+- **Formato:** MP4 H.264 + AAC, 16:9 (1280×720), `+faststart`, idealmente < 15 MB (máx. ~25 MB).
+  `ffmpeg -i grabacion.mov -vf scale=1280:-2 -c:v libx264 -crf 26 -preset slow -c:a aac -b:a 96k -movflags +faststart web/public/media/demo.mp4`
+  y el póster: `ffmpeg -ss 2 -i web/public/media/demo.mp4 -frames:v 1 -q:v 4 web/public/media/demo.jpg`.
+- **Comportamiento:** la sección está `hidden` y solo aparece si `/media/demo.mp4` responde como
+  video. Sin archivo, la página no muestra nada roto. No autoplay: el usuario la reproduce con sonido.
+- Tras copiar el archivo: `npm run build:vercel`, commit y push (Vercel redespliega solo).
+
 ## Vercel
 
 Vercel sirve la landing y la app web estática; `/api/*` y `/t/*` se reenvían al servidor de Render
