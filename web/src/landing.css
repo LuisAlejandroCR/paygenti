@@ -137,6 +137,17 @@
 .lp-ctas .lp-btn {
   flex: 1 1 220px;
 }
+/* Quiet text link (≥ 44 px tall), e.g. "Ver la historia" beside the hero buttons. */
+.lp-textlink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  color: var(--action-text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .lp-ctas-center {
   justify-content: center;
 }
@@ -761,6 +772,10 @@
   gap: 20px;
   margin-top: 24px;
 }
+/* The base .lp-sim rule spans the full grid; inside .lp-try it shares the row with the phone card. */
+.lp-try .lp-sim {
+  grid-column: auto;
+}
 .lp-try .lp-phone {
   align-content: center;
 }
@@ -910,29 +925,24 @@
   font-size: 1.05rem;
 }
 
-/* ================= One stall or several ================= */
-.lp-scale {
+/* ================= Chapter 06: one stall or several (the web dashboard) ================= */
+.lp-scale-split {
   display: grid;
-  gap: 20px;
-  margin-top: 24px;
+  gap: 14px;
+  margin: 20px 0 0;
 }
-.lp-scale h3 {
-  margin: 0;
-  font-size: clamp(1.4rem, 3.4vw, 1.9rem);
-  line-height: 1.12;
+.lp-scale-split dt {
+  color: var(--action-text);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.85rem;
 }
-.lp-scale-one {
-  display: grid;
-  align-content: start;
-}
-.lp-scale-box {
-  width: min(100%, 220px);
-  height: auto;
-  margin: 20px auto 0;
-  border-radius: 18px;
+.lp-scale-split dd {
+  margin: 4px 0 0;
 }
 .lp-dash {
-  margin: 20px 0 0;
+  margin: 0;
 }
 .lp-dash img {
   display: block;
@@ -951,11 +961,6 @@
 .lp-dash-thumbs img {
   border-radius: 8px;
   box-shadow: 0 12px 24px -18px oklch(0.22 0.028 30 / 0.5);
-}
-@media (min-width: 880px) {
-  .lp-scale {
-    grid-template-columns: 1fr 2.2fr;
-  }
 }
 @media (min-width: 960px) {
   .lp-states {

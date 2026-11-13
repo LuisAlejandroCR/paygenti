@@ -50,6 +50,7 @@
         </div>
         <nav aria-label="Principal" data-i18n-label="nav.main">
           <a class="lp-btn lp-btn-small" href="/judge" data-i18n="cta.demo">Probar la demo</a>
+          <a class="lp-btn lp-btn-small lp-btn-quiet" href="/panel" data-i18n="cta.panelTop">Panel web</a>
         </nav>
       </div>
     </header>
@@ -66,7 +67,8 @@
           </p>
           <div class="lp-ctas">
             <a class="lp-btn" href="/judge" data-i18n="cta.demo">Probar la demo</a>
-            <a class="lp-btn lp-btn-quiet" href="#cap-problema" data-i18n="cta.how">Ver la historia</a>
+            <a class="lp-btn lp-btn-quiet" href="/panel" data-i18n="cta.panel">Ver el panel</a>
+            <a class="lp-textlink" href="#cap-problema" data-i18n="cta.how">Ver la historia</a>
           </div>
           <p class="lp-note" data-i18n="hero.note">Demo en el sandbox de PayPal: ningún pago es real. PIN de prueba: 1234.</p>
         </div>
@@ -111,7 +113,7 @@
         <div class="lp-ticker-track"><div><span class="lp-tick"><b>+40 MXN</b> tamal + atole <em>PayPal ✓</em></span><span class="lp-tick"><b>+25 MXN</b> 2 tacos <em>PayPal ✓</em></span><span class="lp-tick"><b>+95 MXN</b> mole para llevar <em>PayPal ✓</em></span><span class="lp-tick"><b>+18 MXN</b> café de olla <em>PayPal ✓</em></span><span class="lp-tick"><b>+60 MXN</b> tlayuda <em>PayPal ✓</em></span><span class="lp-tick"><b>+12 MXN</b> agua fresca <em>PayPal ✓</em></span><span class="lp-tick"><b>+40 MXN</b> tamal + atole <em>PayPal ✓</em></span><span class="lp-tick"><b>+25 MXN</b> 2 tacos <em>PayPal ✓</em></span><span class="lp-tick"><b>+95 MXN</b> mole para llevar <em>PayPal ✓</em></span><span class="lp-tick"><b>+18 MXN</b> café de olla <em>PayPal ✓</em></span><span class="lp-tick"><b>+60 MXN</b> tlayuda <em>PayPal ✓</em></span><span class="lp-tick"><b>+12 MXN</b> agua fresca <em>PayPal ✓</em></span></div></div>
       </div>
 
-      <!-- The story: five chapters, each a text column and one media "stage". -->
+      <!-- The story: six chapters, each a text column and one media "stage". -->
       <div class="lp-story">
         <nav class="lp-rail" aria-label="Capítulos de la historia" data-i18n-label="nav.chapters">
           <ol>
@@ -120,6 +122,7 @@
             <li><a href="#cap-paga" data-rail><span aria-hidden="true">03</span> <span data-i18n="rail.3">Paga</span></a></li>
             <li><a href="#pagado" data-rail><span aria-hidden="true">04</span> <span data-i18n="rail.4">¡Pagado!</span></a></li>
             <li><a href="#cap-historial" data-rail><span aria-hidden="true">05</span> <span data-i18n="rail.5">Su historial</span></a></li>
+            <li><a href="#escala" data-rail><span aria-hidden="true">06</span> <span data-i18n="rail.6">El panel</span></a></li>
           </ol>
         </nav>
 
@@ -254,6 +257,7 @@
                 <li data-i18n="ch5.li2">Reembolsos y pagos piden el PIN otra vez. El asistente solo propone.</li>
                 <li data-i18n="ch5.li3">El efectivo se anota aparte, como declarado; solo lo de PayPal cuenta como verificado.</li>
               </ul>
+              <p><a class="lp-textlink" href="/panel" data-i18n="ch5.panel">Verlo en el panel →</a></p>
             </div>
             <figure class="lp-shot lp-stage">
               <div class="lp-frame lp-frame-land">
@@ -264,6 +268,42 @@
                 </video>
               </div>
               <figcaption id="cap-office" class="lp-caption" data-i18n="ch5.caption">Oficina del puesto: ventas de hoy, pasaporte con QR y verificación VÁLIDA.</figcaption>
+            </figure>
+          </section>
+
+          <!-- 06 As it grows: one stall needs only the box; several get the web dashboard at /panel. -->
+          <section id="escala" class="lp-chapter lp-chapter-flip" aria-labelledby="ch6-title" data-chapter>
+            <div class="lp-chapter-text">
+              <p class="lp-num" aria-hidden="true">06</p>
+              <p class="lp-kicker" data-i18n="ch6.kicker">Cuando crece</p>
+              <h2 id="ch6-title" data-i18n="sc.title">¿Un puesto o varios?</h2>
+              <p data-i18n="sc.lead">Paygenti crece con el negocio: la caja sola para el día a día, y el panel web cuando hay más de un puesto.</p>
+              <dl class="lp-scale-split">
+                <div>
+                  <dt data-i18n="sc.one.kicker">Un puesto</dt>
+                  <dd><strong data-i18n="sc.one.title">Con la caja basta.</strong> <span data-i18n="sc.one.body">Rosa no necesita abrir ninguna página: habla, la caja cobra y le avisa. Las ventas quedan guardadas para cuando quiera verlas.</span></dd>
+                </div>
+                <div>
+                  <dt data-i18n="sc.many.kicker">Varios puestos</dt>
+                  <dd><strong data-i18n="sc.many.title">El panel web, con todo el mes a la vista.</strong> <span data-i18n="sc.many.body">Cuando hay dos o más cajas, el panel junta los puestos en una sola pantalla de escritorio.</span></dd>
+                </div>
+              </dl>
+              <ul class="lp-checks">
+                <li data-i18n="sc.many.li1">KPIs del mes: lo verificado por PayPal, lo declarado en efectivo y lo pendiente.</li>
+                <li data-i18n="sc.many.li2">Gráficas de ventas por día, por día de la semana y mapa de calor por hora.</li>
+                <li data-i18n="sc.many.li3">Filtro por puesto, movimientos con búsqueda y exportación a CSV.</li>
+              </ul>
+              <div class="lp-ctas">
+                <a class="lp-btn" href="/panel" data-i18n="sc.many.cta">Abrir el panel</a>
+              </div>
+            </div>
+            <figure class="lp-shot lp-stage lp-dash">
+              <img src="/media/dashboard-resumen.jpg" alt="" width="1440" height="900" loading="lazy" data-i18n-alt="sc.many.alt" />
+              <div class="lp-dash-thumbs">
+                <img src="/media/dashboard-ventas.jpg" alt="" width="1440" height="900" loading="lazy" data-i18n-alt="sc.many.altSales" />
+                <img src="/media/dashboard-puestos.jpg" alt="" width="1440" height="900" loading="lazy" data-i18n-alt="sc.many.altStalls" />
+              </div>
+              <figcaption class="lp-caption" data-i18n="sc.many.caption">Panel web con datos de ejemplo (modo sandbox).</figcaption>
             </figure>
           </section>
         </div>
@@ -324,38 +364,6 @@
           </ul>
         </div>
         <p class="lp-caption" data-i18n="st.note">Fotos de la pantalla real de la caja de voz (ESP32), sin retoques.</p>
-      </section>
-
-      <!-- One stall: the box is enough. Several stalls: the web dashboard with KPIs and charts. -->
-      <section id="escala" class="lp-section" aria-labelledby="scale-title">
-        <h2 id="scale-title" data-i18n="sc.title">¿Un puesto o varios?</h2>
-        <p class="lp-section-lead" data-i18n="sc.lead">Paygenti crece con el negocio: la caja sola para el día a día, y el panel web cuando hay más de un puesto.</p>
-        <div class="lp-scale">
-          <article class="lp-scale-one lp-card">
-            <p class="lp-kicker" data-i18n="sc.one.kicker">Un puesto</p>
-            <h3 data-i18n="sc.one.title">Con la caja basta.</h3>
-            <p data-i18n="sc.one.body">Rosa no necesita abrir ninguna página: habla, la caja cobra y le avisa. Las ventas quedan guardadas para cuando quiera verlas.</p>
-            <img class="lp-scale-box" src="/media/state-pagado.jpg" alt="" width="400" height="500" loading="lazy" />
-          </article>
-          <article class="lp-scale-many lp-card">
-            <p class="lp-kicker" data-i18n="sc.many.kicker">Varios puestos</p>
-            <h3 data-i18n="sc.many.title">El panel web, con todo el mes a la vista.</h3>
-            <p data-i18n="sc.many.body">Cuando hay dos o más cajas, el panel junta los puestos en una sola pantalla de escritorio.</p>
-            <ul class="lp-checks">
-              <li data-i18n="sc.many.li1">KPIs del mes: lo verificado por PayPal, lo declarado en efectivo y lo pendiente.</li>
-              <li data-i18n="sc.many.li2">Gráficas de ventas por día, por día de la semana y mapa de calor por hora.</li>
-              <li data-i18n="sc.many.li3">Filtro por puesto, movimientos con búsqueda y exportación a CSV.</li>
-            </ul>
-            <figure class="lp-dash">
-              <img src="/media/dashboard-resumen.jpg" alt="" width="1440" height="900" loading="lazy" data-i18n-alt="sc.many.alt" />
-              <div class="lp-dash-thumbs">
-                <img src="/media/dashboard-ventas.jpg" alt="" width="1440" height="900" loading="lazy" data-i18n-alt="sc.many.altSales" />
-                <img src="/media/dashboard-puestos.jpg" alt="" width="1440" height="900" loading="lazy" data-i18n-alt="sc.many.altStalls" />
-              </div>
-              <figcaption class="lp-caption" data-i18n="sc.many.caption">Panel web con datos de ejemplo (modo sandbox).</figcaption>
-            </figure>
-          </article>
-        </div>
       </section>
 
       <!-- Rosa, second take (ElevenLabs, Veo 3.1 Lite, 6 s): the testimonial that closes the story. -->
@@ -469,6 +477,7 @@
       <nav aria-label="Más pantallas" data-i18n-label="nav.more">
         <a href="/soundbox?terminal=rosa-01">Soundbox</a>
         <a href="/backoffice" data-i18n="footer.backoffice">Oficina del puesto</a>
+        <a href="/panel" data-i18n="footer.panel">Panel web</a>
       </nav>
     </footer>
 

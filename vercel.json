@@ -16,7 +16,15 @@
       "destination": "https://paygent-rirl.onrender.com/t/:path*"
     },
     {
-      "source": "/((?!api/|t/|assets/|media/|voice/).*)",
+      "source": "/panel",
+      "destination": "https://paygenti-dashboard.vercel.app/panel/"
+    },
+    {
+      "source": "/panel/:path*",
+      "destination": "https://paygenti-dashboard.vercel.app/panel/:path*"
+    },
+    {
+      "source": "/((?!api/|t/|assets/|media/|voice/|panel$|panel/).*)",
       "destination": "/app.html"
     }
   ],

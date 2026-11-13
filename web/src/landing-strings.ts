@@ -17,6 +17,8 @@ const es = {
   "nav.chapters": "Capítulos de la historia",
   "cta.demo": "Probar la demo",
   "cta.how": "Ver la historia",
+  "cta.panel": "Ver el panel",
+  "cta.panelTop": "Panel web",
   "cta.app": "Abrir la pantalla de cobro",
   "hero.eyebrow": "Para puestos de comida y vendedores de calle",
   "hero.title": "Cobra con PayPal <em>solo diciendo el precio.</em>",
@@ -40,6 +42,7 @@ const es = {
   "rail.3": "Paga",
   "rail.4": "¡Pagado!",
   "rail.5": "Su historial",
+  "rail.6": "El panel",
   "ch1.kicker": "El problema",
   "ch1.title": "Casi todo se paga en efectivo. Y el efectivo no deja rastro.",
   "ch1.body":
@@ -75,6 +78,8 @@ const es = {
   "ch5.li3":
     "El efectivo se anota aparte, como declarado; solo lo de PayPal cuenta como verificado.",
   "ch5.caption": "Oficina del puesto: ventas de hoy, pasaporte con QR y verificación VÁLIDA.",
+  "ch5.panel": "Verlo en el panel →",
+  "ch6.kicker": "Cuando crece",
   "st.title": "La caja te dice qué pasa, siempre",
   "st.lead":
     "Cada estado tiene su color, su cara y su frase en voz alta. Así Rosa sabe al instante si todo salió bien, si tiene que repetir o si algo falló. Pantallas reales de la caja.",
@@ -116,6 +121,7 @@ const es = {
   "sc.many.altStalls":
     "Panel web de Paygenti: selector para cambiar entre dos puestos, Tacos Doña Lupe y Açaí da Praia",
   "sc.many.caption": "Panel web con datos de ejemplo (modo sandbox).",
+  "sc.many.cta": "Abrir el panel",
   "quote.text": "«Paygenti me ayuda a tener el proceso más claro y ordenado.»",
   "quote.who": "Rosa, tamales y atole · Recreación",
   "cap.rosa2": "Rosa cuenta qué cambió en su puesto. Recreación.",
@@ -132,6 +138,7 @@ const es = {
     "Abre la demo: a la izquierda cobras como vendedora, a la derecha pagas como cliente. PIN de prueba: <strong>1234</strong>.",
   "footer.note": "Paygenti · Prototipo del PayPal AI Hackathon. No es un producto de PayPal.",
   "footer.backoffice": "Oficina del puesto",
+  "footer.panel": "Panel web",
   "sim.title": "Simula una venta",
   "sim.badge": "Simulación: no cobra ni llama a PayPal",
   "sim.step1": "Rosa dice el monto",
@@ -172,6 +179,8 @@ const en: Record<LandingKey, string> = {
   "nav.chapters": "Story chapters",
   "cta.demo": "Try the demo",
   "cta.how": "See the story",
+  "cta.panel": "See the dashboard",
+  "cta.panelTop": "Web dashboard",
   "cta.app": "Open the charge screen",
   "hero.eyebrow": "For food stalls and street vendors",
   "hero.title": "Take PayPal payments <em>just by saying the price.</em>",
@@ -195,6 +204,7 @@ const en: Record<LandingKey, string> = {
   "rail.3": "Pay",
   "rail.4": "Paid!",
   "rail.5": "Her history",
+  "rail.6": "Dashboard",
   "ch1.kicker": "The problem",
   "ch1.title": "Almost everything is paid in cash. And cash leaves no trail.",
   "ch1.body":
@@ -230,6 +240,8 @@ const en: Record<LandingKey, string> = {
   "ch5.li2": "Refunds and payouts ask for the PIN again. The assistant only suggests.",
   "ch5.li3": "Cash is logged separately, as self-reported; only PayPal sales count as verified.",
   "ch5.caption": "Stall back office: today's sales, the passport QR code and a VALID check.",
+  "ch5.panel": "See it in the dashboard →",
+  "ch6.kicker": "As it grows",
   "st.title": "The box always tells you what's going on",
   "st.lead":
     "Every state has its own color, face and spoken line. Rosa knows right away whether it went well, whether to say it again, or whether something failed. Real screens from the box.",
@@ -271,6 +283,7 @@ const en: Record<LandingKey, string> = {
   "sc.many.altStalls":
     "Paygenti web dashboard: switcher between two stalls, Tacos Doña Lupe and Açaí da Praia",
   "sc.many.caption": "Web dashboard with sample data (sandbox mode).",
+  "sc.many.cta": "Open the dashboard",
   "quote.text": "“Paygenti helps me keep the whole process clearer and more organized.”",
   "quote.who": "Rosa, tamales and atole · Recreation",
   "cap.rosa2": "Rosa on what changed at her stall. Recreation.",
@@ -287,6 +300,7 @@ const en: Record<LandingKey, string> = {
     "Open the demo: on the left you charge as the vendor, on the right you pay as the customer. Test PIN: <strong>1234</strong>.",
   "footer.note": "Paygenti · A PayPal AI Hackathon prototype. Not a PayPal product.",
   "footer.backoffice": "Stall back office",
+  "footer.panel": "Web dashboard",
   "sim.title": "Simulate a sale",
   "sim.badge": "Simulation: no charge, no call to PayPal",
   "sim.step1": "Rosa says the amount",
