@@ -2,5 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm ci",
-  "buildCommand": "NITRO_PRESET=vercel npm run build"
+  "buildCommand": "VITE_PAYGENT_API=https://paygent-rirl.onrender.com NITRO_PRESET=vercel npm run build"
 }

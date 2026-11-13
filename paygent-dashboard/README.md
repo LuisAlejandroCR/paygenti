@@ -10,8 +10,8 @@ still waiting for her bank, and where it came from. It is a separate app from th
 `web/`; it reads the same Paygent server.
 
 Built first in [Lovable](https://lovable.dev) (TanStack Start, React 19, Tailwind CSS 4, Recharts,
-AG Grid, Radix UI) and delivered as a source ZIP, then wired to the server in PR #40. Deployable to
-Vercel in mock mode (see [Deploy](#deploy)); not part of CI.
+AG Grid, Radix UI) and delivered as a source ZIP, then wired to the server in PR #40. Deployed to
+Vercel in live mode against the Render server (see [Deploy](#deploy)); not part of CI.
 
 ## Screens
 
@@ -79,11 +79,14 @@ it the server sends no CORS headers, so serve the dashboard from the same origin
 
 ## Deploy
 
-Vercel project `paygenti-dashboard`, root directory `paygent-dashboard/`, in **mock mode** (no
-`VITE_PAYGENT_API`, so seeded data, "Sandbox" badge and PIN `1234`; no server needed).
-`vercel.json` builds with `NITRO_PRESET=vercel npm run build`, which makes Nitro write the Vercel
-Build Output (`.vercel/output`) instead of the Cloudflare bundle. Preview: `npx vercel deploy`
-from this folder. To try the same build locally: `NITRO_PRESET=node-server npm run build`, then
+Vercel project `paygenti-dashboard`, root directory `paygent-dashboard/`, in **live mode**:
+`vercel.json` builds with `VITE_PAYGENT_API=https://paygent-rirl.onrender.com` and
+`NITRO_PRESET=vercel npm run build`, so the browser calls the Render server directly and each stall
+logs in with its real PIN. The server must list the dashboard's origin in `CORS_ORIGINS`
+(`https://paygenti-dashboard.vercel.app`), or every call fails. Nitro writes the Vercel
+Build Output (`.vercel/output`) instead of the Cloudflare bundle. Preview: `npx vercel deploy --target=preview`
+from this folder (plain `npx vercel deploy` goes to production with CLI 65). For mock mode, drop
+`VITE_PAYGENT_API` from the build command. To try the same build locally: `NITRO_PRESET=node-server npm run build`, then
 `node .output/server/index.mjs` (port 3000, or `PORT`).
 
 ## Data layer
