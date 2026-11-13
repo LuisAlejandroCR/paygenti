@@ -160,10 +160,10 @@ export function Ventas() {
         className="lg:col-span-3"
         summary={`${t("daily")}: ${days.length} ${t("day").toLowerCase()}, ${t("verified")} ${money(sp.verified, c)}, ${t("declared")} ${money(sp.declared, c)}`}
         rows={days.map((d) => ({
-          dia: d.day,
-          verificado: Math.round(d.verified),
-          autodeclarado: Math.round(d.declared),
-          promedio7: Math.round(d.avg7),
+          [t("day")]: d.day,
+          [t("verified")]: Math.round(d.verified),
+          [t("declared")]: Math.round(d.declared),
+          [t("avg7")]: Math.round(d.avg7),
         }))}
         action={
           sel && (
@@ -256,7 +256,11 @@ export function Ventas() {
       <ChartCard
         title={t("by_weekday")}
         summary={t("by_weekday")}
-        rows={weekday.map((w) => ({ dia: w.d, verificado: w.verified, autodeclarado: w.declared }))}
+        rows={weekday.map((w) => ({
+          [t("day")]: w.d,
+          [t("verified")]: w.verified,
+          [t("declared")]: w.declared,
+        }))}
       >
         <div className="h-56">
           <ResponsiveContainer>
@@ -289,7 +293,7 @@ export function Ventas() {
         className="lg:col-span-2"
         summary={t("heatmap")}
         rows={grid.map((r, i) => ({
-          dia: dows[i] ?? "",
+          [t("day")]: dows[i] ?? "",
           ...Object.fromEntries(r.map((v, h) => [`${h + 7}h`, v])),
         }))}
       >

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Icon, RAIL_COLOR, railChip, RAIL_NAME, RailIcon, itemIcon } from "@/components/icons";
+import { Icon, RAIL_COLOR, railChip, railName, RailIcon, itemIcon } from "@/components/icons";
 import * as api from "@/lib/api";
 import { usePrefs } from "@/lib/prefs";
 import { db, TODAY } from "@/lib/mock";
@@ -45,7 +45,7 @@ export function Overlays({ overlay, close }: { overlay: Overlay; close: () => vo
         : overlay.kind === "tx"
           ? t("timeline")
           : overlay.kind === "rail"
-            ? RAIL_NAME[overlay.rail]
+            ? railName(overlay.rail, t)
             : overlay.kind === "goal"
               ? overlay.id
                 ? t("tabs_metas")
@@ -345,7 +345,7 @@ function Cobrar({ close }: { close: () => void }) {
                 >
                   <RailIcon rail={r} size={18} />
                 </span>
-                {RAIL_NAME[r]}
+                {railName(r, t)}
               </button>
             ))}
           </div>
@@ -553,7 +553,7 @@ function Reembolso({ txId, ai, close }: { txId?: string; ai?: boolean; close: ()
               currency={tx.currency}
               className="text-2xl font-bold text-destructive"
             />
-            <span className="text-sm text-muted-foreground">· {RAIL_NAME[tx.rail]}</span>
+            <span className="text-sm text-muted-foreground">· {railName(tx.rail, t)}</span>
           </p>
         </div>
       )}
@@ -943,7 +943,7 @@ function ItemDetail({ item }: { item: string }) {
               className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1.5 text-sm"
             >
               <RailIcon rail={r} size={16} />
-              {RAIL_NAME[r]}
+              {railName(r, t)}
             </span>
           ))}
         </div>
@@ -1006,7 +1006,7 @@ function TxDetail({ id }: { id: string }) {
       <dl className="grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-xl bg-muted p-3">
           <dt className="text-xs text-muted-foreground">{t("rail")}</dt>
-          <dd className="font-semibold">{RAIL_NAME[tx.rail]}</dd>
+          <dd className="font-semibold">{railName(tx.rail, t)}</dd>
         </div>
         <div className="rounded-xl bg-muted p-3">
           <dt className="text-xs text-muted-foreground">{t("fee")}</dt>

@@ -15,7 +15,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Icon, RAIL_COLOR, RAIL_NAME, RailIcon, itemIcon } from "@/components/icons";
+import { Icon, RAIL_COLOR, railName, RailIcon, itemIcon } from "@/components/icons";
 import { usePrefs } from "@/lib/prefs";
 import {
   daily,
@@ -415,7 +415,7 @@ export function Resumen() {
         className="lg:col-span-2"
         summary={`${t("pace")} (${t("verified")}): ${money(s.cur.verified, c)} ${t("vs")} ${money(s.prevAll.verified, c)} ${pName}`}
         rows={cum.map((r) => ({
-          dia: r.day,
+          [t("day")]: r.day,
           [mName]: Math.round(r.now ?? 0),
           [pName]: Math.round(r.before),
         }))}
@@ -508,11 +508,11 @@ export function Resumen() {
       {/* Rails as a 100% stacked strip + ranked rows (no donut) */}
       <ChartCard
         title={t("how_paid")}
-        summary={`${t("how_paid")}: ${rails.map((r) => `${RAIL_NAME[r.rail]} ${money(r.verified, c)} · ${t("declared")} ${money(r.declared, c)}`).join(", ")}`}
+        summary={`${t("how_paid")}: ${rails.map((r) => `${railName(r.rail, t)} ${money(r.verified, c)} · ${t("declared")} ${money(r.declared, c)}`).join(", ")}`}
         rows={rails.map((r) => ({
-          rail: RAIL_NAME[r.rail],
-          verificado: Math.round(r.verified),
-          autodeclarado: Math.round(r.declared),
+          [t("rail")]: railName(r.rail, t),
+          [t("verified")]: Math.round(r.verified),
+          [t("declared")]: Math.round(r.declared),
         }))}
         action={
           <button
@@ -547,7 +547,7 @@ export function Resumen() {
                 className={`flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-sm cursor-pointer ${search.rail === r.rail ? "bg-accent" : "hover:bg-muted"}`}
               >
                 <RailIcon rail={r.rail} size={18} />
-                <span className="truncate font-medium">{RAIL_NAME[r.rail]}</span>
+                <span className="truncate font-medium">{railName(r.rail, t)}</span>
                 {r.declared > r.verified && (
                   <span className="hatch size-2.5 rounded-sm" aria-label={t("declared")} />
                 )}

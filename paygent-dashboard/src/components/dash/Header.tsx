@@ -1,5 +1,6 @@
-// Header.tsx: sticky top bar (stall picker, Sandbox/Live badge, privacy, notifications, profile)
-// and the month switcher; on phones it stays one row so the sticky bar does not eat the screen.
+// Header.tsx: sticky top bar (stall picker, Sandbox/Live badge, ES/EN toggle, privacy,
+// notifications, profile) plus the month switcher; on phones it stays one row so the sticky bar
+// does not eat the screen.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -9,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Icon, RAIL_NAME } from "@/components/icons";
+import { Icon, railName } from "@/components/icons";
 import { usePrefs } from "@/lib/prefs";
 import { getNotifications, markRead, SANDBOX } from "@/lib/api";
 import { monthName, parseMonth, shiftMonth, monthKey } from "@/lib/stats";
@@ -73,6 +74,35 @@ export function MonthSwitcher({ className }: { className?: string }) {
   );
 }
 
+/** ES / EN switch like the landing's (pt stays in Perfil); the choice also moves the landing. */
+function LangToggle({ className }: { className?: string }) {
+  const p = usePrefs();
+  return (
+    <div
+      role="group"
+      aria-label={p.t("lang")}
+      className={cn("inline-flex min-h-11 items-stretch rounded-lg border bg-card", className)}
+    >
+      {(["es", "en"] as const).map((l) => (
+        <button
+          key={l}
+          type="button"
+          lang={l}
+          title={l === "es" ? "Español" : "English"}
+          aria-pressed={p.lang === l}
+          onClick={() => p.set({ lang: l })}
+          className={cn(
+            "min-h-11 min-w-11 px-2.5 text-sm cursor-pointer transition-colors first:rounded-l-lg last:rounded-r-lg [&+&]:border-l hover:bg-muted",
+            p.lang === l ? "font-extrabold text-primary-text" : "font-semibold text-foreground",
+          )}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Header() {
   const { stall, stalls, search, nav } = useDash();
   const p = usePrefs();
@@ -119,6 +149,7 @@ export function Header() {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
+          <LangToggle className="mr-1 hidden sm:inline-flex" />
           <button
             className={iconBtn}
             onClick={() => p.set({ privacy: !p.privacy })}
@@ -187,13 +218,14 @@ export function Header() {
       </div>
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 pb-3 empty:hidden">
         {search.tab !== "perfil" && <MonthSwitcher className="md:hidden" />}
+        <LangToggle className="ml-auto sm:hidden" />
         {search.rail && (
           <button
             onClick={() => nav({ rail: undefined })}
             className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-3 text-sm font-semibold text-accent-foreground cursor-pointer"
             aria-label={p.t("clear_filter")}
           >
-            {p.t("filter_chip", { r: RAIL_NAME[search.rail] })} <Icon.x size={16} />
+            {p.t("filter_chip", { r: railName(search.rail, p.t) })} <Icon.x size={16} />
           </button>
         )}
         <span className="sr-only">{monthName(search.month, p.locale)}</span>
