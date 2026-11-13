@@ -1,5 +1,6 @@
-/* web/src/landing.css: layout of the landing page (web/landing.html) only — mobile-first sections,
-   phone-shaped video frames, cards and big CTAs on the shared tokens from styles.css. */
+/* web/src/landing.css: layout of the landing page (web/landing.html) only — mobile-first hero, a
+   five-chapter story (text + one media "stage" each, sticky chapter rail on wide screens, reveal on
+   scroll), testimonial, try-it section and big CTAs, on the shared tokens from styles.css. */
 
 .lp {
   --lp-max: 1120px;
@@ -525,5 +526,323 @@
 @media (prefers-reduced-motion: no-preference) {
   html:has(.lp) {
     scroll-behavior: smooth;
+  }
+}
+
+/* ================= Story layout ================= */
+.lp-hero h1 em {
+  font-style: normal;
+  color: var(--action-text);
+}
+.lp-frame {
+  isolation: isolate;
+}
+.lp-frame-land {
+  aspect-ratio: 16 / 9;
+  border-radius: 18px;
+}
+.lp-frame-tall {
+  aspect-ratio: 4 / 5;
+}
+/* Honest label on every clip: recreation vs real recording. */
+.lp-tag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: oklch(0.2 0.02 30 / 0.78);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+.lp-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.lp-story {
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  padding: 0 var(--lp-gutter);
+}
+.lp-rail {
+  display: none;
+}
+.lp-chapters {
+  position: relative;
+}
+.lp-chapter {
+  display: grid;
+  gap: 28px;
+  align-items: center;
+  padding: 56px 0;
+  border-top: 1px solid var(--border);
+}
+.lp-chapter-text h2 {
+  margin: 0;
+  font-size: clamp(1.8rem, 5.4vw, 2.9rem);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.lp-chapter-text > p:not(.lp-num, .lp-kicker, .lp-punch) {
+  margin: 16px 0 0;
+  font-size: 1.1rem;
+  max-width: 34em;
+}
+.lp-num {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(3.2rem, 11vw, 5.5rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 2px var(--action-text);
+}
+.lp-kicker {
+  margin: 8px 0 10px;
+  color: var(--action-text);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.85rem;
+}
+.lp-punch {
+  display: inline-block;
+  margin: 20px 0 0;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--foreground);
+  color: var(--background);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.15rem, 3vw, 1.45rem);
+}
+.lp-stats {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 0;
+}
+.lp-stats > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.lp-stats dt {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  line-height: 1;
+  color: var(--action-text);
+  min-width: 3.6ch;
+}
+.lp-stats dd {
+  margin: 0;
+  display: grid;
+}
+.lp-stats a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 0.88rem;
+  color: var(--muted-foreground);
+}
+.lp-checks {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.lp-checks li {
+  position: relative;
+  padding-left: 32px;
+}
+.lp-checks li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--success);
+  color: var(--success-foreground);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+/* The stage: same block for every chapter, so portrait and landscape clips line up. */
+.lp-stage {
+  width: 100%;
+  margin: 0;
+  justify-self: stretch;
+  padding: clamp(16px, 3vw, 28px);
+  border-radius: 28px;
+  background:
+    radial-gradient(
+      120% 80% at 50% 0%,
+      color-mix(in oklch, var(--action) 16%, transparent),
+      transparent 70%
+    ),
+    var(--muted);
+  border: 1px solid var(--border);
+}
+.lp-stage .lp-frame-tall {
+  width: min(100%, 340px);
+  margin: 0 auto;
+}
+.lp-stage .lp-caption {
+  text-align: center;
+  margin-bottom: 0;
+}
+.lp-chapter-paid .lp-stage {
+  background:
+    radial-gradient(
+      120% 80% at 50% 0%,
+      color-mix(in oklch, var(--success) 24%, transparent),
+      transparent 70%
+    ),
+    var(--muted);
+}
+
+/* Testimonial */
+.lp-quote {
+  display: grid;
+  gap: 28px;
+  align-items: center;
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  padding: 56px var(--lp-gutter);
+  border-top: 1px solid var(--border);
+}
+.lp-quote .lp-rosa2 {
+  width: min(100%, 300px);
+  justify-self: center;
+  margin: 0;
+}
+.lp-quote blockquote {
+  margin: 0;
+}
+.lp-quote blockquote p {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.7rem, 5vw, 2.8rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.lp-quote blockquote footer {
+  margin-top: 16px;
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+
+/* Try it */
+.lp-try {
+  display: grid;
+  gap: 20px;
+  margin-top: 24px;
+}
+.lp-try .lp-phone {
+  align-content: center;
+}
+.lp-phone h3 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+/* Reveal on scroll: only movement, never hidden content; off under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-js [data-chapter] .lp-stage,
+  .lp-js [data-chapter] .lp-chapter-text {
+    transition:
+      transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1),
+      opacity 700ms ease;
+  }
+  .lp-js [data-chapter]:not(.is-in) .lp-stage {
+    transform: translateY(40px) scale(0.97);
+  }
+  .lp-js [data-chapter]:not(.is-in) .lp-chapter-text {
+    transform: translateY(24px);
+  }
+}
+
+@media (min-width: 880px) {
+  .lp-chapter {
+    grid-template-columns: 1fr 1.1fr;
+    gap: 56px;
+    padding: 88px 0;
+  }
+  .lp-chapter-flip .lp-chapter-text {
+    order: 2;
+  }
+  .lp-quote {
+    grid-template-columns: 300px 1fr;
+    gap: 56px;
+  }
+  .lp-try {
+    grid-template-columns: 1.3fr 1fr;
+  }
+}
+
+/* Sticky chapter rail beside the story on wide screens. */
+@media (min-width: 1180px) {
+  .lp-story {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    gap: 40px;
+    max-width: calc(var(--lp-max) + 210px);
+  }
+  .lp-rail {
+    display: block;
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    padding-top: 56px;
+  }
+  .lp-rail ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-left: 2px solid var(--border);
+  }
+  .lp-rail a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    margin-left: -2px;
+    padding-left: 14px;
+    border-left: 2px solid transparent;
+    color: var(--muted-foreground);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .lp-rail a span:first-child {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.85rem;
+  }
+  .lp-rail a[aria-current="true"] {
+    color: var(--foreground);
+    border-left-color: var(--action);
   }
 }

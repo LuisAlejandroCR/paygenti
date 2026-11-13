@@ -1,7 +1,8 @@
 // web/src/landing.ts: behavior of the landing page (web/landing.html) — no framework.
 // Swaps the hero to the real charge-screen recording while Rosa's video is missing, lazy-loads the
 // product videos when they scroll into view, honors prefers-reduced-motion and shows the poster
-// with a text note when a video cannot play. Steps the hero sale simulator. Also runs the ES/EN toggle: strings live in
+// with a text note when a video cannot play. Steps the sale simulator, reveals the story chapters as
+// they scroll in and marks the current one in the chapter rail. Also runs the ES/EN toggle: strings live in
 // landing-strings.ts, keyed by the data-i18n* attributes in landing.html; the locale (detection,
 // storage, <html lang>) is shared with the apps through i18n.ts.
 import "./styles.css";
@@ -213,7 +214,42 @@ function setupSim() {
   show(1);
 }
 
+/** Story: each chapter slides in once when it enters, and the rail marks the chapter in view. */
+function setupStory() {
+  const chapters = [...document.querySelectorAll<HTMLElement>("[data-chapter]")];
+  const rail = [...document.querySelectorAll<HTMLAnchorElement>("[data-rail]")];
+  if (!chapters.length || !("IntersectionObserver" in window)) return;
+  document.documentElement.classList.add("lp-js");
+  const reveal = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.classList.add("is-in");
+        reveal.unobserve(e.target);
+      }
+    },
+    { rootMargin: "0px 0px -10% 0px", threshold: 0.15 },
+  );
+  const current = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        for (const a of rail) {
+          if (a.hash === `#${e.target.id}`) a.setAttribute("aria-current", "true");
+          else a.removeAttribute("aria-current");
+        }
+      }
+    },
+    { rootMargin: "-45% 0px -50% 0px" },
+  );
+  for (const c of chapters) {
+    reveal.observe(c);
+    current.observe(c);
+  }
+}
+
 setupLang();
+setupStory();
 setupSim();
 setupVideos();
 setupDemo();
