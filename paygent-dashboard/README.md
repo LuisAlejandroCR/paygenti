@@ -10,8 +10,8 @@ still waiting for her bank, and where it came from. It is a separate app from th
 `web/`; it reads the same Paygent server.
 
 Built first in [Lovable](https://lovable.dev) (TanStack Start, React 19, Tailwind CSS 4, Recharts,
-AG Grid, Radix UI) and delivered as a source ZIP, then wired to the server in PR #40. Not deployed yet
-and not part of CI.
+AG Grid, Radix UI) and delivered as a source ZIP, then wired to the server in PR #40. Deployable to
+Vercel in mock mode (see [Deploy](#deploy)); not part of CI.
 
 ## Screens
 
@@ -77,6 +77,15 @@ A production build on another origin needs the server to allow it: set `CORS_ORI
 to the dashboard's exact origin (e.g. `https://dash.example.com`; comma-separated for several). Without
 it the server sends no CORS headers, so serve the dashboard from the same origin or behind a proxy.
 
+## Deploy
+
+Vercel project `paygenti-dashboard`, root directory `paygent-dashboard/`, in **mock mode** (no
+`VITE_PAYGENT_API`, so seeded data, "Sandbox" badge and PIN `1234`; no server needed).
+`vercel.json` builds with `NITRO_PRESET=vercel npm run build`, which makes Nitro write the Vercel
+Build Output (`.vercel/output`) instead of the Cloudflare bundle. Preview: `npx vercel deploy`
+from this folder. To try the same build locally: `NITRO_PRESET=node-server npm run build`, then
+`node .output/server/index.mjs` (port 3000, or `PORT`).
+
 ## Data layer
 
 - `src/lib/api.ts`: the only module that fetches. In mock mode it serves `mock.ts`; in live mode it
@@ -107,7 +116,7 @@ Colours and tokens follow `src/styles.css`.
 - Test live mode with real sales on the server (so far: PIN login and loading with an empty ledger).
 - Wire Charge to the server, or hide it in live mode.
 - A monthly endpoint on the server would replace up to 62 ledger calls per load.
-- Add the dashboard to CI (`npm test`, lint, typecheck) and decide whether and where to deploy it.
+- Add the dashboard to CI (`npm test`, lint, typecheck).
 - A UI/UX pass is in progress on `feat/dashboard-ux-pass` (2026-10-14, not merged).
 
 Routing conventions for `src/routes/`: [src/routes/README.md](src/routes/README.md).
@@ -118,7 +127,7 @@ Routing conventions for `src/routes/`: [src/routes/README.md](src/routes/README.
 
 Panel web del mes de la vendedora: lo verificado por PayPal, lo autodeclarado y lo que espera
 confirmación del banco, siempre por separado. Nació en Lovable y se conectó al servidor en el PR #40;
-aún no se despliega ni corre en CI.
+se despliega en Vercel en modo simulado (proyecto `paygenti-dashboard`) y aún no corre en CI.
 
 - `npm ci`, luego `npm run dev` (datos simulados, puerto 8080, PIN `1234`) o `npm run dev:live` (datos
   reales del servidor en `:8787`, puerto 5192, PIN real de cada puesto).
