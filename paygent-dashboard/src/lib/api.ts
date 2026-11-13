@@ -24,7 +24,11 @@ import {
 import { db, STALLS, TODAY } from "./mock";
 import type { Goal, Notification, RailInfo, Stall, Tx, TxQuery } from "./types";
 
-/** Base URL of the Paygent server ("" = same origin through the Vite proxy). Unset = mock. */
+/**
+ * VITE_PAYGENT_API: unset/empty = mock. An http(s) URL = call that server directly (prod build).
+ * Any other value (the deploy uses "same-origin") = LIVE with BASE "": the browser calls /api/... on
+ * whatever host serves the page; paygenti.vercel.app proxies /api to Render, so no CORS is needed.
+ */
 const RAW = import.meta.env["VITE_PAYGENT_API"] as string | undefined;
 export const LIVE = RAW !== undefined && RAW !== "";
 export const SANDBOX = !LIVE;

@@ -22,11 +22,19 @@ const env = loadEnv(mode, process.cwd(), "VITE_");
 const api = env["VITE_PAYGENT_API"] ?? process.env["VITE_PAYGENT_API"] ?? "";
 const target = /^https?:\/\//.test(api) ? api : undefined;
 
+// The dashboard lives under /panel so the main site (paygenti.vercel.app) can proxy it on the
+// same domain: assets load from /panel/assets/* and never collide with the landing's /assets.
+const BASE_PATH = "/panel";
+
 export default defineConfig({
   tanstackStart: {
+    router: { basepath: BASE_PATH },
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
   },
-  ...(target && { vite: { server: { proxy: { "/api": { target, changeOrigin: true } } } } }),
+  vite: {
+    base: `${BASE_PATH}/`,
+    ...(target && { server: { proxy: { "/api": { target, changeOrigin: true } } } }),
+  },
 });
