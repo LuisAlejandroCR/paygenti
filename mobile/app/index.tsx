@@ -222,7 +222,7 @@ export default function SaleScreen() {
 
   return (
     <Screen>
-      <TopBar title={stall || "paygent"} online={online} />
+      <TopBar title={stall || "Paygenti"} online={online} />
 
       {locked && vendorId !== "" && (
         <Card>

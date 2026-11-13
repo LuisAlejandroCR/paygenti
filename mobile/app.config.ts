@@ -4,7 +4,7 @@
 import type { ExpoConfig } from "expo/config";
 
 const config: ExpoConfig = {
-  name: "paygent",
+  name: "Paygenti",
   slug: "paygent",
   owner: "alejoooo-team",
   scheme: "paygent",
@@ -17,14 +17,14 @@ const config: ExpoConfig = {
     bundleIdentifier: "com.alejoooo.paygent",
     supportsTablet: true,
     infoPlist: {
-      CFBundleDisplayName: "paygent",
+      CFBundleDisplayName: "Paygenti",
       // Only HTTPS and OS-provided crypto: exempt from export-compliance documentation.
       ITSAppUsesNonExemptEncryption: false,
-      NFCReaderUsageDescription: "paygent writes your stall's payment link to NFC stickers.",
+      NFCReaderUsageDescription: "Paygenti writes your stall's payment link to NFC stickers.",
       // expo-file-system links the Photos framework (ITMS-90683). The app never reads photos today;
       // the string only covers a file you would pick from your library yourself.
       NSPhotoLibraryUsageDescription:
-        "paygent only opens your photo library if you choose a file from it yourself.",
+        "Paygenti only opens your photo library if you choose a file from it yourself.",
     },
   },
   android: {
@@ -49,14 +49,14 @@ const config: ExpoConfig = {
     [
       "expo-speech-recognition",
       {
-        microphonePermission: "paygent listens while you hold the mic to ring up an order.",
-        speechRecognitionPermission: "paygent turns your spoken order into a cart.",
+        microphonePermission: "Paygenti listens while you hold the mic to ring up an order.",
+        speechRecognitionPermission: "Paygenti turns your spoken order into a cart.",
       },
     ],
     [
       "react-native-nfc-manager",
       {
-        nfcPermission: "paygent writes your stall's payment link to NFC stickers.",
+        nfcPermission: "Paygenti writes your stall's payment link to NFC stickers.",
         // TAG only: App Store Connect rejects the legacy "NDEF" format (ITMS-90778); TAG still
         // reads and writes NDEF on NTAG stickers.
         includeNdefEntitlement: false,
