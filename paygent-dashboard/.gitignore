@@ -37,3 +37,7 @@ dist-ssr
 
 # UX audit output (scripts/ux-audit.ts)
 ux-audit/
+
+# Vercel: project link, the nitro vercel preset's build output and the CLI's .env.local
+.vercel
+.env*.local
