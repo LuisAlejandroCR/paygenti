@@ -257,6 +257,91 @@
         </div>
       </div>
 
+      <!-- What the box says: real screens from the box, grouped as all good / warning / error. -->
+      <section id="estados" class="lp-section lp-states" aria-labelledby="states-title">
+        <h2 id="states-title" data-i18n="st.title">La caja te dice qué pasa, siempre</h2>
+        <p class="lp-section-lead" data-i18n="st.lead">Cada estado tiene su color, su cara y su frase en voz alta. Así Rosa sabe al instante si todo salió bien, si tiene que repetir o si algo falló. Pantallas reales de la caja.</p>
+        <div class="lp-states-group lp-states-ok">
+          <h3 data-i18n="st.ok.title">Todo bien</h3>
+          <ul class="lp-states-list">
+            <li class="lp-state lp-state-ok">
+              <img src="/media/state-escucho.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.listen.name">Te escucho…</p>
+              <p data-i18n="st.listen.body">Rosa aprieta el botón y dice el precio.</p>
+            </li>
+            <li class="lp-state lp-state-ok">
+              <img src="/media/state-qr.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.qr.name">40 MXN · Escanea para pagar</p>
+              <p data-i18n="st.qr.body">Entendió el monto y la moneda; muestra el QR del cobro.</p>
+            </li>
+            <li class="lp-state lp-state-ok">
+              <img src="/media/state-pagado.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.paid.name">PAGADO · cuarenta pesos</p>
+              <p data-i18n="st.paid.body">PayPal capturó el pago. Lo dice en voz alta.</p>
+            </li>
+          </ul>
+        </div>
+        <div class="lp-states-group lp-states-warn">
+          <h3 data-i18n="st.warn.title">Aviso: hay que hacer algo</h3>
+          <ul class="lp-states-list">
+            <li class="lp-state lp-state-warn">
+              <img src="/media/state-repitelo.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.again.name">Repítelo</p>
+              <p data-i18n="st.again.body">No entendió el monto. No cobra nada: Rosa lo vuelve a decir.</p>
+            </li>
+            <li class="lp-state lp-state-warn">
+              <img src="/media/state-cancelado.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.cancel.name">Cancelado</p>
+              <p data-i18n="st.cancel.body">El cobro se canceló o se venció. No se movió dinero.</p>
+            </li>
+          </ul>
+        </div>
+        <div class="lp-states-group lp-states-err">
+          <h3 data-i18n="st.err.title">Error: no se cobró</h3>
+          <ul class="lp-states-list">
+            <li class="lp-state lp-state-err">
+              <img src="/media/state-paypal-fallo.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.paypal.name">PayPal falló</p>
+              <p data-i18n="st.paypal.body">PayPal rechazó o no pudo procesar el pago. Nunca dice PAGADO.</p>
+            </li>
+            <li class="lp-state lp-state-err">
+              <img src="/media/state-sin-internet.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.offline.name">Sin internet</p>
+              <p data-i18n="st.offline.body">La caja no llega al servidor y sigue intentando conectar.</p>
+            </li>
+          </ul>
+        </div>
+        <p class="lp-caption" data-i18n="st.note">Fotos de la pantalla real de la caja de voz (ESP32), sin retoques.</p>
+      </section>
+
+      <!-- One stall: the box is enough. Several stalls: the web dashboard with KPIs and charts. -->
+      <section id="escala" class="lp-section" aria-labelledby="scale-title">
+        <h2 id="scale-title" data-i18n="sc.title">¿Un puesto o varios?</h2>
+        <p class="lp-section-lead" data-i18n="sc.lead">Paygenti crece con el negocio: la caja sola para el día a día, y el panel web cuando hay más de un puesto.</p>
+        <div class="lp-scale">
+          <article class="lp-scale-one lp-card">
+            <p class="lp-kicker" data-i18n="sc.one.kicker">Un puesto</p>
+            <h3 data-i18n="sc.one.title">Con la caja basta.</h3>
+            <p data-i18n="sc.one.body">Rosa no necesita abrir ninguna página: habla, la caja cobra y le avisa. Las ventas quedan guardadas para cuando quiera verlas.</p>
+            <img class="lp-scale-box" src="/media/state-pagado.jpg" alt="" width="400" height="500" loading="lazy" />
+          </article>
+          <article class="lp-scale-many lp-card">
+            <p class="lp-kicker" data-i18n="sc.many.kicker">Varios puestos</p>
+            <h3 data-i18n="sc.many.title">El panel web, con todo el mes a la vista.</h3>
+            <p data-i18n="sc.many.body">Cuando hay dos o más cajas, el panel junta los puestos en una sola pantalla de escritorio.</p>
+            <ul class="lp-checks">
+              <li data-i18n="sc.many.li1">KPIs del mes: lo verificado por PayPal, lo declarado en efectivo y lo pendiente.</li>
+              <li data-i18n="sc.many.li2">Gráficas de ventas por día, por día de la semana y mapa de calor por hora.</li>
+              <li data-i18n="sc.many.li3">Filtro por puesto, movimientos con búsqueda y exportación a CSV.</li>
+            </ul>
+            <figure class="lp-dash">
+              <img src="/media/dashboard-resumen.jpg" alt="" width="1440" height="900" loading="lazy" data-i18n-alt="sc.many.alt" />
+              <figcaption class="lp-caption" data-i18n="sc.many.caption">Panel web con datos de ejemplo (modo sandbox).</figcaption>
+            </figure>
+          </article>
+        </div>
+      </section>
+
       <!-- Rosa, second take (ElevenLabs, Veo 3.1 Lite, 6 s): the testimonial that closes the story. -->
       <section class="lp-quote" aria-labelledby="quote-text">
         <figure class="lp-shot lp-rosa2">
