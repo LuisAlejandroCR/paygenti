@@ -28,7 +28,7 @@ export function JudgeApp({ terminal }: { terminal: string }) {
     <div class="judge">
       <header class="judge-head">
         <div class="bar">
-          <h1 class="stall">paygent · {t("judge.title")}</h1>
+          <h1 class="stall">Paygenti · {t("judge.title")}</h1>
           <LangToggle />
         </div>
         <p>

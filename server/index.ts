@@ -113,7 +113,7 @@ const app = createApp({
 });
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`paygent listening on http://localhost:${info.port} (paypal: ${paypal.mode})`);
+  console.log(`Paygenti listening on http://localhost:${info.port} (paypal: ${paypal.mode})`);
 });
 
 // Render stops (or sleeps) the service with SIGTERM: let queued Postgres writes land first.

@@ -1,6 +1,6 @@
 {
-  "name": "paygent",
-  "short_name": "paygent",
+  "name": "Paygenti",
+  "short_name": "Paygenti",
   "description": "The AI cashier for street vendors, with a counter soundbox that announces confirmed payments.",
   "id": "/",
   "start_url": "/",

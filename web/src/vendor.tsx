@@ -457,7 +457,7 @@ export function VendorApp({
   return (
     <main class={`vendor phase-${phase}`}>
       <header class="bar">
-        <Title class="stall">{stall || "paygent"}</Title>
+        <Title class="stall">{stall || "Paygenti"}</Title>
         <div class="bar-actions">
           <span class={online ? "status on" : "status"} role="status">
             {online ? t("app.online") : t("app.offline")}
