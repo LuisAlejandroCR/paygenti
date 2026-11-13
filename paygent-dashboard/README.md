@@ -3,11 +3,11 @@
      No confundir con README.md de la raíz (servidor + app web) ni con mobile/README.md (app Expo); el estado
      del proyecto vive en un repo privado. -->
 
-# paygent dashboard
+# Paygenti dashboard
 
 The vendor's month at a glance, on the web: how much PayPal verified, how much she declared, what is
 still waiting for her bank, and where it came from. It is a separate app from the vendor screen in
-`web/`; it reads the same Paygent server.
+`web/`; it reads the same Paygenti server.
 
 Built first in [Lovable](https://lovable.dev) (TanStack Start, React 19, Tailwind CSS 4, Recharts,
 AG Grid, Radix UI) and delivered as a source ZIP, then wired to the server in PR #40. Deployed to
@@ -35,13 +35,13 @@ Every chart has a "view as table" toggle and PNG / CSV export. No horizontal scr
 | | Mock (default) | Live |
 | --- | --- | --- |
 | Start | `npm run dev` → <http://localhost:8080> | `npm run dev:live` → <http://localhost:5192> |
-| Data | Seeded in `src/lib/mock.ts`; "today" is fixed at 2026-10-07 12:00 | The Paygent server through `src/lib/api.ts` |
+| Data | Seeded in `src/lib/mock.ts`; "today" is fixed at 2026-10-07 12:00 | The Paygenti server through `src/lib/api.ts` |
 | Header | "Sandbox" badge (amber) | "Live" badge (green) |
 | PIN | `1234` for every stall, checked in the browser | The stall's real PIN, checked by the server |
 
 Live mode is on when `VITE_PAYGENT_API` is set. `npm run dev:live` sets it to `http://localhost:8787`
 unless you set another value, and the Vite dev server proxies `/api` there. The proxy is needed because
-the Paygent server sends no CORS headers, so the browser has to stay on one origin. Start the server
+the Paygenti server sends no CORS headers, so the browser has to stay on one origin. Start the server
 first (`npm run dev` at the repo root).
 
 In live mode the PIN opens an 8-hour session for that stall (`POST /api/stalls/:id/backoffice/session`).

@@ -238,7 +238,7 @@ function Cobrar({ close }: { close: () => void }) {
   const [error, setError] = useState(false);
   // Sandbox only: a fake link, new for every rail picked.
   const link = useMemo(
-    () => `https://pay.paygent.app/${stall.id}/${Date.now().toString(36)}`,
+    () => `https://pay.paygenti.app/${stall.id}/${Date.now().toString(36)}`,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stall.id, rail],
   );
@@ -876,7 +876,7 @@ function Exportar({ close }: { close: () => void }) {
         onClick={() => {
           downloadBlob(
             toCsv(rows.map((r) => Object.fromEntries(cols.map((c) => [c, r[c as keyof Tx]])))),
-            `paygent-${from}-${to}.csv`,
+            `paygenti-${from}-${to}.csv`,
           );
           toast.success(t("done"));
           close();
