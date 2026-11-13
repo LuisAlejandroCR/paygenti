@@ -1,8 +1,8 @@
-<!-- README.md: portada pública de paygent para jurados y usuarios — qué es, arquitectura, prueba de
+<!-- README.md: portada pública de Paygenti para jurados y usuarios — qué es, arquitectura, prueba de
      60 segundos, cómo correr servidor, web, dashboard y móvil, todas las variables de entorno, rieles,
      accesibilidad, el candado de políticas, los sponsors y lo que falta verificar. La spec, el registro de
      decisiones y el estado interno viven en un repo privado; aquí solo queda lo público. -->
-# paygenty
+# Paygenti
 
 **The AI cashier for street vendors.** Say the price, the customer taps or scans, your phone says
 "Received: 95 pesos".
@@ -136,12 +136,12 @@ suppliers (name, PayPal email or phone, currency) and pays them from the PayPal 
   the app needs **Payouts** enabled (developer.paypal.com → your app → Features); otherwise the panel
   shows `PAYOUTS_NOT_ENABLED`. The sandbox does not support phone payouts: use an email.
 
-## Several paygents, one owner (and Claude over MCP)
+## Several Paygentis, one owner (and Claude over MCP)
 
 - One owner can run several stalls. The demo seeds a second one, **Don Beto — Tacos** (PIN `5678`,
   terminal `beto-01`). Each stall has its own PIN, caps, catalog, suppliers and records: one stall's
   refund or payout budget can never be spent from another.
-- With 2+ stalls the back office (web and phone) shows a stall switcher and **All my paygents**
+- With 2+ stalls the back office (web and phone) shows a stall switcher and **All my Paygentis**
   (`/backoffice/all`): today's totals per currency, never converted or mixed.
 - **Claude:** create a token in `/backoffice` → *Claude access (MCP)* (only its SHA-256 is stored; it
   reaches the stalls you are signed in to; revoke any time) and connect Claude to `<your-url>/mcp`
@@ -434,7 +434,7 @@ Internal specs, the decision log and research notes are kept in a private repo.
 
 ## En español
 
-**paygent** es el cajero con IA para vendedores ambulantes: dices el precio, el cliente toca o
+**Paygenti** es el cajero con IA para vendedores ambulantes: dices el precio, el cliente toca o
 escanea, y tu teléfono (o la caja de voz) dice "¡Pagado! noventa y cinco pesos". La app está en inglés y español (sigue el idioma
 del navegador; botón EN/ES arriba).
 
