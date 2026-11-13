@@ -107,6 +107,10 @@ const es = {
   "sc.many.li2": "Gráficas de ventas por día, por día de la semana y mapa de calor por hora.",
   "sc.many.li3": "Filtro por puesto, movimientos con búsqueda y exportación a CSV.",
   "sc.many.alt": "Panel web de Paygenti: resumen del mes con KPIs y gráficas",
+  "sc.many.altSales":
+    "Panel web de Paygenti: ventas diarias, ventas por día de la semana y mapa de calor de las mejores horas",
+  "sc.many.altStalls":
+    "Panel web de Paygenti: selector para cambiar entre dos puestos, Tacos Doña Lupe y Açaí da Praia",
   "sc.many.caption": "Panel web con datos de ejemplo (modo sandbox).",
   "quote.text": "«Paygenti me ayuda a tener el proceso más claro y ordenado.»",
   "quote.who": "Rosa, tamales y atole · Recreación",
@@ -254,6 +258,10 @@ const en: Record<LandingKey, string> = {
   "sc.many.li2": "Sales charts by day and weekday, plus an hour-by-hour heatmap.",
   "sc.many.li3": "Filter by stall, searchable transactions and CSV export.",
   "sc.many.alt": "Paygenti web dashboard: month summary with KPIs and charts",
+  "sc.many.altSales":
+    "Paygenti web dashboard: daily sales, sales by weekday and a heatmap of the best hours to sell",
+  "sc.many.altStalls":
+    "Paygenti web dashboard: switcher between two stalls, Tacos Doña Lupe and Açaí da Praia",
   "sc.many.caption": "Web dashboard with sample data (sandbox mode).",
   "quote.text": "“Paygenti helps me keep the whole process clearer and more organized.”",
   "quote.who": "Rosa, tamales and atole · Recreation",

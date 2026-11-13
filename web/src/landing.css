@@ -942,6 +942,16 @@
   border: 1px solid var(--border);
   box-shadow: 0 24px 48px -28px oklch(0.22 0.028 30 / 0.55);
 }
+.lp-dash-thumbs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.lp-dash-thumbs img {
+  border-radius: 8px;
+  box-shadow: 0 12px 24px -18px oklch(0.22 0.028 30 / 0.5);
+}
 @media (min-width: 880px) {
   .lp-scale {
     grid-template-columns: 1fr 2.2fr;
