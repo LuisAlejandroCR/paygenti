@@ -1,13 +1,13 @@
 // e2e/stalls.spec.ts: one owner, two paygents — the stall switcher moves the back office to Don Beto
-// (his own PIN), "All my paygents" shows totals per currency, and a refund Claude proposed over
+// (his own PIN), "All my Paygentis" shows totals per currency, and a refund Claude proposed over
 // /mcp waits in the approvals inbox until the owner approves it with the stall PIN.
 import { apiSale, expect, expectNoOverflow, login, test } from "./fixtures";
 
-const ALL = { en: "All my paygents", es: "Todos mis paygents" };
+const ALL = { en: "All my Paygentis", es: "Todos mis Paygentis" };
 const APPROVE = { en: "Approve", es: "Aprobar" };
 const APPROVED = { en: "Approved: the money moved.", es: "Aprobado: el dinero se movió." };
 
-test("switcher moves to Don Beto, and All my paygents sums per currency", async ({
+test("switcher moves to Don Beto, and All my Paygentis sums per currency", async ({
   page,
   tx,
   lang,

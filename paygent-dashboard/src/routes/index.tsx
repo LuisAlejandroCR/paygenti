@@ -75,13 +75,13 @@ export const Route = createFileRoute("/")({
   }),
   head: () => ({
     meta: [
-      { title: "Paygent — Tus ventas del puesto, claras" },
+      { title: "Paygenti — Tus ventas del puesto, claras" },
       {
         name: "description",
         content:
           "Panel de pagos para vendedores ambulantes: ventas verificadas y autodeclaradas, rieles, movimientos y metas.",
       },
-      { property: "og:title", content: "Paygent — Tus ventas del puesto, claras" },
+      { property: "og:title", content: "Paygenti — Tus ventas del puesto, claras" },
       {
         property: "og:description",
         content:
@@ -126,7 +126,7 @@ function Dashboard() {
     stall: raw.stall ?? stalls[0]?.id ?? "",
   } as const;
   const stall = stalls.find((s) => s.id === search.stall) ??
-    stalls[0] ?? { id: "", name: "Paygent", currency: "MXN", rails: [] };
+    stalls[0] ?? { id: "", name: "Paygenti", currency: "MXN", rails: [] };
   setActiveStall(stall.id);
   const pin = usePin();
   const [overlay, setOverlay] = useState<Overlay>(null);

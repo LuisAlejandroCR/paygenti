@@ -137,7 +137,7 @@ describe("passkey unlock", () => {
     const { enrol } = setup();
     const { opts, reg } = await enrol();
     expect(opts.status).toBe(200);
-    expect(opts.data.rp).toEqual({ name: "Paygent", id: "paygent.test" });
+    expect(opts.data.rp).toEqual({ name: "Paygenti", id: "paygent.test" });
     expect(opts.data.authenticatorSelection).toMatchObject({
       authenticatorAttachment: "platform",
       userVerification: "required",

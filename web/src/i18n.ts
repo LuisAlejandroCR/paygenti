@@ -133,8 +133,8 @@ const en = {
   "bo.pin": "Vendor PIN",
   "bo.enter": "Enter",
   "bo.exit": "Sign out",
-  "owner.switch": "Switch paygent",
-  "owner.all": "All my paygents",
+  "owner.switch": "Switch Paygenti",
+  "owner.all": "All my Paygentis",
   "owner.totals": "Today, per currency",
   "owner.stallsCount": "{count} stalls",
   "owner.noFx": "Each currency is totaled on its own; amounts are never converted or mixed.",
@@ -351,7 +351,7 @@ const en = {
   "passport.print": "Print",
   "footprint.title": "Financial footprint",
   "footprint.pitch":
-    "No bank history? Your sales are your history. Paygent helps you show it and reach your goals.",
+    "No bank history? Your sales are your history. Paygenti helps you show it and reach your goals.",
   "footprint.disclaimer":
     "Descriptive indicators only. This is not a credit score and not a loan offer.",
   "footprint.verified": "Verified: PayPal-confirmed sales",
@@ -410,7 +410,7 @@ const en = {
   "verify.malformed": "INVALID: this is not a readable passport link.",
   "verify.valid": "VALID",
   "verify.invalid": "INVALID",
-  "verify.validHint": "The signature matches: these figures are exactly as paygent issued them.",
+  "verify.validHint": "The signature matches: these figures are exactly as Paygenti issued them.",
   "verify.invalidHint":
     "The signature does not match: the figures were changed or the passport was not issued by this server.",
   "checkout.payWith": "Choose how to pay",
@@ -504,7 +504,7 @@ const en = {
   "say.minutes": "{n} minutes",
   "say.oneMinuteLeft": "One minute left to pay.",
   "vendor.terminalNotFoundHint":
-    "Check the link or the sticker you opened, or ask whoever set up paygent for the right one.",
+    "Check the link or the sticker you opened, or ask whoever set up Paygenti for the right one.",
   "vendor.goSettings": "Open stall settings",
   "vendor.unlockTitle": "Unlock this phone to charge",
   "vendor.unlockHint":
@@ -673,8 +673,8 @@ const es: Dict = {
   "bo.pin": "PIN de la vendedora",
   "bo.enter": "Entrar",
   "bo.exit": "Salir",
-  "owner.switch": "Cambiar de paygent",
-  "owner.all": "Todos mis paygents",
+  "owner.switch": "Cambiar de Paygenti",
+  "owner.all": "Todos mis Paygentis",
   "owner.totals": "Hoy, por moneda",
   "owner.stallsCount": "{count} puestos",
   "owner.noFx": "Cada moneda se suma por separado; los montos nunca se convierten ni se mezclan.",
@@ -891,7 +891,7 @@ const es: Dict = {
   "passport.print": "Imprimir",
   "footprint.title": "Huella financiera",
   "footprint.pitch":
-    "¿Sin historial bancario? Tus ventas son tu historial. Paygent te ayuda a mostrarlo y alcanzar tus metas.",
+    "¿Sin historial bancario? Tus ventas son tu historial. Paygenti te ayuda a mostrarlo y alcanzar tus metas.",
   "footprint.disclaimer":
     "Solo indicadores descriptivos. No es un puntaje de crédito ni una oferta de préstamo.",
   "footprint.verified": "Verificado: ventas confirmadas por PayPal",
@@ -951,7 +951,7 @@ const es: Dict = {
   "verify.malformed": "INVÁLIDO: esto no es un enlace de pasaporte legible.",
   "verify.valid": "VÁLIDO",
   "verify.invalid": "INVÁLIDO",
-  "verify.validHint": "La firma coincide: estas cifras son exactamente las que emitió paygent.",
+  "verify.validHint": "La firma coincide: estas cifras son exactamente las que emitió Paygenti.",
   "verify.invalidHint":
     "La firma no coincide: las cifras se cambiaron o el pasaporte no lo emitió este servidor.",
   "checkout.payWith": "Elige cómo pagar",
@@ -1043,7 +1043,7 @@ const es: Dict = {
   "say.minutes": "{n} minutos",
   "say.oneMinuteLeft": "Queda un minuto para pagar.",
   "vendor.terminalNotFoundHint":
-    "Revisa el enlace o el sticker que abriste, o pide el correcto a quien configuró paygent.",
+    "Revisa el enlace o el sticker que abriste, o pide el correcto a quien configuró Paygenti.",
   "vendor.goSettings": "Abrir ajustes del puesto",
   "vendor.unlockTitle": "Desbloquea este teléfono para cobrar",
   "vendor.unlockHint":

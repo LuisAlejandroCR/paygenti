@@ -473,7 +473,7 @@ void handlePress() {
 void setup() {
   Serial.begin(115200);
   delay(300);
-  Serial.println("\n== paygent voice box ==");
+  Serial.println("\n== Paygenti voice box ==");
   pinMode(BUTTON, INPUT_PULLUP);
 
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI, TFT_CS);

@@ -39,7 +39,7 @@ function Navigator() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <Stack.Screen name="index" options={{ title: "paygent" }} />
+        <Stack.Screen name="index" options={{ title: "Paygenti" }} />
         <Stack.Screen name="settings" options={{ title: t("nav.settings") }} />
         <Stack.Screen name="onboarding" options={{ title: t("settings.stall") }} />
         <Stack.Screen name="soundbox" options={{ title: t("nav.soundbox") }} />

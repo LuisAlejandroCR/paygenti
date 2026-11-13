@@ -3,7 +3,7 @@
 export type Lang = "es" | "pt" | "en";
 
 const es = {
-  page_title: "Paygent — Tus ventas del puesto, claras",
+  page_title: "Paygenti — Tus ventas del puesto, claras",
   rail_card: "Tarjeta",
   rail_cash: "Efectivo",
   rail_bank: "Banco",
@@ -185,7 +185,7 @@ const es = {
   empty_month_hint: "Cuando cobres, aquí verás por dónde entró cada peso y qué se vende más.",
   no_prev: "sin mes anterior",
   server_down: "No hay conexión con el servidor",
-  server_down_hint: "Revisa que el servidor de Paygent esté encendido y vuelve a intentar.",
+  server_down_hint: "Revisa que el servidor de Paygenti esté encendido y vuelve a intentar.",
   no_stalls: "Este servidor todavía no tiene puestos",
   pin_locked: "Demasiados intentos. Espera unos minutos y vuelve a intentar.",
   pin_offline: "Sin conexión con el servidor. Tu PIN no se revisó.",
@@ -204,7 +204,7 @@ type Dict = typeof es;
 
 const pt: Dict = {
   ...es,
-  page_title: "Paygent — As vendas da sua banca, claras",
+  page_title: "Paygenti — As vendas da sua banca, claras",
   rail_card: "Cartão",
   rail_cash: "Dinheiro",
   rail_bank: "Banco",
@@ -353,7 +353,7 @@ const pt: Dict = {
   empty_month_hint: "Quando você cobrar, verá aqui por onde entrou cada real e o que mais vende.",
   no_prev: "sem mês anterior",
   server_down: "Sem conexão com o servidor",
-  server_down_hint: "Verifique se o servidor do Paygent está ligado e tente de novo.",
+  server_down_hint: "Verifique se o servidor do Paygenti está ligado e tente de novo.",
   no_stalls: "Este servidor ainda não tem barracas",
   pin_locked: "Muitas tentativas. Espere alguns minutos e tente de novo.",
   pin_offline: "Sem conexão com o servidor. Seu PIN não foi verificado.",
@@ -371,7 +371,7 @@ const pt: Dict = {
 
 const en: Dict = {
   ...es,
-  page_title: "Paygent — Your stall sales, made clear",
+  page_title: "Paygenti — Your stall sales, made clear",
   rail_card: "Card",
   rail_cash: "Cash",
   rail_bank: "Bank",
@@ -549,7 +549,7 @@ const en: Dict = {
   empty_month_hint: "Once you charge, you'll see here where each sale came in and what sells best.",
   no_prev: "no previous month",
   server_down: "Can't reach the server",
-  server_down_hint: "Check that the Paygent server is running and try again.",
+  server_down_hint: "Check that the Paygenti server is running and try again.",
   no_stalls: "This server has no stalls yet",
   pin_locked: "Too many tries. Wait a few minutes and try again.",
   pin_offline: "No connection to the server. Your PIN was not checked.",

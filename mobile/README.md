@@ -2,12 +2,12 @@
      EAS (APK y TestFlight), probar NFC/HCE y sus límites. Primero en inglés, luego sección en español.
      No confundir con README.md de la raíz (servidor + web) ni con docs/handoff.md (estado y pendientes). -->
 
-# paygent mobile (iOS + Android)
+# Paygenti mobile (iOS + Android)
 
 React Native + Expo SDK 57 vendor app: push-to-talk sale, QR, live PAID (haptics + the voice box's
 recorded chime, "¡Pagado!" and amount via `expo-audio`, #57),
 soundbox mode, NFC sticker writer, Android phone-to-phone tap (HCE), a PIN back office and a month
-summary. It talks to the existing paygent server API; money, currency and types come from the repo's
+summary. It talks to the existing Paygenti server API; money, currency and types come from the repo's
 `shared/` (Metro `watchFolders` + the `@shared/*` alias), never copied.
 
 Needs a **dev client** (not Expo Go): NFC, HCE and speech recognition are native modules.
@@ -19,7 +19,7 @@ Needs a **dev client** (not Expo Go): NFC, HCE and speech recognition are native
 | `index.tsx` | Sale: push-to-talk or typed cart, keypad, Charge → QR of `PUBLIC_URL/t/:terminal`, countdown, live status, PAID flood; first run goes to onboarding |
 | `resumen.tsx` | Month at a glance (#39): verified big, self-declared and "to confirm" apart (never summed), delta vs last month, day strip, bank transfers to confirm with the stall PIN |
 | `perfil.tsx` | Stall switcher (#31) and links to settings, stall setup and back office. Goals, rails and statement import stay on the web |
-| `backoffice.tsx` | PIN login, today's sales, refund with the PIN re-entered, today's ledger; with 2+ stalls: switcher, "All my paygents" and Claude's proposals to approve |
+| `backoffice.tsx` | PIN login, today's sales, refund with the PIN re-entered, today's ledger; with 2+ stalls: switcher, "All my Paygentis" and Claude's proposals to approve |
 | `soundbox.tsx` | Kiosk mode: screen awake, one big state, each paid sale announced once even across reconnects |
 | `nfc.tsx` | Write the sticker; Android tap mode (HCE) |
 | `onboarding.tsx` | Stall name, country and charge currency |

@@ -72,7 +72,7 @@ export class Passkeys {
     rp: RelyingParty,
   ): Promise<PublicKeyCredentialCreationOptionsJSON> {
     const options = await generateRegistrationOptions({
-      rpName: "Paygent",
+      rpName: "Paygenti",
       rpID: rp.rpID,
       userName: terminal.id,
       userDisplayName: terminal.label,
