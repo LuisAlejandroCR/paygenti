@@ -972,3 +972,258 @@
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }
 }
+
+/* ================= Motion that comes from the product, not decoration ================= */
+/* Hero: a little "box screen" that walks through the box's own states, with a voice wave. */
+.lp-hero-media {
+  position: relative;
+}
+.lp-live {
+  position: absolute;
+  left: -12px;
+  bottom: 64px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% + 24px);
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 36px -18px oklch(0.15 0.02 30 / 0.6);
+  --tone: var(--action);
+  transition: border-color 300ms ease;
+}
+.lp-live[data-state="paid"] {
+  --tone: var(--success);
+  border-color: var(--success);
+}
+.lp-live-state {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.98rem;
+  white-space: nowrap;
+}
+.lp-live-state[hidden] {
+  display: none;
+}
+.lp-live-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+}
+.lp-live-wave i {
+  width: 3px;
+  height: 30%;
+  border-radius: 2px;
+  background: var(--tone);
+}
+.lp-live[data-state="paid"] .lp-live-wave i {
+  height: 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-live[data-state="listen"] .lp-live-wave i {
+    animation: lp-voice 900ms ease-in-out infinite;
+  }
+  .lp-live-wave i:nth-child(2) {
+    animation-delay: -120ms !important;
+  }
+  .lp-live-wave i:nth-child(3) {
+    animation-delay: -480ms !important;
+  }
+  .lp-live-wave i:nth-child(4) {
+    animation-delay: -240ms !important;
+  }
+  .lp-live-wave i:nth-child(5) {
+    animation-delay: -600ms !important;
+  }
+  .lp-live-wave i:nth-child(6) {
+    animation-delay: -360ms !important;
+  }
+  .lp-live-wave i:nth-child(7) {
+    animation-delay: -60ms !important;
+  }
+  .lp-live-state:not([hidden]) {
+    animation: lp-pop 380ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  }
+  .lp-live[data-state="paid"] {
+    animation: lp-ring 1.2s ease-out;
+  }
+}
+@keyframes lp-voice {
+  0%,
+  100% {
+    height: 25%;
+  }
+  50% {
+    height: 100%;
+  }
+}
+@keyframes lp-pop {
+  from {
+    transform: translateY(6px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes lp-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--success) 60%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 22px transparent;
+  }
+}
+
+/* Sales ticker: the stall's day adding up, receipt by receipt. */
+.lp-ticker {
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  padding: 0 var(--lp-gutter) 8px;
+}
+.lp-ticker-label {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.lp-ticker-track {
+  overflow: hidden;
+  border-block: 1px dashed var(--border);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.lp-ticker-track > div {
+  display: flex;
+  width: max-content;
+  gap: 12px;
+  padding: 10px 0;
+}
+.lp-tick {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+.lp-tick b {
+  font-family: var(--font-display);
+  color: var(--action-text);
+}
+.lp-tick em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--success);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-ticker-track > div {
+    animation: lp-ticker 38s linear infinite;
+  }
+  .lp-ticker:hover .lp-ticker-track > div {
+    animation-play-state: paused;
+  }
+}
+@keyframes lp-ticker {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* 8 of 10 payments in cash: ten coins, eight fill in. */
+.lp-stats dt {
+  display: grid;
+  gap: 6px;
+}
+.lp-coins {
+  display: flex;
+  gap: 3px;
+}
+.lp-coins i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--action-text);
+}
+.lp-coins i:nth-child(-n + 8) {
+  background: var(--action-text);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-js [data-chapter]:not(.is-in) .lp-coins i {
+    background: transparent;
+  }
+  .lp-coins i {
+    transition: background 200ms ease;
+  }
+  .lp-coins i:nth-child(2) {
+    transition-delay: 80ms;
+  }
+  .lp-coins i:nth-child(3) {
+    transition-delay: 160ms;
+  }
+  .lp-coins i:nth-child(4) {
+    transition-delay: 240ms;
+  }
+  .lp-coins i:nth-child(5) {
+    transition-delay: 320ms;
+  }
+  .lp-coins i:nth-child(6) {
+    transition-delay: 400ms;
+  }
+  .lp-coins i:nth-child(7) {
+    transition-delay: 480ms;
+  }
+  .lp-coins i:nth-child(8) {
+    transition-delay: 560ms;
+  }
+}
+
+/* Chapter numbers fill in when their chapter arrives. */
+@media (prefers-reduced-motion: no-preference) {
+  .lp-num {
+    background: linear-gradient(var(--action-text), var(--action-text)) no-repeat 0 100% / 100% 0%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    transition: background-size 900ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .lp-js .is-in .lp-num {
+    background-size: 100% 100%;
+  }
+}
+
+/* Paid chapter: sound rings leave the stage once, like the box's chime. */
+.lp-chapter-paid .lp-stage {
+  position: relative;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lp-js .lp-chapter-paid.is-in .lp-stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    animation: lp-chime 1.6s ease-out 400ms 2 both;
+  }
+}
+@keyframes lp-chime {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--success) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 36px transparent;
+  }
+}
+@media (max-width: 879px) {
+  .lp-live {
+    left: 8px;
+    bottom: 56px;
+  }
+}

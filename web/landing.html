@@ -93,11 +93,23 @@
               <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
             </video>
           </div>
+          <div class="lp-live" aria-hidden="true" data-live>
+            <div class="lp-live-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <p class="lp-live-state" data-live-state="listen"><span data-i18n="chip.1">Te escucho…</span></p>
+            <p class="lp-live-state" data-live-state="qr" hidden><span data-i18n="chip.2">40 MXN · Escanea para pagar</span></p>
+            <p class="lp-live-state" data-live-state="paid" hidden><span data-i18n="chip.3">¡Pagado! Capturado por PayPal</span></p>
+          </div>
           <figcaption id="hero-caption" class="lp-caption" data-caption data-i18n="hero.caption">
             Rosa vende tamales y atole en la calle. Recreación.
           </figcaption>
         </figure>
       </section>
+
+      <!-- Sales ticker: example receipts sliding by, like the stall's day adding up (decorative). -->
+      <div class="lp-ticker" aria-hidden="true">
+        <p class="lp-ticker-label" data-i18n="mq.label">Ejemplo de un día en el puesto</p>
+        <div class="lp-ticker-track"><div><span class="lp-tick"><b>+40 MXN</b> tamal + atole <em>PayPal ✓</em></span><span class="lp-tick"><b>+25 MXN</b> 2 tacos <em>PayPal ✓</em></span><span class="lp-tick"><b>+95 MXN</b> mole para llevar <em>PayPal ✓</em></span><span class="lp-tick"><b>+18 MXN</b> café de olla <em>PayPal ✓</em></span><span class="lp-tick"><b>+60 MXN</b> tlayuda <em>PayPal ✓</em></span><span class="lp-tick"><b>+12 MXN</b> agua fresca <em>PayPal ✓</em></span><span class="lp-tick"><b>+40 MXN</b> tamal + atole <em>PayPal ✓</em></span><span class="lp-tick"><b>+25 MXN</b> 2 tacos <em>PayPal ✓</em></span><span class="lp-tick"><b>+95 MXN</b> mole para llevar <em>PayPal ✓</em></span><span class="lp-tick"><b>+18 MXN</b> café de olla <em>PayPal ✓</em></span><span class="lp-tick"><b>+60 MXN</b> tlayuda <em>PayPal ✓</em></span><span class="lp-tick"><b>+12 MXN</b> agua fresca <em>PayPal ✓</em></span></div></div>
+      </div>
 
       <!-- The story: five chapters, each a text column and one media "stage". -->
       <div class="lp-story">
@@ -125,14 +137,14 @@
               </p>
               <dl class="lp-stats">
                 <div>
-                  <dt>55&nbsp;%</dt>
+                  <dt data-count="55" data-suffix="&nbsp;%"><span class="lp-count">55&nbsp;%</span></dt>
                   <dd>
                     <span data-i18n="ch1.stat1">de los trabajadores en México son informales</span>
                     <a href="https://forbes.com.mx/tasa-de-informalidad-laboral-en-mexico-sube-a-55-en-el-cuarto-trimestre-de-2025/" data-i18n="ch1.src1">INEGI, 4.º trimestre 2025</a>
                   </dd>
                 </div>
                 <div>
-                  <dt>8&nbsp;/&nbsp;10</dt>
+                  <dt data-count="8" data-suffix="&nbsp;/&nbsp;10"><span class="lp-count">8&nbsp;/&nbsp;10</span><span class="lp-coins" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></dt>
                   <dd>
                     <span data-i18n="ch1.stat2">pagos diarios en México se hacen en efectivo</span>
                     <a href="https://abm.org.mx/sala-de-prensa/img/fotogaleria/Presentacion_03_12_2025.pdf" data-i18n="ch1.src2">ABM, 2024</a>
