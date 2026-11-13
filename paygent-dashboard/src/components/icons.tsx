@@ -1,6 +1,7 @@
 // icons.tsx: inline SVG icon set, rail colors/names/icons and the empty-state illustration (no emoji).
 import type { SVGProps } from "react";
 import type { Rail } from "@/lib/types";
+import type { TKey } from "@/lib/i18n";
 
 type P = SVGProps<SVGSVGElement> & { size?: number };
 const base = (size = 20): SVGProps<SVGSVGElement> => ({
@@ -273,6 +274,17 @@ export const RAIL_NAME: Record<Rail, string> = {
   breb: "Bre-B",
   bank: "Banco",
 };
+/** Rails whose name is a common word, not a brand: their label comes from the dictionary. */
+const RAIL_KEY: Partial<Record<Rail, TKey>> = {
+  card: "rail_card",
+  cash: "rail_cash",
+  bank: "rail_bank",
+};
+/** Rail label in the current language (brands stay as they are). */
+export function railName(rail: Rail, t: (k: TKey) => string) {
+  const k = RAIL_KEY[rail];
+  return k ? t(k) : RAIL_NAME[rail];
+}
 
 export function RailIcon({ rail, size = 20 }: { rail: Rail; size?: number }) {
   const p = base(size);

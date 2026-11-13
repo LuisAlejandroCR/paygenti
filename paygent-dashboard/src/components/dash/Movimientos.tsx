@@ -9,7 +9,7 @@ import {
   Icon,
   RAIL_COLOR,
   railChip,
-  RAIL_NAME,
+  railName,
   RailIcon,
   EmptyIllustration,
 } from "@/components/icons";
@@ -99,7 +99,7 @@ export function Movimientos() {
       if (search.q) {
         const s = search.q.toLowerCase();
         r = r.filter((x) =>
-          `${x.amount} ${RAIL_NAME[x.rail]} ${t(x.status)} ${t(x.type)} ${x.item} ${x.currency}`
+          `${x.amount} ${railName(x.rail, t)} ${t(x.status)} ${t(x.type)} ${x.item} ${x.currency}`
             .toLowerCase()
             .includes(s),
         );
@@ -153,7 +153,7 @@ export function Movimientos() {
       clear: () => nav({ filter: undefined }),
     });
   if (search.rail)
-    chips.push({ label: RAIL_NAME[search.rail], clear: () => nav({ rail: undefined }) });
+    chips.push({ label: railName(search.rail, t), clear: () => nav({ rail: undefined }) });
   if (search.q) chips.push({ label: `"${search.q}"`, clear: () => setText("") });
 
   const pendingSel = selected; // confirm flow validates which are pending
@@ -215,7 +215,7 @@ export function Movimientos() {
                 search.rail === r ? "border-primary bg-primary text-primary-foreground" : "bg-card",
               )}
             >
-              <RailIcon rail={r} size={16} /> {RAIL_NAME[r]}
+              <RailIcon rail={r} size={16} /> {railName(r, t)}
             </button>
           ))}
         </div>
@@ -493,7 +493,7 @@ function SwipeCard({
             className="block text-lg font-bold"
           />
           <p className="text-xs text-muted-foreground">
-            {RAIL_NAME[tx.rail]} · {time}
+            {railName(tx.rail, t)} · {time}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">

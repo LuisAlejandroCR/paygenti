@@ -11,7 +11,7 @@ still waiting for her bank, and where it came from. It is a separate app from th
 
 Built first in [Lovable](https://lovable.dev) (TanStack Start, React 19, Tailwind CSS 4, Recharts,
 AG Grid, Radix UI) and delivered as a source ZIP, then wired to the server in PR #40. Deployed to
-Vercel in live mode against the Render server (see [Deploy](#deploy)); not part of CI.
+Vercel in live mode under `paygenti.vercel.app/panel` (see [Deploy](#deploy)); not part of CI.
 
 ## Screens
 
@@ -79,14 +79,17 @@ it the server sends no CORS headers, so serve the dashboard from the same origin
 
 ## Deploy
 
-Vercel project `paygenti-dashboard`, root directory `paygent-dashboard/`, in **live mode**:
-`vercel.json` builds with `VITE_PAYGENT_API=https://paygent-rirl.onrender.com` and
-`NITRO_PRESET=vercel npm run build`, so the browser calls the Render server directly and each stall
-logs in with its real PIN. The server must list the dashboard's origin in `CORS_ORIGINS`
-(`https://paygenti-dashboard.vercel.app`), or every call fails. Nitro writes the Vercel
-Build Output (`.vercel/output`) instead of the Cloudflare bundle. Preview: `npx vercel deploy --target=preview`
-from this folder (plain `npx vercel deploy` goes to production with CLI 65). For mock mode, drop
-`VITE_PAYGENT_API` from the build command. To try the same build locally: `NITRO_PRESET=node-server npm run build`, then
+Vercel project `paygenti-dashboard`, root directory `paygent-dashboard/`, in **live mode**, served
+under the base path `/panel` (Vite `base`, `tanstackStart.router.basepath` and Nitro `baseURL` in
+`nitro.config.ts`). Users open it at `https://paygenti.vercel.app/panel`: the main site's root
+`vercel.json` rewrites `/panel/*` to this project. `vercel.json` builds with
+`VITE_PAYGENT_API=same-origin` and `NITRO_PRESET=vercel npm run build`, so the browser calls `/api/...`
+on paygenti.vercel.app, which the main site already proxies to Render: no CORS needed. Opened on
+its own domain (`paygenti-dashboard.vercel.app/panel`) the API calls have no proxy and fail. Nitro
+writes the Vercel Build Output (`.vercel/output`) instead of the Cloudflare bundle. Preview:
+`npx vercel deploy --target=preview` from this folder (plain `npx vercel deploy` goes to production
+with CLI 65). For mock mode, drop `VITE_PAYGENT_API` from the build command. To try the same build
+locally: `NITRO_PRESET=node-server npm run build`, then
 `node .output/server/index.mjs` (port 3000, or `PORT`).
 
 ## Data layer
@@ -130,7 +133,7 @@ Routing conventions for `src/routes/`: [src/routes/README.md](src/routes/README.
 
 Panel web del mes de la vendedora: lo verificado por PayPal, lo autodeclarado y lo que espera
 confirmación del banco, siempre por separado. Nació en Lovable y se conectó al servidor en el PR #40;
-se despliega en Vercel en modo simulado (proyecto `paygenti-dashboard`) y aún no corre en CI.
+se despliega en Vercel en modo real (proyecto `paygenti-dashboard`), servido en `paygenti.vercel.app/panel` y aún no corre en CI.
 
 - `npm ci`, luego `npm run dev` (datos simulados, puerto 8080, PIN `1234`) o `npm run dev:live` (datos
   reales del servidor en `:8787`, puerto 5192, PIN real de cada puesto).

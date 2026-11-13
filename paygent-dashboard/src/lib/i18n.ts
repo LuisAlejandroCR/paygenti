@@ -3,6 +3,10 @@
 export type Lang = "es" | "pt" | "en";
 
 const es = {
+  page_title: "Paygent — Tus ventas del puesto, claras",
+  rail_card: "Tarjeta",
+  rail_cash: "Efectivo",
+  rail_bank: "Banco",
   hello: "Hola",
   tabs_resumen: "Resumen",
   tabs_ventas: "Ventas",
@@ -200,6 +204,10 @@ type Dict = typeof es;
 
 const pt: Dict = {
   ...es,
+  page_title: "Paygent — As vendas da sua banca, claras",
+  rail_card: "Cartão",
+  rail_cash: "Dinheiro",
+  rail_bank: "Banco",
   hello: "Olá",
   tabs_resumen: "Resumo",
   tabs_ventas: "Vendas",
@@ -363,6 +371,10 @@ const pt: Dict = {
 
 const en: Dict = {
   ...es,
+  page_title: "Paygent — Your stall sales, made clear",
+  rail_card: "Card",
+  rail_cash: "Cash",
+  rail_bank: "Bank",
   hello: "Hi",
   tabs_resumen: "Overview",
   tabs_ventas: "Sales",

@@ -11,7 +11,7 @@ import {
   type IDatasource,
   type GridApi,
 } from "ag-grid-community";
-import { RAIL_NAME } from "@/components/icons";
+import { railName } from "@/components/icons";
 import { usePrefs } from "@/lib/prefs";
 import type { Tx } from "@/lib/types";
 
@@ -83,7 +83,7 @@ export default function MovGrid({
         headerName: `${t("rail")} · ${t("local_filter")}`,
         flex: 1,
         sortable: true,
-        valueFormatter: (p) => (p.value ? RAIL_NAME[p.value as Tx["rail"]] : ""),
+        valueFormatter: (p) => (p.value ? railName(p.value as Tx["rail"], t) : ""),
       },
       {
         field: "status",
