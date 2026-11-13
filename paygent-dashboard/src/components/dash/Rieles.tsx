@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Icon, RAIL_COLOR, railChip, RAIL_NAME, RailIcon } from "@/components/icons";
+import { Icon, RAIL_COLOR, railChip, railName, RailIcon } from "@/components/icons";
 import { getRails, LIVE, setRailEnabled } from "@/lib/api";
 import { usePrefs } from "@/lib/prefs";
 import { inMonth, isSale, toStall } from "@/lib/stats";
@@ -160,7 +160,7 @@ export function Rieles() {
                     onClick={() => open({ kind: "rail", rail: r.rail })}
                     className="block max-w-full truncate text-left font-bold cursor-pointer after:absolute after:inset-0 after:rounded-[inherit] after:content-['']"
                   >
-                    {RAIL_NAME[r.rail]}
+                    {railName(r.rail, t)}
                   </button>
                   <p className="text-xs text-muted-foreground">
                     {disabled ? t(r.reason as TKey) : r.enabled ? t("on") : t("off")}
@@ -170,9 +170,9 @@ export function Rieles() {
                   <Switch
                     checked={r.enabled && !disabled}
                     disabled={disabled || LIVE}
-                    aria-label={`${RAIL_NAME[r.rail]} ${r.enabled ? t("on") : t("off")}`}
+                    aria-label={`${railName(r.rail, t)} ${r.enabled ? t("on") : t("off")}`}
                     onCheckedChange={async (v) => {
-                      if (await pin(`${RAIL_NAME[r.rail]}: ${v ? t("on") : t("off")}`))
+                      if (await pin(`${railName(r.rail, t)}: ${v ? t("on") : t("off")}`))
                         mut.mutate({ rail: r.rail, enabled: v });
                     }}
                   />
@@ -238,7 +238,7 @@ export function Rieles() {
                     className="relative z-10 mt-3 inline-flex min-h-11 items-center gap-1.5 self-start rounded-full border px-3 text-xs font-semibold hover:border-primary hover:text-primary-text cursor-pointer"
                   >
                     <Icon.filter size={14} />
-                    {on ? t("all") : t("filter_chip", { r: RAIL_NAME[r.rail] })}
+                    {on ? t("all") : t("filter_chip", { r: railName(r.rail, t) })}
                   </button>
                 </>
               )}

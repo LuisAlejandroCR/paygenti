@@ -55,6 +55,8 @@ async function typeAmountAndGo() {
 
 describe("live charge sheet", () => {
   beforeEach(() => {
+    // These checks read the Spanish copy; jsdom reports an English browser language.
+    localStorage.setItem("paygent.locale", "es");
     vi.useFakeTimers({ shouldAdvanceTime: true });
     api.createCharge.mockResolvedValue({
       saleId: "s1",

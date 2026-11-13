@@ -1,5 +1,6 @@
 // prefs.tsx: per-device preferences (language, dark mode, large text, privacy) and the t()/money()
-// formatters every component uses; stored in localStorage when available.
+// formatters every component uses; stored in localStorage when available. The language also syncs
+// with the landing (same domain, key "paygent.locale"): read on a first visit, written on es/en change.
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { LOCALES, translate, type Lang, type TKey } from "./i18n";
 import type { Currency } from "./types";
@@ -12,6 +13,22 @@ interface Prefs {
 }
 const DEFAULT: Prefs = { privacy: false, dark: false, large: false, lang: "es" };
 const KEY = "paygent-prefs";
+/** The landing's language key (web/src/landing.ts); both apps live on paygenti.vercel.app. */
+export const SHARED_LOCALE_KEY = "paygent.locale";
+
+/** First visit (no saved prefs): the landing's choice, else the browser language, else Spanish. */
+export function initialLang(): Lang {
+  try {
+    const shared = localStorage.getItem(SHARED_LOCALE_KEY);
+    if (shared === "es" || shared === "en") return shared;
+  } catch {
+    /* storage blocked */
+  }
+  const nav = (typeof navigator !== "undefined" ? navigator.language : "").toLowerCase();
+  if (nav.startsWith("en")) return "en";
+  if (nav.startsWith("pt")) return "pt";
+  return "es";
+}
 
 interface Ctx extends Prefs {
   set: (p: Partial<Prefs>) => void;
@@ -46,20 +63,27 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const s = localStorage.getItem(KEY);
-      if (s) setP({ ...DEFAULT, ...JSON.parse(s) });
+      setP(s ? { ...DEFAULT, ...JSON.parse(s) } : { ...DEFAULT, lang: initialLang() });
     } catch {
-      /* storage blocked: keep defaults */
+      setP({ ...DEFAULT, lang: initialLang() });
     }
   }, []);
   useEffect(() => {
     document.documentElement.classList.toggle("dark", p.dark);
     document.documentElement.classList.toggle("large-text", p.large);
     document.documentElement.lang = LOCALES[p.lang];
+    document.title = translate(p.lang, "page_title");
   }, [p]);
   const set = useCallback((u: Partial<Prefs>) => {
     setP((prev) => {
       const next = { ...prev, ...u };
-      localStorage.setItem(KEY, JSON.stringify(next));
+      try {
+        localStorage.setItem(KEY, JSON.stringify(next));
+        // pt stays dashboard-only: the landing has es and en.
+        if (u.lang === "es" || u.lang === "en") localStorage.setItem(SHARED_LOCALE_KEY, u.lang);
+      } catch {
+        /* storage blocked: the choice lasts for this tab */
+      }
       return next;
     });
   }, []);
