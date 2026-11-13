@@ -1,29 +1,30 @@
 <!doctype html>
 <!-- web/landing.html: public landing page of Paygenti (served at /landing.html; "/" on Vercel).
-     Static, Spanish-first with an ES/EN toggle (strings in web/src/landing-strings.ts), mobile-first. Shows only what the app does today, with real recordings
-     of the app and the voice box. The apps themselves live in web/index.html, not here. -->
+     Static, Spanish-first with an ES/EN toggle (strings in web/src/landing-strings.ts), mobile-first.
+     Told as a story in five chapters (problem → say it → pay → paid → history), each with a real
+     recording or a labelled recreation. The apps themselves live in web/index.html, not here. -->
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Paygenti — cobra con PayPal desde tu teléfono</title>
+    <title>Paygenti — cobra con PayPal solo diciendo el precio</title>
     <meta
       name="description"
       data-i18n-content="meta.desc"
-      content="Paygenti ayuda a puestos de comida y vendedores de calle a cobrar con PayPal: inicias el cobro, revisas el estado de la venta y confirmas el pago antes de entregar el pedido."
+      content="Paygenti es la caja que cobra por voz: el vendedor dice el precio, el cliente paga con PayPal y la caja dice ¡Pagado! solo cuando PayPal capturó el pago."
     />
     <meta name="theme-color" content="#f5efe2" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#2a1a1a" media="(prefers-color-scheme: dark)" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="es_MX" />
     <meta property="og:site_name" content="Paygenti" />
-    <meta property="og:title" data-i18n-content="meta.title" content="Paygenti — cobra con PayPal desde tu teléfono" />
+    <meta property="og:title" data-i18n-content="meta.title" content="Paygenti — cobra con PayPal solo diciendo el precio" />
     <meta
       property="og:description"
       data-i18n-content="meta.ogDesc"
-      content="Inicia el cobro, revisa el estado de la venta y confirma el pago antes de entregar el pedido."
+      content="Di el precio, tu cliente paga con PayPal y la caja dice ¡Pagado! solo cuando el dinero llegó."
     />
-    <meta property="og:image" content="/media/app-charge.jpg" />
+    <meta property="og:image" content="/media/voicebox-paid.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -54,27 +55,25 @@
     </header>
 
     <main id="contenido" class="lp-main">
-      <!-- 1. Hero -->
+      <!-- Hero: the promise in one line, Rosa on the street (AI recreation, labelled). -->
       <section class="lp-hero" aria-labelledby="hero-title">
         <div class="lp-hero-text">
           <p class="lp-eyebrow" data-i18n="hero.eyebrow">Para puestos de comida y vendedores de calle</p>
-          <h1 id="hero-title" data-i18n="hero.title">Cobra con PayPal desde tu teléfono y sabe cuándo ya te pagaron.</h1>
+          <h1 id="hero-title" data-i18n="hero.title">Cobra con PayPal <em>solo diciendo el precio.</em></h1>
           <p class="lp-lead" data-i18n="hero.lead">
-            Inicias el cobro, tu cliente paga desde un QR o un sticker, y tu pantalla dice
-            <strong>PAGADO</strong> solo cuando PayPal confirmó el pago. Así entregas el pedido sin
-            dudas.
+            Rosa dice «cóbrame cuarenta pesos». La caja muestra el QR, su cliente paga con PayPal y
+            la caja dice <strong>¡Pagado!</strong> solo cuando PayPal capturó el pago.
           </p>
           <div class="lp-ctas">
             <a class="lp-btn" href="/judge" data-i18n="cta.demo">Probar la demo</a>
-            <a class="lp-btn lp-btn-quiet" href="#como-funciona" data-i18n="cta.how">Ver cómo funciona</a>
+            <a class="lp-btn lp-btn-quiet" href="#cap-problema" data-i18n="cta.how">Ver la historia</a>
           </div>
           <p class="lp-note" data-i18n="hero.note">Demo en el sandbox de PayPal: ningún pago es real. PIN de prueba: 1234.</p>
         </div>
 
         <figure class="lp-hero-media">
           <div class="lp-frame" data-hero>
-            <!-- Rosa (ElevenLabs) when web/public/media/hero-person.mp4 exists; otherwise the
-                 real charge-screen recording below takes its place (see docs/landing.md). -->
+            <span class="lp-tag" data-i18n="tag.recreation">Recreación</span>
             <video
               class="lp-video"
               data-autoplay
@@ -94,308 +93,369 @@
               <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
             </video>
           </div>
+          <div class="lp-live" aria-hidden="true" data-live>
+            <div class="lp-live-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <p class="lp-live-state" data-live-state="listen"><span data-i18n="chip.1">Te escucho…</span></p>
+            <p class="lp-live-state" data-live-state="qr" hidden><span data-i18n="chip.2">40 MXN · Escanea para pagar</span></p>
+            <p class="lp-live-state" data-live-state="paid" hidden><span data-i18n="chip.3">¡Pagado! Capturado por PayPal</span></p>
+          </div>
           <figcaption id="hero-caption" class="lp-caption" data-caption data-i18n="hero.caption">
-            Rosa cuenta cómo cobra con Paygenti desde su teléfono.
+            Rosa vende tamales y atole en la calle. Recreación.
           </figcaption>
         </figure>
+      </section>
 
-        <!-- Sale simulator: four static screens, landing.ts shows one at a time. No API calls. -->
-        <div class="lp-sim lp-card" role="region" aria-labelledby="sim-title" data-sim>
-          <div class="lp-sim-head">
-            <h2 id="sim-title" class="lp-sim-title" data-i18n="sim.title">Simula una venta</h2>
-            <p class="lp-sim-badge" data-i18n="sim.badge">Simulación: no cobra ni llama a PayPal</p>
-          </div>
-          <ol class="lp-sim-steps">
-            <li data-sim-dot="1" aria-current="step" data-i18n="sim.step1">Rosa dice el monto</li>
-            <li data-sim-dot="2" data-i18n="sim.step2">La caja muestra el QR</li>
-            <li data-sim-dot="3" data-i18n="sim.step3">El cliente paga con PayPal</li>
-            <li data-sim-dot="4" data-i18n="sim.step4">PayPal captura: ¡Pagado!</li>
+      <!-- Sales ticker: example receipts sliding by, like the stall's day adding up (decorative). -->
+      <div class="lp-ticker" aria-hidden="true">
+        <p class="lp-ticker-label" data-i18n="mq.label">Ejemplo de un día en el puesto</p>
+        <div class="lp-ticker-track"><div><span class="lp-tick"><b>+40 MXN</b> tamal + atole <em>PayPal ✓</em></span><span class="lp-tick"><b>+25 MXN</b> 2 tacos <em>PayPal ✓</em></span><span class="lp-tick"><b>+95 MXN</b> mole para llevar <em>PayPal ✓</em></span><span class="lp-tick"><b>+18 MXN</b> café de olla <em>PayPal ✓</em></span><span class="lp-tick"><b>+60 MXN</b> tlayuda <em>PayPal ✓</em></span><span class="lp-tick"><b>+12 MXN</b> agua fresca <em>PayPal ✓</em></span><span class="lp-tick"><b>+40 MXN</b> tamal + atole <em>PayPal ✓</em></span><span class="lp-tick"><b>+25 MXN</b> 2 tacos <em>PayPal ✓</em></span><span class="lp-tick"><b>+95 MXN</b> mole para llevar <em>PayPal ✓</em></span><span class="lp-tick"><b>+18 MXN</b> café de olla <em>PayPal ✓</em></span><span class="lp-tick"><b>+60 MXN</b> tlayuda <em>PayPal ✓</em></span><span class="lp-tick"><b>+12 MXN</b> agua fresca <em>PayPal ✓</em></span></div></div>
+      </div>
+
+      <!-- The story: five chapters, each a text column and one media "stage". -->
+      <div class="lp-story">
+        <nav class="lp-rail" aria-label="Capítulos de la historia" data-i18n-label="nav.chapters">
+          <ol>
+            <li><a href="#cap-problema" data-rail><span aria-hidden="true">01</span> <span data-i18n="rail.1">El problema</span></a></li>
+            <li><a href="#cap-dilo" data-rail><span aria-hidden="true">02</span> <span data-i18n="rail.2">Dilo</span></a></li>
+            <li><a href="#cap-paga" data-rail><span aria-hidden="true">03</span> <span data-i18n="rail.3">Paga</span></a></li>
+            <li><a href="#pagado" data-rail><span aria-hidden="true">04</span> <span data-i18n="rail.4">¡Pagado!</span></a></li>
+            <li><a href="#cap-historial" data-rail><span aria-hidden="true">05</span> <span data-i18n="rail.5">Su historial</span></a></li>
           </ol>
-          <div class="lp-sim-box" aria-live="polite">
-            <div class="lp-sim-screen" data-sim-screen="1">
-              <p class="lp-sim-big" data-i18n="sim.s1.big">Te escucho…</p>
-              <p data-i18n="sim.s1.text">Rosa: «Son cuarenta pesos».</p>
+        </nav>
+
+        <div class="lp-chapters">
+          <!-- 01 The problem -->
+          <section id="cap-problema" class="lp-chapter" aria-labelledby="ch1-title" data-chapter>
+            <div class="lp-chapter-text">
+              <p class="lp-num" aria-hidden="true">01</p>
+              <p class="lp-kicker" data-i18n="ch1.kicker">El problema</p>
+              <h2 id="ch1-title" data-i18n="ch1.title">Casi todo se paga en efectivo. Y el efectivo no deja rastro.</h2>
+              <p data-i18n="ch1.body">
+                Rosa trabaja con las manos ocupadas. Si le pagan con billete grande, no tiene cambio. Los
+                datáfonos y los QR del banco piden trámites y saber de tecnología. Y una captura de una
+                transferencia se puede falsificar.
+              </p>
+              <dl class="lp-stats">
+                <div>
+                  <dt data-count="55" data-suffix="&nbsp;%"><span class="lp-count">55&nbsp;%</span></dt>
+                  <dd>
+                    <span data-i18n="ch1.stat1">de los trabajadores en México son informales</span>
+                    <a href="https://forbes.com.mx/tasa-de-informalidad-laboral-en-mexico-sube-a-55-en-el-cuarto-trimestre-de-2025/" data-i18n="ch1.src1">INEGI, 4.º trimestre 2025</a>
+                  </dd>
+                </div>
+                <div>
+                  <dt data-count="8" data-suffix="&nbsp;/&nbsp;10"><span class="lp-count">8&nbsp;/&nbsp;10</span><span class="lp-coins" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></dt>
+                  <dd>
+                    <span data-i18n="ch1.stat2">pagos diarios en México se hacen en efectivo</span>
+                    <a href="https://abm.org.mx/sala-de-prensa/img/fotogaleria/Presentacion_03_12_2025.pdf" data-i18n="ch1.src2">ABM, 2024</a>
+                  </dd>
+                </div>
+              </dl>
             </div>
-            <div class="lp-sim-screen" data-sim-screen="2" hidden>
-              <img class="lp-sim-qr" src="/qr-judge.svg" alt="" width="96" height="96" />
-              <p class="lp-sim-big" data-i18n="sim.s2.big">40 MXN · Escanea para pagar</p>
+            <figure class="lp-shot lp-stage">
+              <div class="lp-frame lp-frame-land">
+                <span class="lp-tag" data-i18n="tag.recreation">Recreación</span>
+                <video class="lp-video" data-autoplay data-lazy muted loop playsinline controls preload="none" poster="/media/story-cash.jpg" aria-describedby="cap-cash">
+                  <source src="/media/story-cash.mp4" type="video/mp4" />
+                  <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
+                </video>
+              </div>
+              <figcaption id="cap-cash" class="lp-caption" data-i18n="ch1.caption">Una caja de lata, pocos billetes y nada de cambio.</figcaption>
+            </figure>
+          </section>
+
+          <!-- 02 Say it -->
+          <section id="cap-dilo" class="lp-chapter lp-chapter-flip" aria-labelledby="ch2-title" data-chapter>
+            <div class="lp-chapter-text">
+              <p class="lp-num" aria-hidden="true">02</p>
+              <p class="lp-kicker" data-i18n="ch2.kicker">La idea</p>
+              <h2 id="ch2-title" data-i18n="ch2.title">No hay que teclear nada. Solo decirlo.</h2>
+              <p data-i18n="ch2.body">
+                Rosa aprieta el botón y dice <strong>«Cóbrame cuarenta pesos»</strong>. Paygenti entiende
+                el monto y la moneda, y la caja muestra en su pantalla el QR de ese cobro.
+              </p>
             </div>
-            <div class="lp-sim-screen" data-sim-screen="3" hidden>
-              <p class="lp-sim-big" data-i18n="sim.s3.big">Esperando pago…</p>
-              <p data-i18n="sim.s3.text">El cliente paga con PayPal desde su teléfono. Todavía no dice PAGADO: falta que PayPal capture el pago.</p>
+            <figure class="lp-shot lp-stage">
+              <div class="lp-frame lp-frame-tall">
+                <span class="lp-tag" data-i18n="tag.real">Grabación real</span>
+                <video class="lp-video" data-autoplay data-lazy muted loop playsinline controls preload="none" poster="/media/story-voice.jpg" aria-describedby="cap-voice">
+                  <source src="/media/story-voice.mp4" type="video/mp4" />
+                  <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
+                </video>
+              </div>
+              <figcaption id="cap-voice" class="lp-caption" data-i18n="ch2.caption">La caja escucha el pedido y muestra «40 MXN · Escanea para pagar».</figcaption>
+            </figure>
+          </section>
+
+          <!-- 03 Pay -->
+          <section id="cap-paga" class="lp-chapter" aria-labelledby="ch3-title" data-chapter>
+            <div class="lp-chapter-text">
+              <p class="lp-num" aria-hidden="true">03</p>
+              <p class="lp-kicker" data-i18n="ch3.kicker">El cliente</p>
+              <h2 id="ch3-title" data-i18n="ch3.title">El cliente escanea y paga con PayPal.</h2>
+              <p data-i18n="ch3.body">
+                Antes de pagar ve el nombre del puesto y el total. Paga con su cuenta de PayPal o con
+                tarjeta, desde su propio teléfono. Rosa no toca el teléfono del cliente ni el dinero.
+              </p>
             </div>
-            <div class="lp-sim-screen lp-sim-paid" data-sim-screen="4" hidden>
-              <p class="lp-sim-big" data-i18n="sim.s4.big">¡Pagado! 40 MXN</p>
-              <p data-i18n="sim.s4.text">Solo ahora, con el pago capturado por PayPal, la caja dice PAGADO en voz alta.</p>
+            <figure class="lp-shot lp-stage">
+              <div class="lp-frame lp-frame-tall">
+                <span class="lp-tag" data-i18n="tag.real">Grabación real</span>
+                <video class="lp-video" data-autoplay data-lazy muted loop playsinline controls preload="none" poster="/media/app-checkout.jpg" aria-describedby="cap-checkout">
+                  <source src="/media/app-checkout.mp4" type="video/mp4" />
+                  <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
+                </video>
+              </div>
+              <figcaption id="cap-checkout" class="lp-caption" data-i18n="cap.checkout">
+                <strong>Pantalla del cliente.</strong> Ve el puesto y el total antes de pagar. En esta
+                grabación el pago es simulado.
+              </figcaption>
+            </figure>
+          </section>
+
+          <!-- 04 Paid: the real box going from the QR to PAGADO, with its chime. -->
+          <section id="pagado" class="lp-chapter lp-chapter-flip lp-chapter-paid" aria-labelledby="ch4-title" data-chapter>
+            <div class="lp-chapter-text">
+              <p class="lp-num" aria-hidden="true">04</p>
+              <p class="lp-kicker" data-i18n="ch4.kicker">La confirmación</p>
+              <h2 id="ch4-title" data-i18n="ch4.title">¡Pagado! Solo cuando PayPal capturó el pago.</h2>
+              <p data-i18n="ch4.body">
+                La caja no se fía de una pantalla: espera a que el servidor capture el pago con PayPal.
+                Entonces se pone de color y lo dice en voz alta, con el monto. Rosa entrega el pedido sin
+                dudas.
+              </p>
+              <p class="lp-punch" data-i18n="ch4.punch">Una captura falsa no suena.</p>
             </div>
-          </div>
-          <div class="lp-sim-controls">
-            <button type="button" class="lp-btn" data-sim-next data-i18n="sim.next">Siguiente paso</button>
-            <button type="button" class="lp-btn lp-btn-quiet" data-sim-play data-i18n="sim.play">Reproducir solo</button>
-          </div>
+            <figure class="lp-shot lp-stage">
+              <div class="lp-frame lp-frame-tall">
+                <span class="lp-tag" data-i18n="tag.realSound">Grabación real · con sonido</span>
+                <video class="lp-video" data-autoplay data-lazy autoplay muted loop playsinline controls preload="none" poster="/media/voicebox-paid.jpg" aria-describedby="cap-paid">
+                  <source src="/media/voicebox-paid.mp4" type="video/mp4" />
+                  <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
+                </video>
+              </div>
+              <figcaption id="cap-paid" class="lp-caption" data-i18n="paid.caption">La caja real pasa del QR a «PAGADO» y suena. Activa el sonido para oírla.</figcaption>
+            </figure>
+          </section>
+
+          <!-- 05 History -->
+          <section id="cap-historial" class="lp-chapter" aria-labelledby="ch5-title" data-chapter>
+            <div class="lp-chapter-text">
+              <p class="lp-num" aria-hidden="true">05</p>
+              <p class="lp-kicker" data-i18n="ch5.kicker">Lo que queda</p>
+              <h2 id="ch5-title" data-i18n="ch5.title">Cada venta suma a su historial.</h2>
+              <p data-i18n="ch5.body">
+                En la oficina del puesto Rosa ve las ventas del día y genera su <strong>pasaporte de
+                ventas</strong>: un resumen firmado que cualquiera puede verificar. Un historial que es
+                suyo, útil para pedir un crédito.
+              </p>
+              <ul class="lp-checks">
+                <li data-i18n="ch5.li1">Para cobrar, el teléfono se desbloquea con el PIN, la huella o Face ID.</li>
+                <li data-i18n="ch5.li2">Reembolsos y pagos piden el PIN otra vez. El asistente solo propone.</li>
+                <li data-i18n="ch5.li3">El efectivo se anota aparte, como declarado; solo lo de PayPal cuenta como verificado.</li>
+              </ul>
+            </div>
+            <figure class="lp-shot lp-stage">
+              <div class="lp-frame lp-frame-land">
+                <span class="lp-tag" data-i18n="tag.real">Grabación real</span>
+                <video class="lp-video" data-autoplay data-lazy muted loop playsinline controls preload="none" poster="/media/story-backoffice.jpg" aria-describedby="cap-office">
+                  <source src="/media/story-backoffice.mp4" type="video/mp4" />
+                  <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
+                </video>
+              </div>
+              <figcaption id="cap-office" class="lp-caption" data-i18n="ch5.caption">Oficina del puesto: ventas de hoy, pasaporte con QR y verificación VÁLIDA.</figcaption>
+            </figure>
+          </section>
+        </div>
+      </div>
+
+      <!-- What the box says: real screens from the box, grouped as all good / warning / error. -->
+      <section id="estados" class="lp-section lp-states" aria-labelledby="states-title">
+        <h2 id="states-title" data-i18n="st.title">La caja te dice qué pasa, siempre</h2>
+        <p class="lp-section-lead" data-i18n="st.lead">Cada estado tiene su color, su cara y su frase en voz alta. Así Rosa sabe al instante si todo salió bien, si tiene que repetir o si algo falló. Pantallas reales de la caja.</p>
+        <div class="lp-states-group lp-states-ok">
+          <h3 data-i18n="st.ok.title">Todo bien</h3>
+          <ul class="lp-states-list">
+            <li class="lp-state lp-state-ok">
+              <img src="/media/state-escucho.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.listen.name">Te escucho…</p>
+              <p data-i18n="st.listen.body">Rosa aprieta el botón y dice el precio.</p>
+            </li>
+            <li class="lp-state lp-state-ok">
+              <img src="/media/state-qr.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.qr.name">40 MXN · Escanea para pagar</p>
+              <p data-i18n="st.qr.body">Entendió el monto y la moneda; muestra el QR del cobro.</p>
+            </li>
+            <li class="lp-state lp-state-ok">
+              <img src="/media/state-pagado.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.paid.name">PAGADO · cuarenta pesos</p>
+              <p data-i18n="st.paid.body">PayPal capturó el pago. Lo dice en voz alta.</p>
+            </li>
+          </ul>
+        </div>
+        <div class="lp-states-group lp-states-warn">
+          <h3 data-i18n="st.warn.title">Aviso: hay que hacer algo</h3>
+          <ul class="lp-states-list">
+            <li class="lp-state lp-state-warn">
+              <img src="/media/state-repitelo.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.again.name">Repítelo</p>
+              <p data-i18n="st.again.body">No entendió el monto. No cobra nada: Rosa lo vuelve a decir.</p>
+            </li>
+            <li class="lp-state lp-state-warn">
+              <img src="/media/state-cancelado.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.cancel.name">Cancelado</p>
+              <p data-i18n="st.cancel.body">El cobro se canceló o se venció. No se movió dinero.</p>
+            </li>
+          </ul>
+        </div>
+        <div class="lp-states-group lp-states-err">
+          <h3 data-i18n="st.err.title">Error: no se cobró</h3>
+          <ul class="lp-states-list">
+            <li class="lp-state lp-state-err">
+              <img src="/media/state-paypal-fallo.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.paypal.name">PayPal falló</p>
+              <p data-i18n="st.paypal.body">PayPal rechazó o no pudo procesar el pago. Nunca dice PAGADO.</p>
+            </li>
+            <li class="lp-state lp-state-err">
+              <img src="/media/state-sin-internet.jpg" alt="" width="400" height="500" loading="lazy" />
+              <p class="lp-state-name" data-i18n="st.offline.name">Sin internet</p>
+              <p data-i18n="st.offline.body">La caja no llega al servidor y sigue intentando conectar.</p>
+            </li>
+          </ul>
+        </div>
+        <p class="lp-caption" data-i18n="st.note">Fotos de la pantalla real de la caja de voz (ESP32), sin retoques.</p>
+      </section>
+
+      <!-- One stall: the box is enough. Several stalls: the web dashboard with KPIs and charts. -->
+      <section id="escala" class="lp-section" aria-labelledby="scale-title">
+        <h2 id="scale-title" data-i18n="sc.title">¿Un puesto o varios?</h2>
+        <p class="lp-section-lead" data-i18n="sc.lead">Paygenti crece con el negocio: la caja sola para el día a día, y el panel web cuando hay más de un puesto.</p>
+        <div class="lp-scale">
+          <article class="lp-scale-one lp-card">
+            <p class="lp-kicker" data-i18n="sc.one.kicker">Un puesto</p>
+            <h3 data-i18n="sc.one.title">Con la caja basta.</h3>
+            <p data-i18n="sc.one.body">Rosa no necesita abrir ninguna página: habla, la caja cobra y le avisa. Las ventas quedan guardadas para cuando quiera verlas.</p>
+            <img class="lp-scale-box" src="/media/state-pagado.jpg" alt="" width="400" height="500" loading="lazy" />
+          </article>
+          <article class="lp-scale-many lp-card">
+            <p class="lp-kicker" data-i18n="sc.many.kicker">Varios puestos</p>
+            <h3 data-i18n="sc.many.title">El panel web, con todo el mes a la vista.</h3>
+            <p data-i18n="sc.many.body">Cuando hay dos o más cajas, el panel junta los puestos en una sola pantalla de escritorio.</p>
+            <ul class="lp-checks">
+              <li data-i18n="sc.many.li1">KPIs del mes: lo verificado por PayPal, lo declarado en efectivo y lo pendiente.</li>
+              <li data-i18n="sc.many.li2">Gráficas de ventas por día, por día de la semana y mapa de calor por hora.</li>
+              <li data-i18n="sc.many.li3">Filtro por puesto, movimientos con búsqueda y exportación a CSV.</li>
+            </ul>
+            <figure class="lp-dash">
+              <img src="/media/dashboard-resumen.jpg" alt="" width="1440" height="900" loading="lazy" data-i18n-alt="sc.many.alt" />
+              <div class="lp-dash-thumbs">
+                <img src="/media/dashboard-ventas.jpg" alt="" width="1440" height="900" loading="lazy" data-i18n-alt="sc.many.altSales" />
+                <img src="/media/dashboard-puestos.jpg" alt="" width="1440" height="900" loading="lazy" data-i18n-alt="sc.many.altStalls" />
+              </div>
+              <figcaption class="lp-caption" data-i18n="sc.many.caption">Panel web con datos de ejemplo (modo sandbox).</figcaption>
+            </figure>
+          </article>
         </div>
       </section>
 
-      <!-- 1b. Full demo video: SLOT. Drop the file at web/public/media/demo.mp4 (+ demo.jpg poster)
-           and rebuild. The section stays hidden until /media/demo.mp4 answers as a real video,
-           so the page never shows a broken player (see docs/landing.md, "Video de la demo"). -->
-      <section id="demo" class="lp-section" aria-labelledby="demo-title" data-demo hidden>
-        <h2 id="demo-title" data-i18n="demo.title">Mira la demo completa</h2>
-        <p class="lp-section-lead" data-i18n="demo.lead">
-          Una venta de principio a fin: la vendedora cobra, el cliente paga y la pantalla dice
-          PAGADO. Activa el sonido para escucharla.
-        </p>
-        <figure class="lp-demo">
-          <div class="lp-frame lp-frame-wide">
-            <video
-              class="lp-video"
-              controls
-              playsinline
-              preload="none"
-              poster="/media/demo.jpg"
-              aria-describedby="cap-demo"
-            >
-              <source src="/media/demo.mp4" type="video/mp4" />
-              <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
-            </video>
-          </div>
-          <figcaption id="cap-demo" class="lp-caption" data-i18n="demo.caption">
-            Grabación real de la demo en el sandbox de PayPal: ningún pago es real.
-          </figcaption>
-        </figure>
-      </section>
-
-      <!-- 2. How it works -->
-      <section id="como-funciona" class="lp-section" aria-labelledby="how-title">
-        <h2 id="how-title" data-i18n="how.title">Tres pasos en cada venta</h2>
-        <ol class="lp-steps">
-          <li class="lp-card">
-            <span class="lp-step-num" aria-hidden="true">1</span>
-            <h3 data-i18n="how.1.title">Inicia el cobro</h3>
-            <p data-i18n="how.1.body">
-              Teclea el monto o di el pedido en voz alta y toca <strong>Cobrar</strong>. Aparece un
-              QR para que tu cliente lo escanee.
-            </p>
-          </li>
-          <li class="lp-card">
-            <span class="lp-step-num" aria-hidden="true">2</span>
-            <h3 data-i18n="how.2.title">Revisa el estado de la venta</h3>
-            <p data-i18n="how.2.body">
-              La pantalla muestra <strong>Esperando pago</strong> con el tiempo que queda. Puedes
-              darle 5 minutos más o cancelar el cobro, y tu cliente ve el cambio al momento.
-            </p>
-          </li>
-          <li class="lp-card">
-            <span class="lp-step-num" aria-hidden="true">3</span>
-            <h3 data-i18n="how.3.title">Confirma el pago</h3>
-            <p data-i18n="how.3.body">
-              Cuando PayPal captura el pago, tu pantalla se pone verde, dice
-              <strong>PAGADO</strong> y lo anuncia en voz alta. Una captura de pantalla falsa no suena.
-            </p>
-          </li>
-        </ol>
-      </section>
-
-      <!-- 2b. The paid moment: a real voice box clip (cut from voicebox-real.mp4), not generated. -->
-      <section id="pagado" class="lp-section lp-paid" aria-labelledby="paid-title">
-        <div class="lp-paid-text">
-          <h2 id="paid-title" data-i18n="paid.title">El momento del pago, en el mostrador</h2>
-          <p class="lp-section-lead" data-i18n="paid.lead">
-            Mientras la vendedora atiende, el voice box espera el pago. Cuando PayPal lo confirma,
-            se pone de color y dice <strong>PAGADO</strong> con el monto. Grabación real, sin retoques.
-          </p>
-        </div>
-        <figure class="lp-shot">
-          <div class="lp-frame">
-            <video
-              class="lp-video"
-              data-autoplay
-              data-lazy
-              autoplay
-              muted
-              loop
-              playsinline
-              controls
-              preload="none"
-              poster="/media/voicebox-paid.jpg"
-              aria-describedby="cap-paid"
-            >
-              <source src="/media/voicebox-paid.mp4" type="video/mp4" />
-              <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
-            </video>
-          </div>
-          <figcaption id="cap-paid" class="lp-caption" data-i18n="paid.caption">
-            Voice box real: pasa de "Sin internet, conectando" a "PAGADO, cuarenta pesos".
-          </figcaption>
-        </figure>
-      </section>
-
-      <!-- 3. Product: real recordings -->
-      <section class="lp-section" aria-labelledby="product-title">
-        <h2 id="product-title" data-i18n="product.title">Así se ve hoy, sin retoques</h2>
-        <p class="lp-section-lead" data-i18n="product.lead">
-          Grabaciones reales de la app web en un teléfono y del voice box en el mostrador.
-        </p>
-        <div class="lp-gallery">
-          <figure class="lp-shot">
-            <div class="lp-frame">
-              <video
-                class="lp-video"
-                data-autoplay
-                data-lazy
-                muted
-                loop
-                playsinline
-                controls
-                preload="none"
-                poster="/media/app-charge.jpg"
-                aria-describedby="cap-charge"
-              >
-                <source src="/media/app-charge.mp4" type="video/mp4" />
-                <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
-              </video>
-            </div>
-            <figcaption id="cap-charge" class="lp-caption" data-i18n="cap.charge">
-              <strong>Pantalla de la vendedora.</strong> Desbloquea con el PIN, cobra $95, muestra el
-              QR mientras espera y cambia a PAGADO.
-            </figcaption>
-          </figure>
-          <figure class="lp-shot">
-            <div class="lp-frame">
-              <video
-                class="lp-video"
-                data-autoplay
-                data-lazy
-                muted
-                loop
-                playsinline
-                controls
-                preload="none"
-                poster="/media/app-checkout.jpg"
-                aria-describedby="cap-checkout"
-              >
-                <source src="/media/app-checkout.mp4" type="video/mp4" />
-                <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
-              </video>
-            </div>
-            <figcaption id="cap-checkout" class="lp-caption" data-i18n="cap.checkout">
-              <strong>Pantalla del cliente.</strong> Ve el puesto y el total antes de pagar. En la
-              demo el pago es simulado.
-            </figcaption>
-          </figure>
-          <figure class="lp-shot">
-            <div class="lp-frame">
-              <video
-                class="lp-video"
-                data-autoplay
-                data-lazy
-                muted
-                loop
-                playsinline
-                controls
-                preload="none"
-                poster="/media/voicebox-real.jpg"
-                aria-describedby="cap-voicebox"
-              >
-                <source src="/media/voicebox-real.mp4" type="video/mp4" />
-                <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
-              </video>
-            </div>
-            <figcaption id="cap-voicebox" class="lp-caption" data-i18n="cap.voicebox">
-              <strong>Voice box en el mostrador.</strong> Muestra y dice cada estado: sin internet,
-              pagado, repítelo, cancelado y falla de PayPal. Activa el sonido para escucharlo.
-            </figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <!-- 4. Trust -->
-      <section class="lp-section" aria-labelledby="trust-title">
-        <h2 id="trust-title" data-i18n="trust.title">Más claro y más ordenado</h2>
-        <!-- Rosa, second take (ElevenLabs, Veo 3.1 Lite, 6 s): same street scene as the hero. -->
+      <!-- Rosa, second take (ElevenLabs, Veo 3.1 Lite, 6 s): the testimonial that closes the story. -->
+      <section class="lp-quote" aria-labelledby="quote-text">
         <figure class="lp-shot lp-rosa2">
           <div class="lp-frame">
-            <video
-              class="lp-video"
-              data-autoplay
-              data-lazy
-              autoplay
-              muted
-              loop
-              playsinline
-              controls
-              preload="none"
-              poster="/media/rosa-2.jpg"
-              aria-describedby="cap-rosa2"
-            >
+            <span class="lp-tag" data-i18n="tag.recreation">Recreación</span>
+            <video class="lp-video" data-autoplay data-lazy autoplay muted loop playsinline controls preload="none" poster="/media/rosa-2.jpg" aria-describedby="cap-rosa2">
               <source src="/media/rosa-2.mp4" type="video/mp4" />
               <track kind="captions" srclang="es" label="Español" src="/media/rosa-2.es.vtt" />
               <track kind="captions" srclang="en" label="English" src="/media/rosa-2.en.vtt" />
               <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
             </video>
           </div>
-          <figcaption id="cap-rosa2" class="lp-caption" data-i18n="cap.rosa2">
-            Rosa: "Paygenti me ayuda a tener el proceso más claro y ordenado."
-          </figcaption>
+          <figcaption id="cap-rosa2" class="lp-caption lp-visually-hidden" data-i18n="cap.rosa2">Rosa cuenta qué cambió en su puesto. Recreación.</figcaption>
         </figure>
-        <ul class="lp-trust">
-          <li class="lp-card">
-            <h3 data-i18n="trust.1.title">Solo el pago confirmado cuenta</h3>
-            <p data-i18n="trust.1.body">PAGADO aparece cuando el servidor capturó el pago con PayPal, no antes.</p>
-          </li>
-          <li class="lp-card">
-            <h3 data-i18n="trust.2.title">Tu teléfono, desbloqueado por ti</h3>
-            <p data-i18n="trust.2.body">
-              Para cobrar, el teléfono se desbloquea una vez con el PIN del puesto, o con huella o
-              Face ID donde el navegador lo permite.
-            </p>
-          </li>
-          <li class="lp-card">
-            <h3 data-i18n="trust.3.title">El dinero no se mueve solo</h3>
-            <p data-i18n="trust.3.body">
-              Reembolsos y pagos a proveedores piden tu PIN otra vez. El asistente solo propone; una
-              regla fija decide.
-            </p>
-          </li>
-          <li class="lp-card">
-            <h3 data-i18n="trust.4.title">Cada venta queda registrada</h3>
-            <p data-i18n="trust.4.body">Revisa las ventas del día y el corte de caja en la oficina del puesto.</p>
-          </li>
-        </ul>
+        <blockquote>
+          <p id="quote-text" data-i18n="quote.text">«Paygenti me ayuda a tener el proceso más claro y ordenado.»</p>
+          <footer data-i18n="quote.who">Rosa, tamales y atole · Recreación</footer>
+        </blockquote>
+      </section>
+
+      <!-- Full demo video: shown once /media/demo.mp4 answers as a real video. -->
+      <section id="demo" class="lp-section" aria-labelledby="demo-title" data-demo hidden>
+        <h2 id="demo-title" data-i18n="demo.title">Mira la demo completa</h2>
+        <p class="lp-section-lead" data-i18n="demo.lead">
+          Un minuto, de principio a fin: la caja escucha, el cliente paga y la caja dice ¡Pagado!.
+          Activa el sonido.
+        </p>
+        <figure class="lp-demo">
+          <div class="lp-frame lp-frame-wide">
+            <video class="lp-video" controls playsinline preload="none" poster="/media/demo.jpg" aria-describedby="cap-demo">
+              <source src="/media/demo.mp4" type="video/mp4" />
+              <p data-i18n="video.unsupported">Tu navegador no puede reproducir este video.</p>
+            </video>
+          </div>
+          <figcaption id="cap-demo" class="lp-caption" data-i18n="demo.caption">Demo en el sandbox de PayPal: ningún pago es real.</figcaption>
+        </figure>
+      </section>
+
+      <!-- Try it: front-end simulator (no API calls) next to the QR to the hosted demo. -->
+      <section class="lp-section" aria-labelledby="try-title">
+        <h2 id="try-title" data-i18n="try.title">Ahora pruébalo tú</h2>
+        <p class="lp-section-lead" data-i18n="try.lead">Simula una venta aquí mismo o abre la demo real en tu teléfono.</p>
+        <div class="lp-try">
+          <div class="lp-sim lp-card" role="region" aria-labelledby="sim-title" data-sim>
+            <div class="lp-sim-head">
+              <h3 id="sim-title" class="lp-sim-title" data-i18n="sim.title">Simula una venta</h3>
+              <p class="lp-sim-badge" data-i18n="sim.badge">Simulación: no cobra ni llama a PayPal</p>
+            </div>
+            <ol class="lp-sim-steps">
+              <li data-sim-dot="1" aria-current="step" data-i18n="sim.step1">Rosa dice el monto</li>
+              <li data-sim-dot="2" data-i18n="sim.step2">La caja muestra el QR</li>
+              <li data-sim-dot="3" data-i18n="sim.step3">El cliente paga con PayPal</li>
+              <li data-sim-dot="4" data-i18n="sim.step4">PayPal captura: ¡Pagado!</li>
+            </ol>
+            <div class="lp-sim-box" aria-live="polite">
+              <div class="lp-sim-screen" data-sim-screen="1">
+                <p class="lp-sim-big" data-i18n="sim.s1.big">Te escucho…</p>
+                <p data-i18n="sim.s1.text">Rosa: «Son cuarenta pesos».</p>
+              </div>
+              <div class="lp-sim-screen" data-sim-screen="2" hidden>
+                <img class="lp-sim-qr" src="/qr-judge.svg" alt="" width="96" height="96" />
+                <p class="lp-sim-big" data-i18n="sim.s2.big">40 MXN · Escanea para pagar</p>
+              </div>
+              <div class="lp-sim-screen" data-sim-screen="3" hidden>
+                <p class="lp-sim-big" data-i18n="sim.s3.big">Esperando pago…</p>
+                <p data-i18n="sim.s3.text">El cliente paga con PayPal desde su teléfono. Todavía no dice PAGADO: falta que PayPal capture el pago.</p>
+              </div>
+              <div class="lp-sim-screen lp-sim-paid" data-sim-screen="4" hidden>
+                <p class="lp-sim-big" data-i18n="sim.s4.big">¡Pagado! 40 MXN</p>
+                <p data-i18n="sim.s4.text">Solo ahora, con el pago capturado por PayPal, la caja anuncia el pago en voz alta.</p>
+              </div>
+            </div>
+            <div class="lp-sim-controls">
+              <button type="button" class="lp-btn" data-sim-next data-i18n="sim.next">Siguiente paso</button>
+              <button type="button" class="lp-btn lp-btn-quiet" data-sim-play data-i18n="sim.play">Reproducir solo</button>
+            </div>
+          </div>
+
+          <div class="lp-phone lp-card" data-phone-card>
+            <img class="lp-phone-qr" src="/qr-judge.svg" width="160" height="160" alt="Código QR que abre paygenti.vercel.app/judge" data-i18n-alt="phone.qrAlt" />
+            <div>
+              <h3 id="phone-title" data-i18n="phone.title">Ábrelo en tu teléfono</h3>
+              <p data-i18n="phone.body">Escanea el código con la cámara para probar la demo en tu propio teléfono, o abre el enlace.</p>
+              <a class="lp-btn lp-btn-quiet" href="https://paygenti.vercel.app/judge">paygenti.vercel.app/judge</a>
+            </div>
+          </div>
+        </div>
         <p class="lp-honest" data-i18n="honest">
-          Paygenti es un prototipo para el PayPal AI Hackathon. Esta demo corre en el sandbox de
-          PayPal y no mueve dinero real.
+          Paygenti es un prototipo para el PayPal AI Hackathon. La demo corre en el sandbox de PayPal y
+          no mueve dinero real. El cobro con tap (NFC) y la carcasa impresa vienen después.
         </p>
       </section>
 
-      <!-- 4b. Open it on your phone: static QR (web/public/qr-judge.svg) to the hosted demo. -->
-      <section class="lp-section" aria-labelledby="phone-title">
-        <div class="lp-phone lp-card" data-phone-card>
-          <img
-            class="lp-phone-qr"
-            src="/qr-judge.svg"
-            width="160"
-            height="160"
-            alt="Código QR que abre paygenti.vercel.app/judge"
-            data-i18n-alt="phone.qrAlt"
-          />
-          <div>
-            <h2 id="phone-title" data-i18n="phone.title">Ábrelo en tu teléfono</h2>
-            <p data-i18n="phone.body">
-              Escanea el código con la cámara para probar la demo en tu propio teléfono, o abre el
-              enlace.
-            </p>
-            <a class="lp-btn lp-btn-quiet" href="https://paygenti.vercel.app/judge">paygenti.vercel.app/judge</a>
-          </div>
-        </div>
-      </section>
-
-      <!-- 5. Final CTA -->
       <section class="lp-final" aria-labelledby="final-title">
         <h2 id="final-title" data-i18n="final.title">Pruébalo en 60 segundos</h2>
         <p data-i18n="final.body">
-          Abre la demo: a la izquierda cobras como vendedora, a la derecha pagas como cliente. PIN
-          de prueba: <strong>1234</strong>.
+          Abre la demo: a la izquierda cobras como vendedora, a la derecha pagas como cliente. PIN de
+          prueba: <strong>1234</strong>.
         </p>
         <div class="lp-ctas lp-ctas-center">
           <a class="lp-btn" href="/judge" data-i18n="cta.demo">Probar la demo</a>

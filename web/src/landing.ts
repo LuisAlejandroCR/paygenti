@@ -1,7 +1,9 @@
 // web/src/landing.ts: behavior of the landing page (web/landing.html) — no framework.
 // Swaps the hero to the real charge-screen recording while Rosa's video is missing, lazy-loads the
 // product videos when they scroll into view, honors prefers-reduced-motion and shows the poster
-// with a text note when a video cannot play. Steps the hero sale simulator. Also runs the ES/EN toggle: strings live in
+// with a text note when a video cannot play. Steps the sale simulator, reveals the story chapters as
+// they scroll in and marks the current one in the chapter rail; runs the hero's box-state loop and
+// counts the problem stats up once. Also runs the ES/EN toggle: strings live in
 // landing-strings.ts, keyed by the data-i18n* attributes in landing.html; the locale (detection,
 // storage, <html lang>) is shared with the apps through i18n.ts.
 import "./styles.css";
@@ -213,7 +215,93 @@ function setupSim() {
   show(1);
 }
 
+/** Story: each chapter slides in once when it enters, and the rail marks the chapter in view. */
+function setupStory() {
+  const chapters = [...document.querySelectorAll<HTMLElement>("[data-chapter]")];
+  const rail = [...document.querySelectorAll<HTMLAnchorElement>("[data-rail]")];
+  if (!chapters.length || !("IntersectionObserver" in window)) return;
+  document.documentElement.classList.add("lp-js");
+  const reveal = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.classList.add("is-in");
+        reveal.unobserve(e.target);
+      }
+    },
+    { rootMargin: "0px 0px -10% 0px", threshold: 0.15 },
+  );
+  const current = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        for (const a of rail) {
+          if (a.hash === `#${e.target.id}`) a.setAttribute("aria-current", "true");
+          else a.removeAttribute("aria-current");
+        }
+      }
+    },
+    { rootMargin: "-45% 0px -50% 0px" },
+  );
+  for (const c of chapters) {
+    reveal.observe(c);
+    current.observe(c);
+  }
+}
+
+/** Hero: the small box screen walks listen → QR → paid, like the real box; still under reduced motion. */
+function setupLive() {
+  const live = document.querySelector<HTMLElement>("[data-live]");
+  if (!live) return;
+  const states = [...live.querySelectorAll<HTMLElement>("[data-live-state]")];
+  const show = (name: string) => {
+    live.dataset.state = name;
+    for (const s of states) s.hidden = s.dataset.liveState !== name;
+  };
+  if (reduceMotion.matches) return show("paid");
+  const order = ["listen", "qr", "paid"];
+  const hold = [1800, 1800, 2600];
+  let i = 0;
+  const step = () => {
+    show(order[i] as string);
+    window.setTimeout(step, hold[i]);
+    i = (i + 1) % order.length;
+  };
+  step();
+}
+
+/** Problem stats count up from zero once their chapter is in view. */
+function setupCounts() {
+  if (reduceMotion.matches || !("IntersectionObserver" in window)) return;
+  const nums = [...document.querySelectorAll<HTMLElement>("[data-count]")];
+  const seen = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        seen.unobserve(e.target);
+        const el = e.target as HTMLElement;
+        const out = el.querySelector<HTMLElement>(".lp-count");
+        const end = Number(el.dataset.count);
+        const suffix = (el.dataset.suffix ?? "").replace(/&nbsp;/g, " ");
+        if (!out || !Number.isFinite(end)) continue;
+        const t0 = performance.now();
+        const tick = (now: number) => {
+          const k = Math.min(1, (now - t0) / 900);
+          out.textContent = `${Math.round(end * (1 - (1 - k) ** 3))}${suffix}`;
+          if (k < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+    },
+    { threshold: 0.6 },
+  );
+  for (const n of nums) seen.observe(n);
+}
+
 setupLang();
+setupLive();
+setupCounts();
+setupStory();
 setupSim();
 setupVideos();
 setupDemo();

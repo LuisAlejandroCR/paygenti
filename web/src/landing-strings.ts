@@ -1,73 +1,132 @@
 // web/src/landing-strings.ts: Spanish and English copy for the public landing page (web/landing.html).
 // Keys match the data-i18n / data-i18n-label / data-i18n-content attributes there; landing.ts
-// applies them. Values may carry <strong> and are trusted constants. Kept apart from the app's i18n.ts.
+// applies them. Values may carry <strong>/<em> and are trusted constants. Kept apart from the app's i18n.ts.
 import type { Locale } from "./i18n";
 
 const es = {
-  "meta.title": "Paygenti — cobra con PayPal desde tu teléfono",
+  "meta.title": "Paygenti — cobra con PayPal solo diciendo el precio",
   "meta.desc":
-    "Paygenti ayuda a puestos de comida y vendedores de calle a cobrar con PayPal: inicias el cobro, revisas el estado de la venta y confirmas el pago antes de entregar el pedido.",
+    "Paygenti es la caja que cobra por voz: el vendedor dice el precio, el cliente paga con PayPal y la caja dice ¡Pagado! solo cuando PayPal capturó el pago.",
   "meta.ogDesc":
-    "Inicia el cobro, revisa el estado de la venta y confirma el pago antes de entregar el pedido.",
+    "Di el precio, tu cliente paga con PayPal y la caja dice ¡Pagado! solo cuando el dinero llegó.",
   skip: "Saltar al contenido",
   brand: "Paygenti, inicio",
   "lang.group": "Idioma",
   "nav.main": "Principal",
   "nav.more": "Más pantallas",
+  "nav.chapters": "Capítulos de la historia",
   "cta.demo": "Probar la demo",
-  "cta.how": "Ver cómo funciona",
+  "cta.how": "Ver la historia",
   "cta.app": "Abrir la pantalla de cobro",
   "hero.eyebrow": "Para puestos de comida y vendedores de calle",
-  "hero.title": "Cobra con PayPal desde tu teléfono y sabe cuándo ya te pagaron.",
+  "hero.title": "Cobra con PayPal <em>solo diciendo el precio.</em>",
   "hero.lead":
-    "Inicias el cobro, tu cliente paga desde un QR o un sticker, y tu pantalla dice <strong>PAGADO</strong> solo cuando PayPal confirmó el pago. Así entregas el pedido sin dudas.",
+    "Rosa dice «cóbrame cuarenta pesos». La caja muestra el QR, su cliente paga con PayPal y la caja dice <strong>¡Pagado!</strong> solo cuando PayPal capturó el pago.",
   "hero.note": "Demo en el sandbox de PayPal: ningún pago es real. PIN de prueba: 1234.",
-  "hero.caption": "Rosa cuenta cómo cobra con Paygenti desde su teléfono.",
+  "hero.caption": "Rosa vende tamales y atole en la calle. Recreación.",
   "hero.captionFallback":
     "Grabación real de la pantalla de cobro: desbloquear, cobrar $95, esperar y PAGADO.",
   "video.unsupported": "Tu navegador no puede reproducir este video.",
   "video.failed": "El video no se pudo cargar.",
+  "tag.recreation": "Recreación",
+  "tag.real": "Grabación real",
+  "tag.realSound": "Grabación real · con sonido",
+  "mq.label": "Ejemplo de un día en el puesto",
+  "chip.1": "Te escucho…",
+  "chip.2": "40 MXN · Escanea para pagar",
+  "chip.3": "¡Pagado! Capturado por PayPal",
+  "rail.1": "El problema",
+  "rail.2": "Dilo",
+  "rail.3": "Paga",
+  "rail.4": "¡Pagado!",
+  "rail.5": "Su historial",
+  "ch1.kicker": "El problema",
+  "ch1.title": "Casi todo se paga en efectivo. Y el efectivo no deja rastro.",
+  "ch1.body":
+    "Rosa trabaja con las manos ocupadas. Si le pagan con billete grande, no tiene cambio. Los datáfonos y los QR del banco piden trámites y saber de tecnología. Y una captura de una transferencia se puede falsificar.",
+  "ch1.stat1": "de los trabajadores en México son informales",
+  "ch1.stat2": "pagos diarios en México se hacen en efectivo",
+  "ch1.src1": "INEGI, 4.º trimestre 2025",
+  "ch1.src2": "ABM, 2024",
+  "ch1.caption": "Una caja de lata, pocos billetes y nada de cambio.",
+  "ch2.kicker": "La idea",
+  "ch2.title": "No hay que teclear nada. Solo decirlo.",
+  "ch2.body":
+    "Rosa aprieta el botón y dice <strong>«Cóbrame cuarenta pesos»</strong>. Paygenti entiende el monto y la moneda, y la caja muestra en su pantalla el QR de ese cobro.",
+  "ch2.caption": "La caja escucha el pedido y muestra «40 MXN · Escanea para pagar».",
+  "ch3.kicker": "El cliente",
+  "ch3.title": "El cliente escanea y paga con PayPal.",
+  "ch3.body":
+    "Antes de pagar ve el nombre del puesto y el total. Paga con su cuenta de PayPal o con tarjeta, desde su propio teléfono. Rosa no toca el teléfono del cliente ni el dinero.",
+  "cap.checkout":
+    "<strong>Pantalla del cliente.</strong> Ve el puesto y el total antes de pagar. En esta grabación el pago es simulado.",
+  "ch4.kicker": "La confirmación",
+  "ch4.title": "¡Pagado! Solo cuando PayPal capturó el pago.",
+  "ch4.body":
+    "La caja no se fía de una pantalla: espera a que el servidor capture el pago con PayPal. Entonces se pone de color y lo dice en voz alta, con el monto. Rosa entrega el pedido sin dudas.",
+  "ch4.punch": "Una captura falsa no suena.",
+  "paid.caption": "La caja real pasa del QR a «PAGADO» y suena. Activa el sonido para oírla.",
+  "ch5.kicker": "Lo que queda",
+  "ch5.title": "Cada venta suma a su historial.",
+  "ch5.body":
+    "En la oficina del puesto Rosa ve las ventas del día y genera su <strong>pasaporte de ventas</strong>: un resumen firmado que cualquiera puede verificar. Un historial que es suyo, útil para pedir un crédito.",
+  "ch5.li1": "Para cobrar, el teléfono se desbloquea con el PIN, la huella o Face ID.",
+  "ch5.li2": "Reembolsos y pagos piden el PIN otra vez. El asistente solo propone.",
+  "ch5.li3":
+    "El efectivo se anota aparte, como declarado; solo lo de PayPal cuenta como verificado.",
+  "ch5.caption": "Oficina del puesto: ventas de hoy, pasaporte con QR y verificación VÁLIDA.",
+  "st.title": "La caja te dice qué pasa, siempre",
+  "st.lead":
+    "Cada estado tiene su color, su cara y su frase en voz alta. Así Rosa sabe al instante si todo salió bien, si tiene que repetir o si algo falló. Pantallas reales de la caja.",
+  "st.ok.title": "Todo bien",
+  "st.warn.title": "Aviso: hay que hacer algo",
+  "st.err.title": "Error: no se cobró",
+  "st.listen.name": "Te escucho…",
+  "st.listen.body": "Rosa aprieta el botón y dice el precio.",
+  "st.qr.name": "40 MXN · Escanea para pagar",
+  "st.qr.body": "Entendió el monto y la moneda; muestra el QR del cobro.",
+  "st.paid.name": "PAGADO · cuarenta pesos",
+  "st.paid.body": "PayPal capturó el pago. Lo dice en voz alta.",
+  "st.again.name": "Repítelo",
+  "st.again.body": "No entendió el monto. No cobra nada: Rosa lo vuelve a decir.",
+  "st.cancel.name": "Cancelado",
+  "st.cancel.body": "El cobro se canceló o se venció. No se movió dinero.",
+  "st.paypal.name": "PayPal falló",
+  "st.paypal.body": "PayPal rechazó o no pudo procesar el pago. Nunca dice PAGADO.",
+  "st.offline.name": "Sin internet",
+  "st.offline.body": "La caja no llega al servidor y sigue intentando conectar.",
+  "st.note": "Fotos de la pantalla real de la caja de voz (ESP32), sin retoques.",
+  "sc.title": "¿Un puesto o varios?",
+  "sc.lead":
+    "Paygenti crece con el negocio: la caja sola para el día a día, y el panel web cuando hay más de un puesto.",
+  "sc.one.kicker": "Un puesto",
+  "sc.one.title": "Con la caja basta.",
+  "sc.one.body":
+    "Rosa no necesita abrir ninguna página: habla, la caja cobra y le avisa. Las ventas quedan guardadas para cuando quiera verlas.",
+  "sc.many.kicker": "Varios puestos",
+  "sc.many.title": "El panel web, con todo el mes a la vista.",
+  "sc.many.body":
+    "Cuando hay dos o más cajas, el panel junta los puestos en una sola pantalla de escritorio.",
+  "sc.many.li1": "KPIs del mes: lo verificado por PayPal, lo declarado en efectivo y lo pendiente.",
+  "sc.many.li2": "Gráficas de ventas por día, por día de la semana y mapa de calor por hora.",
+  "sc.many.li3": "Filtro por puesto, movimientos con búsqueda y exportación a CSV.",
+  "sc.many.alt": "Panel web de Paygenti: resumen del mes con KPIs y gráficas",
+  "sc.many.altSales":
+    "Panel web de Paygenti: ventas diarias, ventas por día de la semana y mapa de calor de las mejores horas",
+  "sc.many.altStalls":
+    "Panel web de Paygenti: selector para cambiar entre dos puestos, Tacos Doña Lupe y Açaí da Praia",
+  "sc.many.caption": "Panel web con datos de ejemplo (modo sandbox).",
+  "quote.text": "«Paygenti me ayuda a tener el proceso más claro y ordenado.»",
+  "quote.who": "Rosa, tamales y atole · Recreación",
+  "cap.rosa2": "Rosa cuenta qué cambió en su puesto. Recreación.",
   "demo.title": "Mira la demo completa",
   "demo.lead":
-    "Una venta de principio a fin: la vendedora cobra, el cliente paga y la pantalla dice PAGADO. Activa el sonido para escucharla.",
-  "demo.caption": "Grabación real de la demo en el sandbox de PayPal: ningún pago es real.",
-  "how.title": "Tres pasos en cada venta",
-  "how.1.title": "Inicia el cobro",
-  "how.1.body":
-    "Teclea el monto o di el pedido en voz alta y toca <strong>Cobrar</strong>. Aparece un QR para que tu cliente lo escanee.",
-  "how.2.title": "Revisa el estado de la venta",
-  "how.2.body":
-    "La pantalla muestra <strong>Esperando pago</strong> con el tiempo que queda. Puedes darle 5 minutos más o cancelar el cobro, y tu cliente ve el cambio al momento.",
-  "how.3.title": "Confirma el pago",
-  "how.3.body":
-    "Cuando PayPal captura el pago, tu pantalla se pone verde, dice <strong>PAGADO</strong> y lo anuncia en voz alta. Una captura de pantalla falsa no suena.",
-  "paid.title": "El momento del pago, en el mostrador",
-  "paid.lead":
-    "Mientras la vendedora atiende, el voice box espera el pago. Cuando PayPal lo confirma, se pone de color y dice <strong>PAGADO</strong> con el monto. Grabación real, sin retoques.",
-  "paid.caption": 'Voice box real: pasa de "Sin internet, conectando" a "PAGADO, cuarenta pesos".',
-  "product.title": "Así se ve hoy, sin retoques",
-  "product.lead":
-    "Grabaciones reales de la app web en un teléfono y del voice box en el mostrador.",
-  "cap.charge":
-    "<strong>Pantalla de la vendedora.</strong> Desbloquea con el PIN, cobra $95, muestra el QR mientras espera y cambia a PAGADO.",
-  "cap.checkout":
-    "<strong>Pantalla del cliente.</strong> Ve el puesto y el total antes de pagar. En la demo el pago es simulado.",
-  "cap.voicebox":
-    "<strong>Voice box en el mostrador.</strong> Muestra y dice cada estado: sin internet, pagado, repítelo, cancelado y falla de PayPal. Activa el sonido para escucharlo.",
-  "cap.rosa2": 'Rosa: "Paygenti me ayuda a tener el proceso más claro y ordenado."',
-  "trust.title": "Más claro y más ordenado",
-  "trust.1.title": "Solo el pago confirmado cuenta",
-  "trust.1.body": "PAGADO aparece cuando el servidor capturó el pago con PayPal, no antes.",
-  "trust.2.title": "Tu teléfono, desbloqueado por ti",
-  "trust.2.body":
-    "Para cobrar, el teléfono se desbloquea una vez con el PIN del puesto, o con huella o Face ID donde el navegador lo permite.",
-  "trust.3.title": "El dinero no se mueve solo",
-  "trust.3.body":
-    "Reembolsos y pagos a proveedores piden tu PIN otra vez. El asistente solo propone; una regla fija decide.",
-  "trust.4.title": "Cada venta queda registrada",
-  "trust.4.body": "Revisa las ventas del día y el corte de caja en la oficina del puesto.",
+    "Un minuto, de principio a fin: la caja escucha, el cliente paga y la caja dice ¡Pagado!. Activa el sonido.",
+  "demo.caption": "Demo en el sandbox de PayPal: ningún pago es real.",
+  "try.title": "Ahora pruébalo tú",
+  "try.lead": "Simula una venta aquí mismo o abre la demo real en tu teléfono.",
   honest:
-    "Paygenti es un prototipo para el PayPal AI Hackathon. Esta demo corre en el sandbox de PayPal y no mueve dinero real.",
+    "Paygenti es un prototipo para el PayPal AI Hackathon. La demo corre en el sandbox de PayPal y no mueve dinero real. El cobro con tap (NFC) y la carcasa impresa vienen después.",
   "final.title": "Pruébalo en 60 segundos",
   "final.body":
     "Abre la demo: a la izquierda cobras como vendedora, a la derecha pagas como cliente. PIN de prueba: <strong>1234</strong>.",
@@ -100,70 +159,129 @@ const es = {
 export type LandingKey = keyof typeof es;
 
 const en: Record<LandingKey, string> = {
-  "meta.title": "Paygenti — take PayPal payments from your phone",
+  "meta.title": "Paygenti — take PayPal payments just by saying the price",
   "meta.desc":
-    "Paygenti helps food stalls and street vendors get paid with PayPal: start the charge, keep an eye on the sale and confirm the payment before you hand over the order.",
+    "Paygenti is the counter box that charges by voice: the vendor says the price, the customer pays with PayPal and the box says Paid! only once PayPal has captured the payment.",
   "meta.ogDesc":
-    "Start the charge, keep an eye on the sale and confirm the payment before you hand over the order.",
+    "Say the price, your customer pays with PayPal, and the box says Paid! only when the money is in.",
   skip: "Skip to content",
   brand: "Paygenti, home",
   "lang.group": "Language",
   "nav.main": "Main",
   "nav.more": "More screens",
+  "nav.chapters": "Story chapters",
   "cta.demo": "Try the demo",
-  "cta.how": "See how it works",
+  "cta.how": "See the story",
   "cta.app": "Open the charge screen",
   "hero.eyebrow": "For food stalls and street vendors",
-  "hero.title": "Take PayPal payments from your phone and know the moment you've been paid.",
+  "hero.title": "Take PayPal payments <em>just by saying the price.</em>",
   "hero.lead":
-    "You start the charge, your customer pays from a QR code or a sticker, and your screen only says <strong>PAID</strong> once PayPal has confirmed the payment. No more guessing before you hand over the order.",
+    "Rosa says “charge forty pesos.” The box shows the QR code, her customer pays with PayPal, and the box says <strong>Paid!</strong> only once PayPal has captured the payment.",
   "hero.note": "Demo on the PayPal sandbox: no real payments. Test PIN: 1234.",
-  "hero.caption": "Rosa shows how she gets paid with Paygenti on her phone.",
+  "hero.caption": "Rosa sells tamales and atole on the street. Recreation.",
   "hero.captionFallback":
     "Real recording of the charge screen: unlock, charge $95, wait, and PAID.",
   "video.unsupported": "Your browser can't play this video.",
   "video.failed": "This video couldn't load.",
+  "tag.recreation": "Recreation",
+  "tag.real": "Real recording",
+  "tag.realSound": "Real recording · with sound",
+  "mq.label": "A sample day at the stall",
+  "chip.1": "Listening…",
+  "chip.2": "40 MXN · Scan to pay",
+  "chip.3": "Paid! Captured by PayPal",
+  "rail.1": "The problem",
+  "rail.2": "Say it",
+  "rail.3": "Pay",
+  "rail.4": "Paid!",
+  "rail.5": "Her history",
+  "ch1.kicker": "The problem",
+  "ch1.title": "Almost everything is paid in cash. And cash leaves no trail.",
+  "ch1.body":
+    "Rosa works with her hands full. A big bill means no change to give back. Card terminals and bank QR codes take paperwork and tech skills. And a screenshot of a transfer can be faked.",
+  "ch1.stat1": "of workers in Mexico are informal",
+  "ch1.stat2": "daily payments in Mexico are made in cash",
+  "ch1.src1": "INEGI, Q4 2025",
+  "ch1.src2": "ABM, 2024",
+  "ch1.caption": "A tin cash box, a few bills and no change.",
+  "ch2.kicker": "The idea",
+  "ch2.title": "Nothing to type. Just say it.",
+  "ch2.body":
+    "Rosa presses the button and says <strong>“Charge forty pesos.”</strong> Paygenti understands the amount and the currency, and the box shows that charge's QR code on its screen.",
+  "ch2.caption": "The box hears the order and shows “40 MXN · Scan to pay”.",
+  "ch3.kicker": "The customer",
+  "ch3.title": "The customer scans and pays with PayPal.",
+  "ch3.body":
+    "Before paying they see the stall's name and the total. They pay with their PayPal account or a card, on their own phone. Rosa never touches the customer's phone or the money.",
+  "cap.checkout":
+    "<strong>Customer screen.</strong> Shows the stall and the total before paying. In this recording the payment is simulated.",
+  "ch4.kicker": "The confirmation",
+  "ch4.title": "Paid! Only once PayPal has captured the payment.",
+  "ch4.body":
+    "The box doesn't trust a screen: it waits until the server has captured the payment with PayPal. Then it lights up and says it out loud, with the amount. Rosa hands over the order with no doubts.",
+  "ch4.punch": "A fake screenshot makes no sound.",
+  "paid.caption":
+    "The real box goes from the QR code to “PAGADO” (paid) and chimes. Turn the sound on to hear it.",
+  "ch5.kicker": "What stays",
+  "ch5.title": "Every sale adds to her history.",
+  "ch5.body":
+    "In the stall's back office Rosa sees the day's sales and issues her <strong>sales passport</strong>: a signed summary anyone can verify. A history that belongs to her, useful when she asks for credit.",
+  "ch5.li1": "To take payments, the phone unlocks with the PIN, a fingerprint or Face ID.",
+  "ch5.li2": "Refunds and payouts ask for the PIN again. The assistant only suggests.",
+  "ch5.li3": "Cash is logged separately, as self-reported; only PayPal sales count as verified.",
+  "ch5.caption": "Stall back office: today's sales, the passport QR code and a VALID check.",
+  "st.title": "The box always tells you what's going on",
+  "st.lead":
+    "Every state has its own color, face and spoken line. Rosa knows right away whether it went well, whether to say it again, or whether something failed. Real screens from the box.",
+  "st.ok.title": "All good",
+  "st.warn.title": "Heads-up: do something",
+  "st.err.title": "Error: nothing was charged",
+  "st.listen.name": "Listening…",
+  "st.listen.body": "Rosa presses the button and says the price.",
+  "st.qr.name": "40 MXN · Scan to pay",
+  "st.qr.body": "It understood the amount and currency; it shows the charge's QR code.",
+  "st.paid.name": "PAID · forty pesos",
+  "st.paid.body": "PayPal captured the payment. The box says it out loud.",
+  "st.again.name": "Say it again",
+  "st.again.body": "It didn't catch the amount. Nothing is charged: Rosa says it again.",
+  "st.cancel.name": "Canceled",
+  "st.cancel.body": "The charge was canceled or expired. No money moved.",
+  "st.paypal.name": "PayPal failed",
+  "st.paypal.body": "PayPal declined or couldn't process the payment. It never says PAID.",
+  "st.offline.name": "Offline",
+  "st.offline.body": "The box can't reach the server and keeps trying to reconnect.",
+  "st.note": "Photos of the real voice box screen (ESP32), unedited. On-screen text is in Spanish.",
+  "sc.title": "One stall or several?",
+  "sc.lead":
+    "Paygenti grows with the business: the box alone for everyday selling, and the web dashboard once there's more than one stall.",
+  "sc.one.kicker": "One stall",
+  "sc.one.title": "The box is enough.",
+  "sc.one.body":
+    "Rosa doesn't need to open any page: she talks, the box charges and tells her. Sales are saved for whenever she wants to look.",
+  "sc.many.kicker": "Several stalls",
+  "sc.many.title": "The web dashboard, the whole month at a glance.",
+  "sc.many.body":
+    "With two or more boxes, the dashboard brings every stall together on one desktop screen.",
+  "sc.many.li1": "Monthly KPIs: what PayPal verified, the cash she declared and what's pending.",
+  "sc.many.li2": "Sales charts by day and weekday, plus an hour-by-hour heatmap.",
+  "sc.many.li3": "Filter by stall, searchable transactions and CSV export.",
+  "sc.many.alt": "Paygenti web dashboard: month summary with KPIs and charts",
+  "sc.many.altSales":
+    "Paygenti web dashboard: daily sales, sales by weekday and a heatmap of the best hours to sell",
+  "sc.many.altStalls":
+    "Paygenti web dashboard: switcher between two stalls, Tacos Doña Lupe and Açaí da Praia",
+  "sc.many.caption": "Web dashboard with sample data (sandbox mode).",
+  "quote.text": "“Paygenti helps me keep the whole process clearer and more organized.”",
+  "quote.who": "Rosa, tamales and atole · Recreation",
+  "cap.rosa2": "Rosa on what changed at her stall. Recreation.",
   "demo.title": "Watch the full demo",
   "demo.lead":
-    "One sale from start to finish: the vendor charges, the customer pays and the screen says PAID. Turn the sound on to hear it.",
-  "demo.caption": "Real recording of the demo on the PayPal sandbox: no real payments.",
-  "how.title": "Three steps, every sale",
-  "how.1.title": "Start the charge",
-  "how.1.body":
-    "Type the amount or say the order out loud and tap <strong>Charge</strong>. A QR code appears for your customer to scan.",
-  "how.2.title": "Keep an eye on the sale",
-  "how.2.body":
-    "The screen shows <strong>Waiting for payment</strong> and how much time is left. You can add 5 more minutes or cancel the charge, and your customer sees the change right away.",
-  "how.3.title": "Confirm the payment",
-  "how.3.body":
-    "Once PayPal captures the payment, your screen turns green, says <strong>PAID</strong> and announces it out loud. A fake screenshot makes no sound.",
-  "paid.title": "The moment you get paid, at the counter",
-  "paid.lead":
-    "While the vendor serves customers, the voice box waits for the payment. When PayPal confirms it, the screen lights up and says <strong>PAGADO</strong> (paid) with the amount. A real recording, unedited.",
-  "paid.caption":
-    'The real voice box: it goes from "Sin internet, conectando" (offline, connecting) to "PAGADO, cuarenta pesos" (paid, forty pesos).',
-  "product.title": "What it looks like today, unedited",
-  "product.lead": "Real recordings of the web app on a phone and of the voice box at the counter.",
-  "cap.charge":
-    "<strong>Vendor screen.</strong> Unlocks with the PIN, charges $95, shows the QR code while it waits and switches to PAID.",
-  "cap.checkout":
-    "<strong>Customer screen.</strong> Shows the stall and the total before paying. In the demo the payment is simulated.",
-  "cap.voicebox":
-    "<strong>Voice box at the counter.</strong> Shows and speaks every state: offline, paid, say it again, canceled and PayPal error. Turn the sound on to hear it.",
-  "cap.rosa2": 'Rosa: "Paygenti helps me keep the whole process clearer and more organized."',
-  "trust.title": "Clearer and more organized",
-  "trust.1.title": "Only a confirmed payment counts",
-  "trust.1.body": "PAID only shows up once the server has captured the payment with PayPal.",
-  "trust.2.title": "Your phone, unlocked by you",
-  "trust.2.body":
-    "To take payments, you unlock the phone once with the stall's PIN, or with your fingerprint or Face ID where the browser supports it.",
-  "trust.3.title": "Money never moves on its own",
-  "trust.3.body":
-    "Refunds and supplier payouts ask for your PIN again. The assistant only suggests; a fixed rule decides.",
-  "trust.4.title": "Every sale is on record",
-  "trust.4.body": "Check the day's sales and the end-of-day cash count in the stall's back office.",
+    "One minute, start to finish: the box listens, the customer pays and the box says Paid!. Turn the sound on.",
+  "demo.caption": "Demo on the PayPal sandbox: no real payments.",
+  "try.title": "Now try it yourself",
+  "try.lead": "Simulate a sale right here, or open the real demo on your phone.",
   honest:
-    "Paygenti is a prototype built for the PayPal AI Hackathon. This demo runs on the PayPal sandbox and doesn't move real money.",
+    "Paygenti is a prototype built for the PayPal AI Hackathon. The demo runs on the PayPal sandbox and doesn't move real money. Tap-to-pay (NFC) and the printed case come next.",
   "final.title": "Try it in 60 seconds",
   "final.body":
     "Open the demo: on the left you charge as the vendor, on the right you pay as the customer. Test PIN: <strong>1234</strong>.",

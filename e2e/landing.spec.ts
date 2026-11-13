@@ -4,7 +4,7 @@
 // missing, a poster when a video cannot load, and no autoplay under reduced motion, and the full-demo slot
 // (web/public/media/demo.mp4) hidden until that file exists. The copy checks run in Spanish; a
 // separate block covers the ES/EN toggle (browser-language default, switch, and persistence). Also
-// the hero sale simulator (keyboard to PAID, no API calls) and the open-on-your-phone QR card.
+// the try-it sale simulator (keyboard to PAID, no API calls) and the open-on-your-phone QR card.
 import AxeBuilder from "@axe-core/playwright";
 import { expect, expectNoOverflow, test } from "./fixtures";
 
